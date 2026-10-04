@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.agendapersonal.data.Prefs
 import com.agendapersonal.notify.Notifier
 import com.agendapersonal.notify.Scheduler
+import com.agendapersonal.sections.DigestStore
 import com.agendapersonal.sections.Section
 import com.agendapersonal.sections.SectionRegistry
 import kotlinx.coroutines.launch
@@ -30,6 +31,21 @@ fun DigestsScreen() {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            var refreshing by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
+            Button(
+                enabled = !refreshing,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    refreshing = true
+                    scope.launch {
+                        SectionRegistry.all.forEach { DigestStore.refresh(ctx, it); version++ }
+                        refreshing = false
+                    }
+                },
+            ) { Text(if (refreshing) "Actualizando todo…" else "🔄 Actualizar todo ahora") }
+        }
         item {
             if (!Scheduler.canScheduleExact(ctx)) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
@@ -88,15 +104,21 @@ private fun SectionCard(
                 Button(enabled = !loading, onClick = {
                     loading = true
                     scope.launch {
-                        val digest = runCatching { section.build(ctx) }.getOrNull()
+                        val digest = DigestStore.refresh(ctx, section)
                         loading = false
-                        if (digest != null) {
-                            onShow(digest.title to digest.body)
-                        } else onShow(section.title to "No se pudo obtener la información. Revisa tu conexión.")
+                        onChange()
+                        if (digest != null && digest.ok) onShow(digest.title to digest.body)
+                        else onShow(
+                            section.title to (digest?.body?.takeIf { it.isNotBlank() }
+                                ?: "No se pudo obtener la información. Revisa tu conexión."),
+                        )
                     }
-                }) { Text(if (loading) "Cargando…" else "Ver ahora") }
+                }) { Text(if (loading) "Cargando…" else "🔄 Actualizar ahora") }
 
                 if (last != null) TextButton(onClick = { onShow(section.title to last) }) { Text("Último") }
+            }
+            last?.lineSequence()?.firstOrNull()?.let {
+                Text("Última actualización: ${it.substringAfterLast(" · ")}", style = MaterialTheme.typography.bodySmall)
             }
             TextButton(onClick = {
                 scope.launch {

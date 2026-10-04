@@ -4,12 +4,9 @@ import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.work.*
-import com.agendapersonal.data.Prefs
+import com.agendapersonal.sections.DigestStore
 import com.agendapersonal.sections.Section
 import com.agendapersonal.sections.SectionRegistry
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** Genera el contenido de una sección (con red si hace falta) y publica la notificación. */
 class DigestWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -17,7 +14,6 @@ class DigestWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     override suspend fun doWork(): Result {
         val id = inputData.getString(KEY_SECTION) ?: return Result.failure()
         val section = SectionRegistry.byId(id) ?: return Result.failure()
-        val prefs = Prefs(applicationContext)
 
         val digest = runCatching { section.build(applicationContext) }.getOrNull()
         if ((digest == null || !digest.ok) && runAttemptCount < MAX_RETRIES) return Result.retry()
@@ -25,8 +21,7 @@ class DigestWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val result = digest ?: com.agendapersonal.sections.Digest(
             section.title, "No se pudo obtener la información", "No se pudo obtener la información. Revisa tu conexión.", ok = false,
         )
-        val stamp = SimpleDateFormat("d MMM HH:mm", Locale("es", "ES")).format(Date())
-        prefs.setLastDigest(id, "${result.title} · $stamp\n\n${result.body}")
+        DigestStore.save(applicationContext, id, result)
         Notifier.postDigest(applicationContext, id, result)
         return Result.success()
     }
