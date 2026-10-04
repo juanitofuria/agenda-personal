@@ -147,6 +147,8 @@ export interface Dependencias {
   log?: (mensaje: string) => void;
   intentos?: number;
   esperaMs?: number;
+  /** Tope de signos que se piden en esta ejecución (los demás quedan para la siguiente); útil con límites de peticiones. */
+  maxPedidos?: number;
 }
 
 export interface Resultado { actualizados: string[]; alDia: string[]; omitidos: string[]; fallidos: string[] }
@@ -161,10 +163,13 @@ export async function actualizarTodos(dep: Dependencias): Promise<Resultado> {
   const hoy = fechaEnZona(dep.ahora, dep.zona);
   const res: Resultado = { actualizados: [], alDia: [], omitidos: [], fallidos: [] };
   log(`Actualizando horóscopo para ${hoy}`);
+  let pedidos = 0;
   for (const signo of SIGNOS) {
     try {
       const previa = await dep.fechaGuardada?.(signo.id);
       if (previa === hoy) { res.alDia.push(signo.id); continue; }
+      if (dep.maxPedidos !== undefined && pedidos >= dep.maxPedidos) continue;
+      pedidos++;
       const respuesta = await obtenerSigno(dep.http, dep.config, signo, hoy, dep.intentos ?? 3, dep.esperaMs ?? 2000);
       const doc = construirDoc(signo, hoy, respuesta, dep.config, dep.ahora);
       if (!doc) { res.fallidos.push(signo.id); log(`✗ ${signo.id}: la API no devolvió texto`); continue; }

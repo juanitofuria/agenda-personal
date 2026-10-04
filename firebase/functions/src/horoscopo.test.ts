@@ -166,3 +166,18 @@ test("actualizarTodos: no sustituye un documento por otro más antiguo", async (
   const r = await actualizarTodos(dep);
   assert.equal(r.omitidos.length, 12); assert.equal(guardados.size, 0);
 });
+
+test("maxPedidos limita los signos pedidos por ejecución y el resto queda para la siguiente", async () => {
+  const guardados = new Map<string, HoroscopoDoc>();
+  const llamadas: string[] = [];
+  const http: Http = { get: async (url: string) => { llamadas.push(url); return { data: ok("2026-10-04") }; } };
+  const dep = { http, config: { baseUrl: "https://h.test", idioma: "es" }, zona: "Europe/Madrid", ahora: new Date("2026-10-04T06:00:00Z"), esperaMs: 0,
+    guardar: async (id: string, doc: HoroscopoDoc) => { guardados.set(id, doc); }, fechaGuardada: async (id: string) => guardados.get(id)?.fecha, maxPedidos: 5 };
+  const r1 = await actualizarTodos(dep);
+  assert.equal(llamadas.length, 5); assert.equal(r1.actualizados.length, 5);
+  const r2 = await actualizarTodos(dep);
+  assert.equal(r2.alDia.length, 5); assert.equal(r2.actualizados.length, 5);
+  const r3 = await actualizarTodos(dep);
+  assert.equal(r3.actualizados.length, 2); assert.equal(guardados.size, 12);
+  assert.equal(llamadas.length, 12);
+});

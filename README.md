@@ -9,7 +9,9 @@ Todo corre en la nube con **Firebase**; no hay que instalar nada más que Telegr
 * **Menús con botones** para crear, ver, **modificar y eliminar alarmas, citas y tareas** (con repetición, antelación y
   «posponer»), y para cambiar secciones, horas y datos.
 
-👉 **Puesta en marcha, arquitectura, tests y límites: [`firebase/README.md`](firebase/README.md).**
+👉 **Dos formas de desplegarlo (misma lógica):**
+* **Cloudflare Workers + D1 — gratis, sin tarjeta:** [`cloudflare/README.md`](cloudflare/README.md).
+* **Firebase (plan Blaze, requiere tarjeta):** [`firebase/README.md`](firebase/README.md) (arquitectura, tests y límites).
 
 > La app Android que hay más abajo fue la primera versión del proyecto. Se conserva en el repositorio (carpeta `app/`) como
 > cliente alternativo, pero el sistema principal es el bot.
