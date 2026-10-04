@@ -37,6 +37,11 @@ class LiveSectionsTest {
             println("-- preview:\n" + digest.preview.joinToString("\n"))
             assertTrue("${section.id} sin datos", digest.ok)
             assertTrue("${section.id} sin vista previa", digest.preview.isNotEmpty())
+            if (section.id == "weather") {
+                val w = com.agendapersonal.sections.WeatherData.fromJson(digest.extra)
+                assertNotNull("tiempo sin datos para la gráfica", w)
+                println("-- gráfica: ${w!!.hours.size} horas, " + w.hours.joinToString { "${it.hour}h ${it.temp.toInt()}º p${it.prob}%" })
+            }
         }
     }
 }

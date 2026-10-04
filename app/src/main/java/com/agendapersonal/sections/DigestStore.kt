@@ -12,7 +12,7 @@ import java.util.Date
 import java.util.Locale
 
 /** Último resumen guardado de una sección. */
-data class Stored(val title: String, val summary: String, val preview: List<String>, val body: String, val at: Long)
+data class Stored(val title: String, val summary: String, val preview: List<String>, val body: String, val at: Long, val extra: String? = null)
 
 /** Genera una sección y guarda el resultado como "último resumen" (lo usan la app y el worker). */
 object DigestStore {
@@ -20,7 +20,7 @@ object DigestStore {
         val json = JSONObject()
             .put("title", digest.title).put("summary", digest.summary)
             .put("preview", JSONArray(digest.preview)).put("body", digest.body)
-            .put("at", System.currentTimeMillis())
+            .put("at", System.currentTimeMillis()).apply { digest.extra?.let { put("extra", it) } }
         Prefs(context).setLastDigest(sectionId, json.toString())
     }
 
@@ -32,7 +32,7 @@ object DigestStore {
             Stored(
                 j.getString("title"), j.optString("summary"),
                 (0 until (arr?.length() ?: 0)).map { arr!!.getString(it) },
-                j.getString("body"), j.optLong("at"),
+                j.getString("body"), j.optLong("at"), j.optString("extra").ifEmpty { null },
             )
         }.getOrNull() // formato antiguo (texto plano): se ignora y se vuelve a generar
     }

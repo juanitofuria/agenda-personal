@@ -7,7 +7,7 @@ información que necesitas, y gestiona **tareas pendientes** y **citas médicas*
 
 | Sección | Hora por defecto | Contenido |
 |---|---|---|
-| **Tiempo** | 07:00 | Previsión hora a hora de tu zona, lluvia de ayer (l/m²) y acumulada del año. Fuente: [Open-Meteo](https://open-meteo.com) (sin clave). |
+| **Tiempo** | 07:00 | Gráfica de temperatura por horas con iconos (sol, nubes, lluvia, tormenta) y probabilidad de lluvia, lista hora a hora, lluvia de ayer (l/m²) y acumulada del año. Fuente: [Open-Meteo](https://open-meteo.com) (sin clave). |
 | **Noticias** | 07:10 | Economía, política, fútbol y motociclismo (Google News RSS) + provincia, ayuntamientos a seguir (por defecto Montoro y Córdoba, editables) y nombres a vigilar (alcalde, concejales…) + feeds RSS propios. |
 | **Agenda** | 07:20 | Citas de hoy y mañana y tareas pendientes (sin Internet). |
 | **Mercados** | 14:00 | Futuros/premercado de Wall Street, noticias económicas, cierre de la última sesión (EEUU, Europa, Asia) y crónica de mercados. Fuente: Yahoo Finance (API no oficial). |

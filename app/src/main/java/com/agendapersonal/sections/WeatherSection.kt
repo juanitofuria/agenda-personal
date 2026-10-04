@@ -26,18 +26,22 @@ object WeatherSection : Section {
         val b = DigestBuilder()
         var summary = "Previsión para $place"
         val preview = mutableListOf<String>()
+        var tMinD = 0.0; var tMaxD = 0.0; var codeD = 0
+        var hoursD = emptyList<HourPoint>()
+        var rainY: Double? = null; var rainYr: Double? = null
 
         b.part("Previsión") {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
                 "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m" +
                 "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code" +
-                "&timezone=auto&forecast_days=1"
+                "&timezone=auto&forecast_days=2"
             val json = JSONObject(Http.get(url))
             val daily = json.getJSONObject("daily")
             val tMax = daily.getJSONArray("temperature_2m_max").getDouble(0)
             val tMin = daily.getJSONArray("temperature_2m_min").getDouble(0)
             val rain = daily.getJSONArray("precipitation_sum").optDouble(0, 0.0)
             val code = daily.getJSONArray("weather_code").optInt(0)
+            tMinD = tMin; tMaxD = tMax; codeD = code
             summary = "${emoji(code)} ${describe(code)}, ${fmt(tMin)}º/${fmt(tMax)}º" +
                 if (rain >= 0.1) " · lluvia ${fmt(rain)} mm" else ""
 
@@ -49,6 +53,10 @@ object WeatherSection : Section {
             val codes = h.getJSONArray("weather_code")
             val wind = h.getJSONArray("wind_speed_10m")
             val now = LocalDateTime.now()
+            val nowHour = now.withMinute(0).withSecond(0).withNano(0)
+            hoursD = (0 until times.length()).filter { !LocalDateTime.parse(times.getString(it)).isBefore(nowHour) }.take(18).map {
+                HourPoint(LocalDateTime.parse(times.getString(it)).hour, temp.optDouble(it), codes.optInt(it), prob.optInt(it, 0), precip.optDouble(it, 0.0), wind.optDouble(it, 0.0))
+            }
             val upcoming = (0 until times.length()).filter { !LocalDateTime.parse(times.getString(it)).isBefore(now.withMinute(0).withSecond(0).withNano(0)) }
             preview += "${emoji(code)} ${describe(code).replaceFirstChar { it.uppercase() }} · ${fmt(tMin)}º / ${fmt(tMax)}º"
             val slots = upcoming.filterIndexed { i, _ -> i % 3 == 0 }.take(4)
@@ -59,7 +67,7 @@ object WeatherSection : Section {
             for (i in 0 until times.length()) {
                 val t = LocalDateTime.parse(times.getString(i))
                 // Desde la hora actual en adelante (si es de madrugada, todo el día).
-                if (t.isBefore(now.withMinute(0).withSecond(0).withNano(0))) continue
+                if (t.isBefore(now.withMinute(0).withSecond(0).withNano(0)) || t.toLocalDate() != now.toLocalDate()) continue
                 sb.append(
                     "\n%02d:00  %s %sº  💧%d%%  %s mm  💨%s km/h".format(
                         t.hour, emoji(codes.optInt(i)), fmt(temp.optDouble(i)),
@@ -85,26 +93,18 @@ object WeatherSection : Section {
                 val values = (0 until arr.length()).map { if (arr.isNull(it)) 0.0 else arr.getDouble(it) }
                 val yesterdayMm = values.lastOrNull() ?: 0.0
                 val year = values.sum()
+                rainY = yesterdayMm; rainYr = year
                 val first = if (yesterdayMm >= 0.1) "Ayer llovió ${fmt(yesterdayMm)} l/m²." else "Ayer no llovió."
                 preview += (if (yesterdayMm >= 0.1) "🌧️ Ayer ${fmt(yesterdayMm)} l/m²" else "☀️ Ayer sin lluvia") + " · Año ${fmt(year)} l/m²"
                 "🌧️ $first\nAcumulado ${today.year}: ${fmt(year)} l/m² (desde el 1 de enero)."
             }
         }
-        return b.build("Tiempo · $place", summary, preview)
+        val extra = if (hoursD.isNotEmpty()) WeatherData(place, tMinD, tMaxD, codeD, hoursD, rainY, rainYr, LocalDate.now().year).toJson() else null
+        return b.build("Tiempo · $place", summary, preview, extra)
     }
 
     private fun fmt(v: Double) = String.format(Locale("es", "ES"), "%.1f", v).removeSuffix(",0")
 
-    private fun emoji(code: Int) = when (code) {
-        0 -> "☀️"; 1, 2 -> "🌤️"; 3 -> "☁️"; 45, 48 -> "🌫️"
-        in 51..57 -> "🌦️"; in 61..67 -> "🌧️"; in 71..77 -> "❄️"
-        in 80..82 -> "🌧️"; 85, 86 -> "🌨️"; in 95..99 -> "⛈️"; else -> "🌡️"
-    }
-
-    private fun describe(code: Int) = when (code) {
-        0 -> "despejado"; 1 -> "poco nuboso"; 2 -> "parcialmente nuboso"; 3 -> "cubierto"
-        45, 48 -> "niebla"; in 51..57 -> "llovizna"; in 61..65 -> "lluvia"; 66, 67 -> "lluvia helada"
-        in 71..77 -> "nieve"; in 80..82 -> "chubascos"; 85, 86 -> "chubascos de nieve"
-        95 -> "tormenta"; 96, 99 -> "tormenta con granizo"; else -> "variable"
-    }
+    private fun emoji(code: Int) = WeatherIcons.emoji(code)
+    private fun describe(code: Int) = WeatherIcons.describe(code)
 }

@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.agendapersonal.notify.Notifier
 import com.agendapersonal.sections.DigestStore
 import com.agendapersonal.sections.Section
+import com.agendapersonal.sections.WeatherData
 import kotlinx.coroutines.launch
 
 /** Pantalla completa de una sección: es a donde llevan las notificaciones. */
@@ -80,9 +81,10 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
                 if (!loading) EmptyState(style.icon, "Sin datos todavía", "Pulsa actualizar para obtener la información.")
                 else Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
-                DigestContent(s.body)
+                val weather = WeatherData.fromJson(s.extra)
+                if (weather != null) WeatherView(weather) else DigestContent(s.body)
                 OutlinedButton(
-                    onClick = { Notifier.postDigest(ctx, section, com.agendapersonal.sections.Digest(s.title, s.summary, s.body, s.preview)) },
+                    onClick = { Notifier.postDigest(ctx, section, com.agendapersonal.sections.Digest(s.title, s.summary, s.body, s.preview, s.extra)) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Rounded.NotificationsActive, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))

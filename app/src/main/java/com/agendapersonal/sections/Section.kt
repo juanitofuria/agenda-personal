@@ -9,6 +9,8 @@ data class Digest(
     val body: String,
     /** Titulares cortos (máx. 6 líneas) para la tarjeta de inicio y la notificación. */
     val preview: List<String> = emptyList(),
+    /** Datos estructurados opcionales (JSON) para vistas especiales, p. ej. la gráfica del tiempo. */
+    val extra: String? = null,
     /** false si no se pudo obtener ningún dato (p. ej. sin conexión): se reintentará. */
     val ok: Boolean = true,
 )
@@ -60,11 +62,12 @@ class DigestBuilder(private val retryDelayMs: Long = 1500) {
         parts += "⚠️ $name: no disponible (${last?.message?.take(60) ?: last?.javaClass?.simpleName})"
     }
 
-    fun build(title: String, summary: String, preview: List<String> = emptyList()): Digest = Digest(
+    fun build(title: String, summary: String, preview: List<String> = emptyList(), extra: String? = null): Digest = Digest(
         title = title,
         summary = summary,
         body = parts.joinToString("\n\n"),
         preview = preview.take(6),
+        extra = extra,
         ok = attempted == 0 || succeeded > 0,
     )
 }

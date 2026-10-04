@@ -25,6 +25,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34])
 class BehaviorTest {
     private val ctx: Context get() = ApplicationProvider.getApplicationContext()
@@ -42,6 +43,27 @@ class BehaviorTest {
         assertEquals("Tiempo · Montoro", s.title); assertEquals(listOf("a", "b"), s.preview); assertEquals("cuerpo\n\nmás", s.body)
         assertTrue(s.at > 0)
         assertNull(DigestStore.load(ctx, "news"))
+    }
+
+    @Test fun weatherDataRoundTripAndBitmap() {
+        val w = ScreenshotTest.SAMPLE_WEATHER
+        val back = com.agendapersonal.sections.WeatherData.fromJson(w.toJson())!!
+        assertEquals(w.hours.size, back.hours.size); assertEquals(w.rainYear, back.rainYear)
+        assertEquals(w.hours[3].temp, back.hours[3].temp, 1e-9)
+        assertNull(com.agendapersonal.sections.WeatherData.fromJson(null))
+        assertNull(com.agendapersonal.sections.WeatherData.fromJson("no es json"))
+        val bmp = com.agendapersonal.notify.WeatherChartBitmap.render(back.hours)
+        assertEquals(960, bmp.width)
+        // la gráfica dibuja algo (no es todo transparente)
+        assertTrue((0 until bmp.width step 7).any { x -> (0 until bmp.height step 7).any { y -> bmp.getPixel(x, y) ushr 24 != 0 } })
+    }
+
+    @Test fun weatherDigestStoresChartDataAndNotificationShowsIt() {
+        val d = Digest("Tiempo · Montoro", "x", "body", listOf("l1"), ScreenshotTest.SAMPLE_WEATHER.toJson())
+        DigestStore.save(ctx, "weather", d)
+        assertNotNull(com.agendapersonal.sections.WeatherData.fromJson(DigestStore.load(ctx, "weather")!!.extra))
+        val (_, expanded) = Notifier.digestViews(ctx, WeatherSection, d)
+        assertNotNull(expanded)
     }
 
     @Test fun digestNotificationOpensOnlyItsSection() {

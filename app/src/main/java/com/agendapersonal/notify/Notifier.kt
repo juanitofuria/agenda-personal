@@ -76,10 +76,19 @@ object Notifier {
             setTextViewText(R.id.summary, digest.preview.firstOrNull() ?: digest.summary)
         }
         val ids = intArrayOf(R.id.line1, R.id.line2, R.id.line3, R.id.line4, R.id.line5, R.id.line6)
+        val hasChart = com.agendapersonal.sections.WeatherData.fromJson(digest.extra) != null
+        // Con gráfica se omite la línea de horas en texto (sería redundante).
         val lines = digest.preview.ifEmpty { digest.body.lines().filter { it.isNotBlank() }.take(6) }
+            .filterNot { hasChart && it.startsWith("⏰") }
         val expanded = RemoteViews(context.packageName, R.layout.notif_expanded).apply {
             setInt(R.id.accent_bar, "setBackgroundColor", section.accent)
             setTextViewText(R.id.title, "${section.emoji}  ${digest.title}")
+            // Tiempo: gráfica por horas dentro de la notificación expandida.
+            val weather = com.agendapersonal.sections.WeatherData.fromJson(digest.extra)
+            if (weather != null) {
+                setImageViewBitmap(R.id.chart, WeatherChartBitmap.render(weather.hours))
+                setViewVisibility(R.id.chart, android.view.View.VISIBLE)
+            }
             ids.forEachIndexed { i, id ->
                 if (i < lines.size) { setTextViewText(id, lines[i]); setViewVisibility(id, android.view.View.VISIBLE) }
             }

@@ -60,7 +60,7 @@ class ScreenshotTest {
         db.appointments().insert(Appointment(title = "Revisión dentista", at = now + 20 * day))
         db.appointments().insert(Appointment(title = "Oftalmología", place = "Clínica Vista", at = now - 5 * day))
         val prefs = Prefs(ctx)
-        DigestStore.save(ctx, "weather", Digest("Tiempo · Montoro", "☁️ cubierto, 19º/28º", WEATHER, WEATHER_PREVIEW))
+        DigestStore.save(ctx, "weather", Digest("Tiempo · Montoro", "☁️ cubierto, 19º/28º", WEATHER, WEATHER_PREVIEW, SAMPLE_WEATHER.toJson()))
         DigestStore.save(ctx, "news", Digest("Noticias del día", "Resumen", NEWS, NEWS_PREVIEW))
         DigestStore.save(ctx, "agenda", Digest("Tu agenda de hoy", "2 citas", "🩺 CITAS\n• Cardiología", AGENDA_PREVIEW))
         DigestStore.save(ctx, "markets", Digest("Mercados · premercado EEUU", "Futuros S&P 500 +0.69%", MARKETS, MARKETS_PREVIEW))
@@ -100,7 +100,7 @@ class ScreenshotTest {
             val pad = (16 * density).toInt(); setPadding(pad, pad, pad, pad)
         }
         val pairs = listOf(
-            com.agendapersonal.sections.WeatherSection to Digest("Tiempo · Montoro", "☁️ cubierto, 19º/28º", "", WEATHER_PREVIEW),
+            com.agendapersonal.sections.WeatherSection to Digest("Tiempo · Montoro", "☁️ cubierto, 19º/28º", "", WEATHER_PREVIEW, SAMPLE_WEATHER.toJson()),
             com.agendapersonal.sections.NewsSection to Digest("Noticias del día", "Resumen", "", NEWS_PREVIEW),
             com.agendapersonal.sections.MarketsSection to Digest("Mercados · premercado EEUU", "Futuros", "", MARKETS_PREVIEW),
             com.agendapersonal.sections.AgendaSection to Digest("Tu agenda de hoy", "2 citas", "", AGENDA_PREVIEW),
@@ -134,6 +134,15 @@ class ScreenshotTest {
     fun dark() { if (System.getenv("SHOTS") != "1") return; seed(); screens("dark", true) }
 
     companion object {
+        val SAMPLE_WEATHER = com.agendapersonal.sections.WeatherData(
+            "Montoro", 19.2, 28.4, 3,
+            (7..24).map { h ->
+                val t = 20 + 8.4 * kotlin.math.sin((h - 5) / 18.0 * Math.PI)
+                val code = when { h < 10 -> 2; h < 15 -> 3; h in 17..19 -> 80; h in 20..21 -> 95; else -> 3 }
+                com.agendapersonal.sections.HourPoint(h % 24, t, code, when { h in 17..21 -> 60 + (h - 17) * 8; h in 14..16 -> 25; else -> 5 }, if (h in 18..20) 1.2 else 0.0, 4.0 + h % 7)
+            },
+            rainYesterday = 0.5, rainYear = 475.7, year = 2026,
+        )
         val WEATHER_PREVIEW = listOf("☁️ Cubierto · 19º / 28º", "⏰ 7h 🌤️20º · 10h 🌤️25º · 13h ☁️28º · 16h ☁️27º", "🌧️ Ayer 0,5 l/m² · Año 475,7 l/m²")
         val NEWS_PREVIEW = listOf(
             "💶 El Banco de España aboga por un equilibrio entre disciplina y empoderamiento financiero",

@@ -27,6 +27,10 @@ import com.agendapersonal.notify.Scheduler
 import com.agendapersonal.sections.DigestStore
 import com.agendapersonal.sections.Section
 import com.agendapersonal.sections.SectionRegistry
+import com.agendapersonal.sections.WeatherData
+import com.agendapersonal.sections.WeatherIcons
+import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -206,6 +210,22 @@ fun SectionCard(
                         Text("Obteniendo datos…", style = MaterialTheme.typography.bodyMedium)
                     }
                     stored == null -> Text("Aún sin datos. Pulsa «Actualizar».", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    WeatherData.fromJson(stored.extra) != null -> {
+                        val w = WeatherData.fromJson(stored.extra)!!
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(WeatherIcons.emoji(w.code), fontSize = 30.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(WeatherIcons.describe(w.code).replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.titleSmall)
+                                Text(w.place, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text("${w.tMin.roundToInt()}º / ${w.tMax.roundToInt()}º", style = MaterialTheme.typography.titleMedium)
+                        }
+                        HourlyChart(w.hours, height = 150.dp, compact = true)
+                        stored.preview.lastOrNull { it.contains("Ayer") || it.contains("Año") }?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                     else -> {
                         val lines = stored.preview.ifEmpty { listOf(stored.summary) }.take(4)
                         lines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }
