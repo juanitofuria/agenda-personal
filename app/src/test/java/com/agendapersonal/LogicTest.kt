@@ -59,9 +59,9 @@ class LogicTest {
         assertEquals(12, (0 until 366).map { Sign.of(LocalDate.of(2024, 1, 1).plusDays(it.toLong())) }.toSet().size)
     }
 
-    @Test fun signIdsMatchFirestoreAndAztroNames() {
+    @Test fun signIdsMatchFirestoreAndSourceApiNames() {
         assertEquals(listOf("aries", "tauro", "geminis", "cancer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"), Sign.entries.map { it.id })
-        assertEquals(listOf("aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"), Sign.entries.map { it.aztro })
+        assertEquals(listOf("aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"), Sign.entries.map { it.english })
         assertTrue(Sign.entries.all { it.id == java.text.Normalizer.normalize(it.id, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "") })
     }
 

@@ -11,8 +11,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Signos con su identificador en Firestore (español sin tildes) y el nombre que usa Aztro (inglés). */
-enum class Sign(val label: String, val symbol: String, val element: String, val id: String, val aztro: String) {
+/** Signos con su identificador en Firestore (español sin tildes) y el nombre en inglés que usa la API de origen. */
+enum class Sign(val label: String, val symbol: String, val element: String, val id: String, val english: String) {
     ARIES("Aries", "♈", "fuego", "aries", "aries"), TAURUS("Tauro", "♉", "tierra", "tauro", "taurus"),
     GEMINI("Géminis", "♊", "aire", "geminis", "gemini"), CANCER("Cáncer", "♋", "agua", "cancer", "cancer"),
     LEO("Leo", "♌", "fuego", "leo", "leo"), VIRGO("Virgo", "♍", "tierra", "virgo", "virgo"),
