@@ -31,7 +31,7 @@ fun SettingsScreen() {
     var status by remember { mutableStateOf<String?>(null) }
     var placeName by remember { mutableStateOf(prefs.placeName) }
     var province by remember { mutableStateOf(prefs.province) }
-    var municipality by remember { mutableStateOf(prefs.municipality) }
+    var councils by remember { mutableStateOf(prefs.councils) }
     var terms by remember { mutableStateOf(prefs.watchTerms) }
     var feeds by remember { mutableStateOf(prefs.customFeeds) }
 
@@ -60,9 +60,12 @@ fun SettingsScreen() {
             OutlinedButton(onClick = {
                 prefs.placeName = p.name; prefs.latitude = p.lat; prefs.longitude = p.lon
                 placeName = p.name
-                // Rellena provincia y municipio para las noticias locales (editables).
+                // Actualiza la provincia para las noticias locales (editable).
                 province = p.admin2.ifBlank { p.admin1 }; prefs.province = province
-                municipality = p.name; prefs.municipality = municipality
+                // Añade el municipio a los ayuntamientos seguidos si no estaba (quita los antiguos a mano).
+                if (prefs.lines(councils).none { it.equals(p.name, ignoreCase = true) }) {
+                    councils = (prefs.lines(councils) + p.name).joinToString("\n"); prefs.councils = councils
+                }
                 results = emptyList(); query = ""
             }, modifier = Modifier.fillMaxWidth()) {
                 Text(listOf(p.name, p.admin2, p.admin1, p.country).filter { it.isNotBlank() }.joinToString(", "))
@@ -72,7 +75,12 @@ fun SettingsScreen() {
         HorizontalDivider()
         Text("🗞️ Noticias locales", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(province, { province = it; prefs.province = it }, label = { Text("Provincia") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(municipality, { municipality = it; prefs.municipality = it }, label = { Text("Municipio") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            councils, { councils = it; prefs.councils = it },
+            label = { Text("Ayuntamientos a seguir (uno por línea)") },
+            supportingText = { Text("Se buscan noticias de «Ayuntamiento de …», su alcalde y el municipio") },
+            minLines = 2, modifier = Modifier.fillMaxWidth(),
+        )
         OutlinedTextField(
             terms, { terms = it; prefs.watchTerms = it },
             label = { Text("Nombres a vigilar (uno por línea)") },

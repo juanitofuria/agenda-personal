@@ -20,22 +20,23 @@ class Prefs(context: Context) {
 
     // ---- Ubicación (para el tiempo) ----
     var placeName: String
-        get() = sp.getString("place_name", "Madrid") ?: "Madrid"
+        get() = sp.getString("place_name", "Montoro") ?: "Montoro"
         set(v) = sp.edit().putString("place_name", v).apply()
     var latitude: Double
-        get() = sp.getFloat("lat", 40.4168f).toDouble()
+        get() = sp.getFloat("lat", 38.0227f).toDouble()
         set(v) = sp.edit().putFloat("lat", v.toFloat()).apply()
     var longitude: Double
-        get() = sp.getFloat("lon", -3.7038f).toDouble()
+        get() = sp.getFloat("lon", -4.3856f).toDouble()
         set(v) = sp.edit().putFloat("lon", v.toFloat()).apply()
 
     // ---- Noticias locales ----
     var province: String
-        get() = sp.getString("province", "") ?: ""
+        get() = sp.getString("province", "Córdoba") ?: "Córdoba"
         set(v) = sp.edit().putString("province", v).apply()
-    var municipality: String
-        get() = sp.getString("municipality", "") ?: ""
-        set(v) = sp.edit().putString("municipality", v).apply()
+    /** Ayuntamientos/municipios a seguir (uno por línea). Por defecto Montoro y Córdoba. */
+    var councils: String
+        get() = sp.getString("councils", "Montoro\nCórdoba") ?: "Montoro\nCórdoba"
+        set(v) = sp.edit().putString("councils", v).apply()
 
     /** Nombres o palabras clave a vigilar (políticos locales, asociaciones...), una por línea. */
     var watchTerms: String

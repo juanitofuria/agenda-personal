@@ -6,7 +6,7 @@ import com.agendapersonal.net.Http
 import com.agendapersonal.net.NewsItem
 import com.agendapersonal.net.Rss
 
-/** Noticias nacionales (economía, política, fútbol, motociclismo) + provincia, municipio y vigilancia de nombres. */
+/** Noticias nacionales (economía, política, fútbol, motociclismo) + provincia, ayuntamientos y vigilancia de nombres. */
 object NewsSection : Section {
     override val id = "news"
     override val title = "Noticias"
@@ -34,14 +34,18 @@ object NewsSection : Section {
         }
 
         val province = prefs.province.trim()
-        val municipality = prefs.municipality.trim()
         if (province.isNotEmpty()) {
-            b.part("📍 $province") { section("📍 Provincia: $province", fetch("\"$province\" when:1d"), seen) }
-        }
-        if (municipality.isNotEmpty()) {
-            b.part("🏘️ $municipality") {
-                section("🏘️ Municipio: $municipality", fetch("\"$municipality\" when:2d"), seen)
+            b.part("📍 $province") {
+                section("📍 Provincia de $province", fetch("\"$province\" OR \"Diputación de $province\" when:1d"), seen)
             }
+        }
+        for (town in prefs.lines(prefs.councils)) {
+            val scope = if (province.isNotEmpty()) " \"$province\"" else ""
+            b.part("🏛️ Ayuntamiento de $town") {
+                val q = "\"Ayuntamiento de $town\" OR \"alcalde de $town\" OR \"alcaldesa de $town\" when:7d"
+                section("🏛️ Ayuntamiento de $town", fetch(q), seen)
+            }
+            b.part("🏘️ $town") { section("🏘️ $town", fetch("\"$town\"$scope when:2d"), seen) }
         }
         for (term in prefs.lines(prefs.watchTerms)) {
             b.part("🔎 $term") { section("🔎 $term", fetch("\"$term\" when:3d"), seen) }
