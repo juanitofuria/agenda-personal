@@ -9,7 +9,9 @@
     "strict": true,
     "noImplicitReturns": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": { "fast-xml-parser": ["node_modules/fast-xml-parser"] }
   },
   "include": ["src"]
 }
