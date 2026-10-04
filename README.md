@@ -1,4 +1,22 @@
-# Agenda Personal (Android)
+# Agenda Personal
+
+Tu información de cada día y tus avisos, en **un bot de Telegram** que funciona en cualquier móvil (Android, iPhone…).
+Todo corre en la nube con **Firebase**; no hay que instalar nada más que Telegram.
+
+* **Asistente inicial**: te pregunta qué te interesa, tu fecha de nacimiento, tu ciudad… (todo opcional, con «Omitir»).
+* **Resúmenes programados** a la hora que elijas: tiempo (con lluvia prevista, sol, viento, UV y luna), noticias de tu zona,
+  agenda, horóscopo, mercados y los temas que quieras seguir.
+* **Menús con botones** para crear, ver, **modificar y eliminar alarmas, citas y tareas** (con repetición, antelación y
+  «posponer»), y para cambiar secciones, horas y datos.
+
+👉 **Puesta en marcha, arquitectura, tests y límites: [`firebase/README.md`](firebase/README.md).**
+
+> La app Android que hay más abajo fue la primera versión del proyecto. Se conserva en el repositorio (carpeta `app/`) como
+> cliente alternativo, pero el sistema principal es el bot.
+
+---
+
+# App Android (primera versión, opcional)
 
 App Android (Kotlin + Jetpack Compose) que te envía **notificaciones diarias a la hora que elijas** con la
 información que necesitas, y gestiona **tareas pendientes** y **citas médicas** con su propio aviso.
