@@ -1,7 +1,7 @@
 # Agenda Personal en Cloudflare Workers (gratis, sin tarjeta)
 
-Misma lógica que la versión de Firebase (`../firebase/functions/src`: bot, secciones, fechas, luna, planificador), con otro
-«envoltorio»: un **Worker** recibe el webhook de Telegram y un **Cron Trigger** ejecuta el planificador cada minuto.
+Resumen técnico de esta versión; la guía completa y el contexto están en [`../README.md`](../README.md). Usa la lógica común de
+`../firebase/functions/src` (bot, secciones, fechas, luna, planificador) con otro «envoltorio»: un **Worker** recibe el webhook de Telegram y un **Cron Trigger** ejecuta el planificador cada minuto.
 Los datos se guardan en **D1** (SQLite de Cloudflare).
 
 | Pieza | Archivo |
