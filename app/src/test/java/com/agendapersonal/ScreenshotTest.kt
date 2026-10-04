@@ -47,7 +47,7 @@ class ScreenshotTest {
     }
 
     private fun seed() = runBlocking {
-        val db = AppDb.get(ctx).also { it.clearAllTables() }
+        val db = AppDb.get(ctx).also { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { it.clearAllTables() } }
         val day = 86_400_000L
         val now = System.currentTimeMillis()
         db.tasks().insert(Task(title = "Renovar el seguro del coche", remindAt = now + 3 * 3_600_000))

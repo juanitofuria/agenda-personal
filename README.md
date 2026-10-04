@@ -16,6 +16,15 @@ Cada sección se activa/desactiva y cambia de hora (la ubicación, provincia y a
 *Ver ahora* o *Enviar notificación de prueba*. Las tareas y las citas tienen su aviso individual
 (las citas con antelación configurable: 30 min, 1 h, 3 h, 1 día).
 
+## Capturas
+
+| Hoy | Tareas | Citas | Ajustes |
+|---|---|---|---|
+| ![Hoy](docs/screenshots/home_light.png) | ![Tareas](docs/screenshots/tasks_light.png) | ![Citas](docs/screenshots/appointments_light.png) | ![Ajustes](docs/screenshots/settings_light.png) |
+
+Resumen de mercados: [claro](docs/screenshots/detail_markets_light.png) · [oscuro](docs/screenshots/detail_markets_dark.png).
+Modo oscuro: [Hoy](docs/screenshots/home_dark.png) · [Tareas](docs/screenshots/tasks_dark.png) · [Citas](docs/screenshots/appointments_dark.png) · [Ajustes](docs/screenshots/settings_dark.png).
+
 ## Cómo añadir una sección nueva
 
 1. Crea un `object MiSeccion : Section` en `app/src/main/java/com/agendapersonal/sections/` (mira `WeatherSection.kt`):
