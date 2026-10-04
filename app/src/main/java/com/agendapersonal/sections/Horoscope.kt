@@ -2,16 +2,23 @@ package com.agendapersonal.sections
 
 import android.content.Context
 import com.agendapersonal.data.Prefs
-import org.json.JSONArray
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
+import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 import java.time.LocalDate
-import java.util.Random
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-enum class Sign(val label: String, val symbol: String, val element: String) {
-    ARIES("Aries", "♈", "fuego"), TAURUS("Tauro", "♉", "tierra"), GEMINI("Géminis", "♊", "aire"),
-    CANCER("Cáncer", "♋", "agua"), LEO("Leo", "♌", "fuego"), VIRGO("Virgo", "♍", "tierra"),
-    LIBRA("Libra", "♎", "aire"), SCORPIO("Escorpio", "♏", "agua"), SAGITTARIUS("Sagitario", "♐", "fuego"),
-    CAPRICORN("Capricornio", "♑", "tierra"), AQUARIUS("Acuario", "♒", "aire"), PISCES("Piscis", "♓", "agua");
+/** Signos con su identificador en Firestore (español sin tildes) y el nombre que usa Aztro (inglés). */
+enum class Sign(val label: String, val symbol: String, val element: String, val id: String, val aztro: String) {
+    ARIES("Aries", "♈", "fuego", "aries", "aries"), TAURUS("Tauro", "♉", "tierra", "tauro", "taurus"),
+    GEMINI("Géminis", "♊", "aire", "geminis", "gemini"), CANCER("Cáncer", "♋", "agua", "cancer", "cancer"),
+    LEO("Leo", "♌", "fuego", "leo", "leo"), VIRGO("Virgo", "♍", "tierra", "virgo", "virgo"),
+    LIBRA("Libra", "♎", "aire", "libra", "libra"), SCORPIO("Escorpio", "♏", "agua", "escorpio", "scorpio"),
+    SAGITTARIUS("Sagitario", "♐", "fuego", "sagitario", "sagittarius"), CAPRICORN("Capricornio", "♑", "tierra", "capricornio", "capricorn"),
+    AQUARIUS("Acuario", "♒", "aire", "acuario", "aquarius"), PISCES("Piscis", "♓", "agua", "piscis", "pisces");
 
     companion object {
         fun of(date: LocalDate): Sign {
@@ -34,117 +41,146 @@ enum class Sign(val label: String, val symbol: String, val element: String) {
     }
 }
 
-data class HoroscopeItem(val category: String, val emoji: String, val stars: Int, val text: String)
+/**
+ * Documento `horoscopos/{signo}` de Cloud Firestore, escrito una vez al día por la Cloud Function
+ * (ver carpeta `firebase/`). Todos los campos tienen valor por defecto para que Firestore pueda construirlo.
+ */
+data class HoroscopoDoc(
+    val signo: String = "",
+    val fecha: String = "",          // yyyy-MM-dd
+    val prediccion: String = "",
+    val idioma: String = "es",       // "en" si no se pudo traducir
+    val animo: String = "",
+    val color: String = "",
+    val numeroSuerte: String = "",
+    val horaSuerte: String = "",
+    val compatibilidad: String = "",
+    val fuente: String = "",
+)
 
+/** Origen del horóscopo (Firestore en producción, un doble en los tests). */
+interface HoroscopeSource {
+    suspend fun obtenerHoroscopoDiario(signoId: String): HoroscopoDoc?
+}
+
+/** Lectura de un documento: de la caché local de Firestore o del servidor. */
+interface HoroscopoDocStore {
+    suspend fun cache(id: String): HoroscopoDoc?
+    suspend fun server(id: String): HoroscopoDoc?
+}
+
+class FirestoreDocStore(private val db: FirebaseFirestore) : HoroscopoDocStore {
+    private fun ref(id: String) = db.collection("horoscopos").document(id.lowercase())
+    override suspend fun cache(id: String) = ref(id).get(Source.CACHE).await().toObject(HoroscopoDoc::class.java)
+    override suspend fun server(id: String) = ref(id).get(Source.SERVER).await().toObject(HoroscopoDoc::class.java)
+}
+
+/**
+ * Obtiene el horóscopo de un signo. Prioriza la caché local (Firestore la mantiene en disco) y va al servidor si no hay
+ * dato de hoy. Sin red devuelve el último guardado, aunque sea de otro día (la sección lo marca como desactualizado).
+ */
+class HoroscopoRepository(
+    private val store: HoroscopoDocStore,
+    private val today: () -> String = { LocalDate.now().toString() },
+) : HoroscopeSource {
+
+    override suspend fun obtenerHoroscopoDiario(signoId: String): HoroscopoDoc? {
+        val cached = runCatching { store.cache(signoId) }.getOrNull()?.takeIf { it.fecha.isNotBlank() }
+        if (cached != null && cached.fecha == today()) return cached
+        val fresh = runCatching { store.server(signoId) }.getOrNull()?.takeIf { it.fecha.isNotBlank() }
+        return listOfNotNull(fresh, cached).maxByOrNull { it.fecha } // ISO: el texto ordena como la fecha
+    }
+
+    companion object {
+        /** null si Firebase no está configurado (falta google-services.json). */
+        fun create(context: Context): HoroscopoRepository? =
+            if (FirebaseApp.getApps(context).isEmpty()) null
+            else HoroscopoRepository(FirestoreDocStore(FirebaseFirestore.getInstance()))
+    }
+}
+
+/** Datos del horóscopo ya preparados para mostrar (se guardan junto al resumen). */
 data class HoroscopeData(
-    val sign: Sign, val date: String, val items: List<HoroscopeItem>,
-    val luckyNumber: Int, val luckyColor: String, val compatible: Sign, val advice: String,
+    val sign: Sign, val date: String, val text: String, val lang: String,
+    val mood: String, val color: String, val luckyNumber: String, val luckyTime: String, val compatible: String,
+    val stale: Boolean, val source: String,
 ) {
     fun toJson(): String = JSONObject()
-        .put("sign", sign.name).put("date", date).put("lucky", luckyNumber).put("color", luckyColor)
-        .put("compatible", compatible.name).put("advice", advice)
-        .put("items", JSONArray(items.map { JSONObject().put("c", it.category).put("e", it.emoji).put("s", it.stars).put("t", it.text) }))
+        .put("sign", sign.name).put("date", date).put("text", text).put("lang", lang).put("mood", mood).put("color", color)
+        .put("number", luckyNumber).put("time", luckyTime).put("compat", compatible).put("stale", stale).put("source", source)
         .toString()
 
     companion object {
         fun fromJson(raw: String?): HoroscopeData? = runCatching {
             val j = JSONObject(raw ?: return null)
-            val arr = j.getJSONArray("items")
             HoroscopeData(
-                Sign.valueOf(j.getString("sign")), j.getString("date"),
-                (0 until arr.length()).map { val o = arr.getJSONObject(it); HoroscopeItem(o.getString("c"), o.getString("e"), o.getInt("s"), o.getString("t")) },
-                j.getInt("lucky"), j.getString("color"), Sign.valueOf(j.getString("compatible")), j.getString("advice"),
+                Sign.valueOf(j.getString("sign")), j.getString("date"), j.getString("text"), j.optString("lang", "es"),
+                j.optString("mood"), j.optString("color"), j.optString("number"), j.optString("time"), j.optString("compat"),
+                j.optBoolean("stale"), j.optString("source"),
             )
         }.getOrNull()
-    }
-}
 
-/**
- * Horóscopo de entretenimiento generado en el propio móvil: no consulta ningún servicio.
- * Es determinista (mismo signo + mismo día = mismo horóscopo) y cambia cada día.
- */
-object HoroscopeEngine {
-    private val categories = listOf("Salud" to "💪", "Dinero" to "💰", "Trabajo" to "💼", "Amor" to "❤️")
-
-    // 4 categorías × 3 niveles (bajo, medio, alto) × 5 frases.
-    private val pool: Map<String, List<List<String>>> = mapOf(
-        "Salud" to listOf(
-            listOf("Tu cuerpo pide calma: baja el ritmo y duerme unas horas más.", "Cuida la espalda y evita esfuerzos innecesarios hoy.", "Notarás cansancio; una caminata suave te ayudará más que el sofá.", "Hidrátate y no te saltes comidas, la energía andará justa.", "Escucha las señales de estrés y date un respiro a media tarde."),
-            listOf("Día estable: mantén tus rutinas y todo irá bien.", "Un poco de estiramiento y aire libre te sentarán de maravilla.", "Energía correcta; evita los excesos y llegarás en forma al final del día.", "Buen momento para retomar un hábito saludable pendiente.", "Tu ánimo acompaña, aunque conviene no apurar el descanso."),
-            listOf("Te sentirás con vitalidad de sobra: aprovéchala para moverte.", "Excelente día para el deporte o una buena caminata.", "Tu cuerpo responde: ideal para empezar esa dieta o rutina.", "Energía alta y buen humor; contagiarás a quien tengas cerca.", "Descansarás bien y despertarás con ganas de comerte el mundo."),
-        ),
-        "Dinero" to listOf(
-            listOf("Evita compras impulsivas: hoy el bolsillo sufre si te dejas llevar.", "No es el día para préstamos ni inversiones arriesgadas.", "Revisa tus gastos fijos; encontrarás algo que recortar.", "Un imprevisto menor puede alterar tu presupuesto: ten margen.", "Mejor esperar antes de cerrar un trato económico importante."),
-            listOf("Finanzas tranquilas: pequeñas decisiones sensatas suman.", "Buen día para ordenar cuentas y planificar la semana.", "Podría llegar un pequeño ingreso o un reembolso pendiente.", "Compara precios antes de comprar y ahorrarás sin esfuerzo.", "Equilibrio entre gasto y ahorro: sigue con tu plan."),
-            listOf("Se abren oportunidades de ganancia: mantén los ojos abiertos.", "Tu olfato para los números está afinado; confía en él.", "Buen momento para negociar o pedir lo que te corresponde.", "Un esfuerzo reciente empieza a dar fruto económico.", "Día favorable para cerrar acuerdos y asegurar tus ahorros."),
-        ),
-        "Trabajo" to listOf(
-            listOf("Posibles tensiones con compañeros: respira antes de responder.", "La carga se acumula; prioriza y no intentes abarcarlo todo.", "Un malentendido puede retrasarte; aclara las cosas por escrito.", "Día lento: evita decisiones importantes y revisa dos veces tu trabajo.", "Cuidado con las distracciones, te robarán tiempo valioso."),
-            listOf("Jornada productiva si te organizas con calma.", "Buen día para colaborar y escuchar ideas ajenas.", "Avanzarás en tareas pendientes sin grandes sobresaltos.", "Tu constancia será valorada, aunque hoy no lo parezca.", "Ritmo estable: ideal para terminar lo que dejaste a medias."),
-            listOf("Brillas en lo profesional: tus ideas serán bien recibidas.", "Un reconocimiento o buena noticia laboral está cerca.", "Tienes el impulso perfecto para proponer ese proyecto.", "Tu liderazgo natural sale a flote; aprovéchalo.", "Todo fluye en el trabajo: avanza con decisión."),
-        ),
-        "Amor" to listOf(
-            listOf("Cuidado con las palabras: un comentario puede malinterpretarse.", "Necesitas espacio; díselo con cariño a quien te importa.", "Día para escuchar más y reprochar menos.", "Si estás solo, no fuerces encuentros: déjate llevar sin prisa.", "Posible distancia emocional; un gesto sincero la acorta."),
-            listOf("Ambiente cálido y sereno con tu entorno cercano.", "Buen día para una conversación pendiente, con tacto.", "Un plan sencillo en pareja o con amigos te hará bien.", "Si estás solo, una charla casual puede sorprenderte.", "Afecto estable: pequeños detalles marcan la diferencia."),
-            listOf("El romance sopla a tu favor: atrévete a dar el primer paso.", "Magnetismo al máximo: te será fácil conectar con los demás.", "Día ideal para una cita o para renovar la ilusión en pareja.", "Recibirás muestras de cariño inesperadas.", "Tu sinceridad enamora; di lo que sientes."),
-        ),
-    )
-
-    private val advice = mapOf(
-        "fuego" to listOf("Canaliza tu energía en una sola meta y llegarás lejos.", "Hoy la iniciativa es tu mejor aliada: da el primer paso.", "Lidera con el ejemplo; no hace falta alzar la voz."),
-        "tierra" to listOf("Paso a paso y con los pies en el suelo: así se construye lo duradero.", "Dedica un rato a lo práctico: ordenar es avanzar.", "La paciencia hoy vale más que la prisa."),
-        "aire" to listOf("Comparte tus ideas: alguien necesita justo lo que piensas.", "Una conversación inesperada abrirá un camino nuevo.", "Mantén la mente ágil y curiosa; hoy aprenderás algo útil."),
-        "agua" to listOf("Confía en tu intuición, rara vez se equivoca.", "Cuida tu mundo emocional: un rato de calma lo cambia todo.", "Hoy la empatía te abrirá puertas que la lógica no alcanza."),
-    )
-
-    private val colors = listOf("Azul", "Verde", "Rojo", "Amarillo", "Violeta", "Naranja", "Blanco", "Turquesa", "Rosa", "Dorado")
-
-    fun generate(birth: LocalDate, day: LocalDate): HoroscopeData {
-        val sign = Sign.of(birth)
-        fun rnd(salt: Int) = Random(sign.ordinal * 1_000_003L + day.toEpochDay() * 7919L + salt * 104_729L)
-        val items = categories.mapIndexed { i, (cat, emoji) ->
-            val r = rnd(i + 1)
-            val stars = listOf(2, 3, 3, 4, 4, 5)[r.nextInt(6)].let { if (r.nextInt(8) == 0) 1 else it }
-            val tier = when { stars <= 2 -> 0; stars == 3 -> 1; else -> 2 }
-            HoroscopeItem(cat, emoji, stars, pool.getValue(cat)[tier][r.nextInt(5)])
-        }
-        val r = rnd(9)
-        return HoroscopeData(
-            sign, day.toString(), items, 1 + r.nextInt(99), colors[r.nextInt(colors.size)],
-            Sign.entries[r.nextInt(12)], advice.getValue(sign.element).let { it[r.nextInt(it.size)] },
+        fun from(sign: Sign, doc: HoroscopoDoc, today: LocalDate = LocalDate.now()) = HoroscopeData(
+            sign, doc.fecha, doc.prediccion.trim(), doc.idioma, doc.animo, doc.color, doc.numeroSuerte, doc.horaSuerte,
+            doc.compatibilidad, stale = doc.fecha != today.toString(), source = doc.fuente,
         )
     }
-
-    fun stars(n: Int) = "★".repeat(n) + "☆".repeat(5 - n)
 }
 
 object HoroscopeSection : Section {
     override val id = "horoscope"
     override val title = "Horóscopo"
-    override val description = "Salud, dinero, trabajo y amor de tu signo"
+    override val description = "Tu horóscopo diario según tu signo"
     override val defaultHour = 8
     override val defaultMinute = 0
-    override val needsNetwork = false
     override val emoji = "🔮"
     override val accent = 0xFFDB2777.toInt()
     override val defaultEnabled = false // se activa al dar la fecha de nacimiento
 
+    /** Cómo se obtiene el origen de datos; los tests lo sustituyen. */
+    var sourceProvider: (Context) -> HoroscopeSource? = { HoroscopoRepository.create(it) }
+
+    private val dateFmt get() = DateTimeFormatter.ofPattern("d 'de' MMMM", Locale("es", "ES"))
+
+    private fun unavailable(summary: String, body: String, ok: Boolean = true, notify: Boolean = false) =
+        Digest("Horóscopo", summary, body, listOf("🔮 $summary"), ok = ok, notify = notify)
+
     override suspend fun build(context: Context): Digest {
         val birth = runCatching { LocalDate.parse(Prefs(context).birthDate) }.getOrNull()
-            ?: return Digest(
-                "Horóscopo", "Falta tu fecha de nacimiento",
-                "Añade tu fecha de nacimiento en Ajustes › Perfil para ver tu horóscopo diario.",
-                listOf("🔮 Añade tu fecha de nacimiento en Ajustes › Perfil"),
-            )
-        val data = HoroscopeEngine.generate(birth, LocalDate.now())
-        val body = buildString {
-            append("${data.sign.symbol} ${data.sign.label} · ${data.sign.element}\n${data.advice}")
-            data.items.forEach { append("\n\n${it.emoji} ${it.category}  ${HoroscopeEngine.stars(it.stars)}\n${it.text}") }
-            append("\n\n🍀 Número de la suerte: ${data.luckyNumber} · Color: ${data.luckyColor} · Afinidad: ${data.compatible.label}")
+            ?: return unavailable("Falta tu fecha de nacimiento", "Añade tu fecha de nacimiento en Ajustes › Perfil para ver tu horóscopo diario.")
+        val sign = Sign.of(birth)
+        val source = sourceProvider(context)
+            ?: return unavailable("Horóscopo aún no disponible", "El horóscopo se descarga de un servidor propio (Firebase) que todavía no está conectado a esta versión de la app.")
+
+        val doc = runCatching { source.obtenerHoroscopoDiario(sign.id) }.getOrNull()
+        if (doc == null || doc.prediccion.isBlank()) {
+            return unavailable("No se pudo obtener el horóscopo", "No se pudo descargar tu horóscopo. Se reintentará más tarde.", ok = false, notify = true)
         }
-        val preview = data.items.map { "${it.emoji} ${it.category} ${HoroscopeEngine.stars(it.stars)} · ${it.text}" }
-        return Digest(
-            "Horóscopo · ${data.sign.symbol} ${data.sign.label}", data.advice, body, preview, data.toJson(),
+        val data = HoroscopeData.from(sign, doc)
+        val day = runCatching { LocalDate.parse(doc.fecha).format(dateFmt) }.getOrDefault(doc.fecha)
+        val body = buildString {
+            append("${sign.symbol} ${sign.label} · ")
+            append(if (data.stale) "horóscopo del $day (desactualizado)" else "hoy, $day")
+            append("\n").append(data.text)
+            val extras = listOfNotNull(
+                data.mood.takeIf { it.isNotBlank() }?.let { "😊 Ánimo: $it" },
+                data.color.takeIf { it.isNotBlank() }?.let { "🎨 Color: $it" },
+                data.luckyNumber.takeIf { it.isNotBlank() }?.let { "🍀 Número de la suerte: $it" },
+                data.luckyTime.takeIf { it.isNotBlank() }?.let { "⏰ Hora de la suerte: $it" },
+                data.compatible.takeIf { it.isNotBlank() }?.let { "💞 Afinidad: $it" },
+            )
+            if (extras.isNotEmpty()) append("\n\n").append(extras.joinToString("\n"))
+            if (data.source.isNotBlank()) append("\n\nFuente: ${data.source}")
+        }
+        val preview = listOfNotNull(
+            "🔮 " + data.text.take(150).let { if (data.text.length > 150) "$it…" else it },
+            listOfNotNull(
+                data.mood.takeIf { it.isNotBlank() }?.let { "😊 $it" },
+                data.luckyNumber.takeIf { it.isNotBlank() }?.let { "🍀 $it" },
+                data.color.takeIf { it.isNotBlank() }?.let { "🎨 $it" },
+            ).takeIf { it.isNotEmpty() }?.joinToString(" · "),
         )
+        val firstSentence = data.text.substringBefore(". ").take(120)
+        return Digest("Horóscopo · ${sign.symbol} ${sign.label}", firstSentence, body, preview, data.toJson())
     }
 }

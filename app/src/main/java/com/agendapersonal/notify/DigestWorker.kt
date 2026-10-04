@@ -21,8 +21,9 @@ class DigestWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val result = digest ?: com.agendapersonal.sections.Digest(
             section.title, "No se pudo obtener la información", "No se pudo obtener la información. Revisa tu conexión.", ok = false,
         )
-        DigestStore.save(applicationContext, id, result)
-        Notifier.postDigest(applicationContext, section, result)
+        // Un fallo no debe pisar los últimos datos buenos guardados.
+        if (result.ok) DigestStore.save(applicationContext, id, result)
+        if (result.notify) Notifier.postDigest(applicationContext, section, result)
         return Result.success()
     }
 

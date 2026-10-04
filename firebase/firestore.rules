@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Cualquier usuario de la app puede leer el horóscopo; nadie puede escribirlo desde fuera.
+    // Solo el SDK Admin de la Cloud Function escribe (el SDK Admin ignora estas reglas).
+    match /horoscopos/{signo} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

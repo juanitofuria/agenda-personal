@@ -66,7 +66,7 @@ class ScreenshotTest {
         DigestStore.save(ctx, "markets", Digest("Mercados · premercado EEUU", "Futuros S&P 500 +0.69%", MARKETS, MARKETS_PREVIEW))
         prefs.setTime("markets", 14, 0)
         prefs.birthDate = "1984-04-05"; prefs.setEnabled("horoscope", true)
-        DigestStore.save(ctx, "horoscope", runBlocking { com.agendapersonal.sections.HoroscopeSection.build(ctx) })
+        DigestStore.save(ctx, "horoscope", runBlocking { FakeHoroscope.install(); com.agendapersonal.sections.HoroscopeSection.build(ctx) })
         val t = com.agendapersonal.sections.CustomTopics.add(prefs, "Ajedrez", "ajedrez", "♟️")
         DigestStore.save(ctx, "topic_${t.id}", Digest("Ajedrez", "x", "♟️ Ajedrez\n• Carlsen gana el torneo de Stavanger (Chess.com)", listOf("♟️ Carlsen gana el torneo de Stavanger", "♟️ Gukesh, nuevo líder del ranking mundial", "♟️ Llega el Mundial de ajedrez rápido")))
     }

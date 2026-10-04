@@ -11,7 +11,7 @@ información que necesitas, y gestiona **tareas pendientes** y **citas médicas*
 | **Noticias** | 07:10 | Economía, política, fútbol y motociclismo (Google News RSS) + provincia, ayuntamientos a seguir (por defecto Montoro y Córdoba, editables) y nombres a vigilar (alcalde, concejales…) + feeds RSS propios. |
 | **Agenda** | 07:20 | Citas de hoy y mañana y tareas pendientes (sin Internet). |
 | **Mercados** | 14:00 | Futuros/premercado de Wall Street, noticias económicas, cierre de la última sesión (EEUU, Europa, Asia) y crónica de mercados. Fuente: Yahoo Finance (API no oficial). |
-| **Horóscopo** | 08:00 | Salud, dinero, trabajo y amor de tu signo, con estrellas, número y color de la suerte. Necesita la fecha de nacimiento (solo se guarda en el móvil). **Es de entretenimiento**: se genera en el propio móvil a partir del signo y la fecha, no consulta ningún servicio ni es una predicción real. |
+| **Horóscopo** | 08:00 | Horóscopo **real** del día de tu signo: texto en español, ánimo, color, número y hora de la suerte y afinidad. Lo descarga cada día una Cloud Function de Firebase desde [Aztro](https://github.com/sameerkumar18/aztro) y la app lo lee de Firestore (con caché offline). Hay que desplegar `firebase/` y añadir `google-services.json`: ver [`firebase/README.md`](firebase/README.md). Sin eso la sección indica que no está disponible (no inventa nada). |
 | **Secciones propias** | 08:30+ | Las que crees tú (ajedrez, cine, tu equipo…): noticias sobre el tema que elijas, con su propia hora y notificación. |
 
 ## Primera vez: configuración inicial
@@ -32,6 +32,8 @@ defecto. Todo se puede cambiar después en **Ajustes** (Perfil, Mis secciones, �
   (este último abre la edición de ese evento). También puedes tocar cualquier tarea o cita en la app para modificarla.
 
 ## Capturas
+
+> Las capturas se generan en tests con datos de ejemplo (por ejemplo, el texto del horóscopo es de prueba, no de Aztro).
 
 | Hoy | Tiempo (completo) | Horóscopo | Asistente inicial |
 |---|---|---|---|
@@ -84,6 +86,8 @@ El workflow `.github/workflows/build-apk.yml` compila el APK en cada push y lo d
 - Los resúmenes son listados de titulares y cifras; no hay resumen redactado por IA (sería una posible ampliación).
 
 ## Tests
+
+Backend del horóscopo: `cd firebase/functions && npm install && npm test`.
 
 ```
 ./gradlew :app:testDebugUnitTest            # parser RSS con datos reales de ejemplo

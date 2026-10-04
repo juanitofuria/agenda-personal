@@ -2,9 +2,6 @@ package com.agendapersonal.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,19 +12,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agendapersonal.sections.HoroscopeData
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-private fun categoryColor(category: String, a: Accents) = when (category) {
-    "Salud" -> a.success; "Dinero" -> a.markets; "Trabajo" -> a.weather; else -> a.danger
-}
+private fun dayLabel(iso: String) = runCatching {
+    LocalDate.parse(iso).format(DateTimeFormatter.ofPattern("d 'de' MMMM", Locale("es", "ES")))
+}.getOrDefault(iso)
 
-@Composable
-fun Stars(count: Int, color: Color, size: androidx.compose.ui.unit.Dp = 18.dp) {
-    Row {
-        repeat(5) { Icon(if (it < count) Icons.Rounded.Star else Icons.Rounded.StarBorder, null, tint = if (it < count) color else MaterialTheme.colorScheme.outline, modifier = Modifier.size(size)) }
-    }
-}
-
-/** Horóscopo del día: cabecera del signo, una tarjeta por ámbito con estrellas y extras de la suerte. */
+/** Horóscopo del día tal y como lo publica el servidor: texto del signo y datos de la suerte de la fuente. */
 @Composable
 fun HoroscopeView(data: HoroscopeData) {
     val accents = LocalAccents.current
@@ -35,7 +28,7 @@ fun HoroscopeView(data: HoroscopeData) {
         Column(
             Modifier.fillMaxWidth().clip(MaterialTheme.shapes.extraLarge)
                 .background(Brush.linearGradient(listOf(Color(0xFFDB2777), Color(0xFF7C3AED)))).padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(data.sign.symbol, fontSize = 52.sp, color = Color.White)
@@ -45,44 +38,63 @@ fun HoroscopeView(data: HoroscopeData) {
                     Text("Signo de ${data.sign.element}", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
                 }
             }
-            Text("“${data.advice}”", style = MaterialTheme.typography.bodyLarge, color = Color.White)
+            Text(
+                if (data.stale) "Horóscopo del ${dayLabel(data.date)}" else "Horóscopo de hoy, ${dayLabel(data.date)}",
+                style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(top = 6.dp),
+            )
         }
 
-        data.items.forEach { item ->
-            val color = categoryColor(item.category, accents)
-            AppCard(Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-                    Text(item.emoji, fontSize = 28.sp, modifier = Modifier.width(44.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(item.category, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                            Stars(item.stars, color)
-                        }
-                        Text(item.text, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
+        if (data.stale) {
+            Row(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).background(accents.markets.copy(alpha = 0.14f)).padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("⚠️", fontSize = 20.sp); Spacer(Modifier.width(10.dp))
+                Text("Aún no se ha publicado el de hoy: se muestra el último disponible.", style = MaterialTheme.typography.bodySmall)
             }
         }
 
         AppCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Lucky("🍀", "Número", "${data.luckyNumber}", Modifier.weight(1f))
-                Lucky("🎨", "Color", data.luckyColor, Modifier.weight(1f))
-                Lucky("💞", "Afinidad", data.compatible.label, Modifier.weight(1f))
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(data.text, style = MaterialTheme.typography.bodyLarge)
+                if (data.lang == "en") {
+                    Text("Texto en inglés: no se pudo traducir.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
+
+        val facts = listOfNotNull(
+            data.mood.takeIf { it.isNotBlank() }?.let { Triple("😊", "Ánimo", it) },
+            data.color.takeIf { it.isNotBlank() }?.let { Triple("🎨", "Color", it) },
+            data.luckyNumber.takeIf { it.isNotBlank() }?.let { Triple("🍀", "Número de la suerte", it) },
+            data.luckyTime.takeIf { it.isNotBlank() }?.let { Triple("⏰", "Hora de la suerte", it) },
+            data.compatible.takeIf { it.isNotBlank() }?.let { Triple("💞", "Afinidad", it) },
+        )
+        facts.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { (emoji, title, value) -> Fact(emoji, title, value, Modifier.weight(1f)) }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+
         Text(
-            "Horóscopo de entretenimiento, generado en tu móvil a partir de tu signo y de la fecha. No es una predicción real.",
+            (if (data.source.isNotBlank()) "Fuente: ${data.source}. " else "") +
+                "Contenido de carácter informativo y de entretenimiento.",
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
 @Composable
-private fun Lucky(emoji: String, title: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(emoji, fontSize = 24.sp)
-        Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleSmall)
+private fun Fact(emoji: String, title: String, value: String, modifier: Modifier = Modifier) {
+    AppCard(modifier) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(emoji, fontSize = 24.sp)
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value, style = MaterialTheme.typography.titleSmall)
+            }
+        }
     }
 }

@@ -97,15 +97,4 @@ class OnboardingTest {
         CustomTopics.remove(prefs, "ajedrez")
         assertTrue(SectionRegistry.all.none { it is TopicSection })
     }
-
-    @Test fun horoscopeSectionWithAndWithoutBirthDate() = runBlocking {
-        val none = HoroscopeSection.build(ctx)
-        assertNull(none.extra); assertTrue(none.body.contains("fecha de nacimiento"))
-        prefs.birthDate = "1984-04-05"
-        val d = HoroscopeSection.build(ctx)
-        val data = HoroscopeData.fromJson(d.extra)!!
-        assertEquals(Sign.ARIES, data.sign)
-        assertTrue(d.title.contains("Aries")); assertEquals(4, d.preview.size)
-        assertTrue(d.body.contains("Salud") && d.body.contains("Dinero") && d.body.contains("Trabajo") && d.body.contains("Amor"))
-    }
 }

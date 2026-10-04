@@ -239,20 +239,20 @@ fun SectionCard(
                     }
                     HoroscopeData.fromJson(stored.extra) != null -> {
                         val h = HoroscopeData.fromJson(stored.extra)!!
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.Top) {
                             Text(h.sign.symbol, fontSize = 30.sp)
                             Spacer(Modifier.width(10.dp))
-                            Text("${h.sign.label} · ${h.advice}", style = MaterialTheme.typography.bodyMedium, maxLines = 2, modifier = Modifier.weight(1f))
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            h.items.forEach {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(it.emoji, fontSize = 20.sp)
-                                    Text(it.category, style = MaterialTheme.typography.labelSmall)
-                                    Stars(it.stars, style.color, size = 11.dp)
-                                }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(if (h.stale) "${h.sign.label} · último disponible" else "${h.sign.label} · hoy", style = MaterialTheme.typography.titleSmall)
+                                Text(h.text, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                         }
+                        val facts = listOfNotNull(
+                            h.mood.takeIf { it.isNotBlank() }?.let { "😊 $it" },
+                            h.luckyNumber.takeIf { it.isNotBlank() }?.let { "🍀 $it" },
+                            h.color.takeIf { it.isNotBlank() }?.let { "🎨 $it" },
+                        )
+                        if (facts.isNotEmpty()) Text(facts.joinToString("  ·  "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     else -> {
                         val lines = stored.preview.ifEmpty { listOf(stored.summary) }.take(4)

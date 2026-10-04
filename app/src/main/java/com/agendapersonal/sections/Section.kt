@@ -11,6 +11,8 @@ data class Digest(
     val preview: List<String> = emptyList(),
     /** Datos estructurados opcionales (JSON) para vistas especiales, p. ej. la gráfica del tiempo. */
     val extra: String? = null,
+    /** false si no hay nada que avisar (p. ej. el servidor del horóscopo aún no está configurado). */
+    val notify: Boolean = true,
     /** false si no se pudo obtener ningún dato (p. ej. sin conexión): se reintentará. */
     val ok: Boolean = true,
 )

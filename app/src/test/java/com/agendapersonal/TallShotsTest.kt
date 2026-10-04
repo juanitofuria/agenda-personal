@@ -33,7 +33,7 @@ class TallShotsTest {
         DigestStore.save(ctx, "news", Digest("Noticias del día", "x", "b", ScreenshotTest.NEWS_PREVIEW))
         DigestStore.save(ctx, "agenda", Digest("Tu agenda de hoy", "x", "b", ScreenshotTest.AGENDA_PREVIEW))
         DigestStore.save(ctx, "markets", Digest("Mercados", "x", "b", ScreenshotTest.MARKETS_PREVIEW))
-        DigestStore.save(ctx, "horoscope", runBlocking { HoroscopeSection.build(ctx) })
+        DigestStore.save(ctx, "horoscope", runBlocking { FakeHoroscope.install(); HoroscopeSection.build(ctx) })
         val t = CustomTopics.add(prefs, "Ajedrez", "ajedrez", "♟️")
         DigestStore.save(ctx, "topic_${t.id}", Digest("Ajedrez", "x", "b", listOf("♟️ Carlsen gana el torneo de Stavanger", "♟️ Gukesh, nuevo líder del ranking mundial", "♟️ Llega el Mundial de ajedrez rápido")))
         rule.setContent { AgendaTheme(false) { AppRoot(mutableStateOf<String?>(null)) } }
@@ -49,7 +49,7 @@ class TallShotsTest {
         val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
         val prefs = Prefs(ctx); prefs.birthDate = "1984-04-05"
         DigestStore.save(ctx, "weather", Digest("Tiempo · Montoro", "x", "b", ScreenshotTest.WEATHER_PREVIEW, ScreenshotTest.SAMPLE_WEATHER.toJson()))
-        DigestStore.save(ctx, "horoscope", runBlocking { HoroscopeSection.build(ctx) })
+        DigestStore.save(ctx, "horoscope", runBlocking { FakeHoroscope.install(); HoroscopeSection.build(ctx) })
         for (dark in listOf(false, true)) {
             val scene = mutableStateOf<Section>(WeatherSection)
             if (!dark) rule.setContent { AgendaTheme(false) { SectionDetailScreen(scene.value, onBack = {}) } }

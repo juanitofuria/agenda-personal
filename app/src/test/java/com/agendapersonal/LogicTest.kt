@@ -59,19 +59,10 @@ class LogicTest {
         assertEquals(12, (0 until 366).map { Sign.of(LocalDate.of(2024, 1, 1).plusDays(it.toLong())) }.toSet().size)
     }
 
-    @Test fun horoscopeIsDeterministicAndVariesByDay() {
-        val birth = LocalDate.of(1984, 4, 5)
-        val a = HoroscopeEngine.generate(birth, LocalDate.of(2026, 10, 4))
-        val b = HoroscopeEngine.generate(birth, LocalDate.of(2026, 10, 4))
-        assertEquals(a, b)
-        assertEquals(Sign.ARIES, a.sign)
-        assertEquals(listOf("Salud", "Dinero", "Trabajo", "Amor"), a.items.map { it.category })
-        assertTrue(a.items.all { it.stars in 1..5 && it.text.isNotBlank() })
-        val days = (0 until 14).map { HoroscopeEngine.generate(birth, LocalDate.of(2026, 10, 4).plusDays(it.toLong())).toJson() }.toSet()
-        assertTrue("el horóscopo debe cambiar de un día a otro", days.size > 8)
-        assertEquals(a, HoroscopeData.fromJson(a.toJson()))
-        val other = HoroscopeEngine.generate(LocalDate.of(1990, 8, 1), LocalDate.of(2026, 10, 4))
-        assertNotEquals(a.items, other.items)
+    @Test fun signIdsMatchFirestoreAndAztroNames() {
+        assertEquals(listOf("aries", "tauro", "geminis", "cancer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"), Sign.entries.map { it.id })
+        assertEquals(listOf("aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"), Sign.entries.map { it.aztro })
+        assertTrue(Sign.entries.all { it.id == java.text.Normalizer.normalize(it.id, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}"), "") })
     }
 
     private fun hp(h: Int, mm: Double, prob: Int) = HourPoint(h, 20.0, 3, prob, mm, 5.0)
