@@ -3,6 +3,7 @@ import { buscarLugares, Lugar } from "../geocoding";
 import { parseHoraHHMM, parseNacimiento } from "../fechas";
 import { ORDEN_SECCIONES, SECCIONES, SeccionId, Tema } from "../modelo";
 import { programarSeccion, sincronizarSecciones } from "../programar";
+import { bloque, cabecera } from "../util";
 import { slug } from "./catalogo";
 import { BTN_CANCELAR, BTN_MENU, Ctx } from "./ctx";
 import { tecladoPerfil, textoPerfil } from "./vistas";
@@ -22,14 +23,28 @@ export async function listaSecciones(c: Ctx): Promise<void> {
     ...c.u.temas.map((t) => fila(`tema:${t.id}`, t.emoji, t.titulo, t)),
     [{ texto: "➕ Añadir un tema", datos: "s:tema+" }, BTN_MENU],
   ];
-  await c.responder("🧩 <b>Mis secciones</b>\nToca una para activarla, desactivarla o cambiar la hora del aviso diario.", filas);
+  const todas = [...ORDEN_SECCIONES.map((s) => c.u.secciones[s]), ...c.u.temas];
+  const activas = todas.filter((x) => x.activa).length;
+  await c.responder([
+    cabecera("🧩", "Mis secciones", `${activas} activa${activas === 1 ? "" : "s"} de ${todas.length}`),
+    "",
+    bloque("🔎", "Cómo leerlo", "✅ activa · ▫️ desactivada", "La hora es la del aviso diario"),
+    "",
+    "<i>Toca una para activarla, desactivarla o cambiar su hora 👇</i>",
+  ].join("\n"), filas);
 }
 
 async function verSeccion(c: Ctx, ref: string): Promise<void> {
   const i = info(c, ref), cfg = getCfg(c, ref);
   if (!i || !cfg) { await listaSecciones(c); return; }
   await c.responder(
-    `${i.emoji} <b>${esc(i.titulo)}</b>\n${esc(i.desc)}\n\n${cfg.activa ? `✅ Activada · aviso diario a las <b>${cfg.hora}</b>` : "▫️ Desactivada"}`,
+    [
+      cabecera(i.emoji, esc(i.titulo), esc(i.desc)),
+      "",
+      bloque("🔔", "Aviso diario", cfg.activa ? `✅ Activada · cada día a las <b>${cfg.hora}</b>` : "▫️ Desactivada"),
+      "",
+      "<i>Elige qué hacer 👇</i>",
+    ].join("\n"),
     [
       [{ texto: cfg.activa ? "🔕 Desactivar" : "🔔 Activar", datos: `s:tog:${ref}` }, { texto: "🕒 Cambiar hora", datos: `s:hora:${ref}` }],
       [{ texto: "👁 Ver ahora", datos: `sec:${ref}` }],
@@ -42,11 +57,11 @@ async function verSeccion(c: Ctx, ref: string): Promise<void> {
 async function pedirDatoFaltante(c: Ctx, ref: string): Promise<boolean> {
   if (ref === "tiempo" && !c.u.ciudad) {
     await c.esperar("perfil", "ciudad", { activar: ref });
-    await c.responder("📍 Para el tiempo necesito tu municipio. Escribe su nombre (por ejemplo <i>Montoro</i>):", [[BTN_CANCELAR]]); return true;
+    await c.responder([cabecera("📍", "¿Dónde vives?", "Para darte el tiempo"), "", "Escribe el nombre de tu municipio.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[BTN_CANCELAR]]); return true;
   }
   if (ref === "horoscopo" && !c.u.nacimiento) {
     await c.esperar("perfil", "nacimiento", { activar: ref });
-    await c.responder("🎂 Para el horóscopo necesito tu fecha de nacimiento (<i>dd/mm/aaaa</i>):", [[BTN_CANCELAR]]); return true;
+    await c.responder([cabecera("🎂", "Tu fecha de nacimiento", "Para tu horóscopo"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Por ejemplo: 05/04/1984</i>"].join("\n"), [[BTN_CANCELAR]]); return true;
   }
   return false;
 }
@@ -69,12 +84,12 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
         if (!cfg.activa && (await pedirDatoFaltante(c, ref))) return true;
         cfg.activa = !cfg.activa; await c.guardar(); await programarSeccion(c.almacen, c.u, ref, c.ahora); await verSeccion(c, ref); return true;
       }
-      case "hora": await c.esperar("hora", "valor", { ref }); await c.responder("🕒 ¿A qué hora quieres el aviso diario? Escríbela como <i>07:30</i> o <i>8h</i>.", [[BTN_CANCELAR]]); return true;
-      case "tema+": await c.esperar("tema", "titulo"); await c.responder("⭐ <b>Nuevo tema</b>\n¿Sobre qué quieres noticias? Por ejemplo: <i>Ajedrez</i>, <i>Real Madrid</i>, <i>Energías renovables</i>.", [[BTN_CANCELAR]]); return true;
+      case "hora": await c.esperar("hora", "valor", { ref }); await c.responder([cabecera("🕒", "Hora del aviso", `${getCfg(c, ref) ? `Ahora: ${getCfg(c, ref)!.hora}` : "Aviso diario"}`), "", "¿A qué hora lo quieres cada día?", "", "<i>Escríbela como 07:30 o 8h</i>"].join("\n"), [[BTN_CANCELAR]]); return true;
+      case "tema+": await c.esperar("tema", "titulo"); await c.responder([cabecera("⭐", "Nuevo tema", "Paso 1: el tema"), "", "¿Sobre qué quieres noticias?", "", "<i>Por ejemplo: Ajedrez, Real Madrid, Energías renovables</i>"].join("\n"), [[BTN_CANCELAR]]); return true;
       case "temaskip": return crearTema(c, undefined);
       case "temadel": {
         const t = c.u.temas.find((x) => x.id === p[2]); if (!t) return true;
-        await c.responder(`¿Eliminar el tema <b>${esc(t.titulo)}</b>?`, [[{ texto: "🗑 Sí, eliminar", datos: `s:temadelok:${t.id}` }, { texto: "Cancelar", datos: `s:ver:tema:${t.id}` }]]); return true;
+        await c.responder([cabecera("🗑", "¿Eliminar este tema?", esc(t.titulo)), "", "<i>Dejarás de recibir sus noticias.</i>"].join("\n"), [[{ texto: "🗑 Sí, eliminar", datos: `s:temadelok:${t.id}` }, { texto: "Cancelar", datos: `s:ver:tema:${t.id}` }]]); return true;
       }
       case "temadelok": {
         c.u.temas = c.u.temas.filter((x) => x.id !== p[2]); await c.guardar();
@@ -86,9 +101,9 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
   // ns === "p"
   switch (acc) {
     case "ver": await c.responder(textoPerfil(c.u), tecladoPerfil); return true;
-    case "nombre": await c.esperar("perfil", "nombre"); await c.responder("✏️ ¿Cómo te llamo?", [[BTN_CANCELAR]]); return true;
-    case "nacimiento": await c.esperar("perfil", "nacimiento"); await c.responder("🎂 Escribe tu fecha de nacimiento (<i>dd/mm/aaaa</i>):", [[BTN_CANCELAR]]); return true;
-    case "ciudad": await c.esperar("perfil", "ciudad"); await c.responder("📍 Escribe el nombre de tu municipio:", [[BTN_CANCELAR]]); return true;
+    case "nombre": await c.esperar("perfil", "nombre"); await c.responder([cabecera("✏️", "Tu nombre"), "", "¿Cómo te llamo?"].join("\n"), [[BTN_CANCELAR]]); return true;
+    case "nacimiento": await c.esperar("perfil", "nacimiento"); await c.responder([cabecera("🎂", "Tu fecha de nacimiento"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Por ejemplo: 05/04/1984</i>"].join("\n"), [[BTN_CANCELAR]]); return true;
+    case "ciudad": await c.esperar("perfil", "ciudad"); await c.responder([cabecera("📍", "Tu ciudad"), "", "Escribe el nombre de tu municipio.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[BTN_CANCELAR]]); return true;
     case "lugar": {
       const l = ((c.estado?.datos.resultados ?? []) as Lugar[])[+p[2]];
       if (l) {
@@ -96,12 +111,12 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
         c.u.ciudad = { nombre: l.nombre, provincia: l.provincia, lat: l.lat, lon: l.lon }; c.u.zona = l.zona; c.u.estado = null; await c.guardar();
         await activarPendiente(c, pendiente);
         await sincronizarSecciones(c.almacen, c.u, c.ahora); // la zona horaria puede haber cambiado
-        await c.responder(`📍 Listo: <b>${esc(l.nombre)}</b> (${esc(l.zona)}).`, [[{ texto: "👤 Mi perfil", datos: "p:ver" }, BTN_MENU]]);
+        await c.responder([cabecera("📍", "¡Listo!", "Ciudad guardada"), "", bloque("📍", "Ciudad", esc(l.nombre)), "", bloque("🕐", "Zona horaria", esc(l.zona))].join("\n"), [[{ texto: "👤 Mi perfil", datos: "p:ver" }, BTN_MENU]]);
       }
       return true;
     }
-    case "borrar": await c.responder("⚠️ <b>¿Borrar todos tus datos?</b>\nSe eliminarán tu perfil, tus secciones, tus alarmas, citas y tareas, y dejaré de enviarte mensajes. No se puede deshacer.", [[{ texto: "🗑 Sí, borrar todo", datos: "p:borrarok" }, { texto: "Cancelar", datos: "p:ver" }]]); return true;
-    case "borrarok": await c.almacen.borrarUsuario(c.u.id); await c.responder("🗑 Tus datos se han borrado y no te enviaré más mensajes. Si quieres volver, escribe /start."); return true;
+    case "borrar": await c.responder([cabecera("⚠️", "¿Borrar todos tus datos?", "No se puede deshacer"), "", bloque("🗑", "Se eliminará", "• tu perfil", "• tus secciones y temas", "• tus alarmas, citas y tareas"), "", "<i>Y dejaré de enviarte mensajes.</i>"].join("\n"), [[{ texto: "🗑 Sí, borrar todo", datos: "p:borrarok" }, { texto: "Cancelar", datos: "p:ver" }]]); return true;
+    case "borrarok": await c.almacen.borrarUsuario(c.u.id); await c.responder([cabecera("🗑", "Datos borrados"), "", "No te enviaré más mensajes.", "", "<i>Si quieres volver, escribe /start.</i>"].join("\n")); return true;
     default: return true;
   }
 }
@@ -114,7 +129,7 @@ async function crearTema(c: Ctx, consulta: string | undefined): Promise<boolean>
   const tema: Tema = { id, titulo, emoji: "⭐", consulta: (consulta ?? titulo).trim() || titulo, hora: horaLibre(c), activa: true };
   c.u.temas.push(tema); c.u.estado = null; await c.guardar();
   await programarSeccion(c.almacen, c.u, `tema:${id}`, c.ahora);
-  await c.responder(`✅ Tema añadido: <b>${esc(titulo)}</b>\nTe mandaré sus noticias cada día a las <b>${tema.hora}</b>.`, [[{ texto: "👁 Verlo ahora", datos: `sec:tema:${id}` }, { texto: "🧩 Mis secciones", datos: "s:lista" }]]);
+  await c.responder([cabecera("✅", "Tema añadido", esc(titulo)), "", bloque("🔔", "Aviso diario", `Cada día a las <b>${tema.hora}</b>`)].join("\n"), [[{ texto: "👁 Verlo ahora", datos: `sec:tema:${id}` }, { texto: "🧩 Mis secciones", datos: "s:lista" }]]);
   return true;
 }
 
@@ -127,12 +142,12 @@ export async function texto(c: Ctx): Promise<boolean> {
     const cfg = getCfg(c, ref); if (!cfg) { await c.terminarFlujo(); return true; }
     cfg.hora = `${String(hm[0]).padStart(2, "0")}:${String(hm[1]).padStart(2, "0")}`; c.u.estado = null; await c.guardar();
     await programarSeccion(c.almacen, c.u, ref, c.ahora);
-    await c.nuevo(`🕒 Hecho. Te avisaré cada día a las <b>${cfg.hora}</b>.`, [[{ texto: "🧩 Mis secciones", datos: "s:lista" }, BTN_MENU]]); return true;
+    await c.nuevo([cabecera("🕒", "¡Hecho!", "Hora cambiada"), "", bloque("🔔", "Aviso diario", `Cada día a las <b>${cfg.hora}</b>`)].join("\n"), [[{ texto: "🧩 Mis secciones", datos: "s:lista" }, BTN_MENU]]); return true;
   }
   if (est.flujo === "tema") {
     if (est.paso === "titulo") {
       await c.esperar("tema", "consulta", { titulo: c.texto.slice(0, 40) });
-      await c.nuevo("🔎 ¿Qué palabras busco? Por ejemplo <i>ajedrez OR Magnus Carlsen</i>. Si no escribes nada, uso el nombre.", [[{ texto: "Usar el nombre", datos: "s:temaskip" }], [BTN_CANCELAR]]); return true;
+      await c.nuevo([cabecera("🔎", "¿Qué busco?", "Paso 2: las palabras"), "", "Escribe las palabras que quieres vigilar.", "", "<i>Por ejemplo: ajedrez OR Magnus Carlsen. Si no escribes nada, uso el nombre.</i>"].join("\n"), [[{ texto: "Usar el nombre", datos: "s:temaskip" }], [BTN_CANCELAR]]); return true;
     }
     return crearTema(c, c.texto.slice(0, 120));
   }

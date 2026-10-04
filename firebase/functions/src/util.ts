@@ -25,6 +25,9 @@ export const SEPARADOR = "▬▬▬▬▬▬▬▬▬▬▬▬▬▬";
 export const cabecera = (emoji: string, titulo: string, subtitulo?: string) =>
   `${emoji} <b>${titulo}</b>${subtitulo ? `\n<i>${subtitulo}</i>` : ""}\n${SEPARADOR}`;
 
+/** Bloque de un mensaje: emoji y título en negrita, y debajo sus líneas. */
+export const bloque = (emoji: string, titulo: string, ...lineas: string[]) => `${emoji} <b>${titulo}</b>${lineas.length ? `\n${lineas.join("\n")}` : ""}`;
+
 export interface HttpGet {
   get(url: string, opciones?: { timeout?: number; headers?: Record<string, string> }): Promise<{ data: unknown }>;
 }

@@ -3,10 +3,22 @@ import { esc } from "../canal";
 import { formatearFechaHora } from "../fechas";
 import { ORDEN_SECCIONES, SECCIONES, Usuario } from "../modelo";
 import { signoDe } from "../signos";
+import { bloque, cabecera } from "../util";
 import { BTN_MENU } from "./ctx";
 
 export function textoMenu(u: Usuario): string {
-  return `🗓 <b>Agenda Personal</b>\n${u.nombre ? `Hola, ${esc(u.nombre)}. ` : ""}¿Qué quieres hacer?`;
+  const activas = seccionesActivas(u).length;
+  return [
+    cabecera("🗓", "Agenda Personal", u.nombre ? `Hola, ${esc(u.nombre)} 👋` : "¿Qué quieres hacer?"),
+    "",
+    bloque("📋", "Resumen de hoy", "Lo que tienes activado, al momento"),
+    "",
+    bloque("⏰", "Alarmas, citas y tareas", "Crearlas, verlas y modificarlas"),
+    "",
+    bloque("⚙️", "Ajustes", activas ? `${activas} ${activas === 1 ? "sección" : "secciones"} activa${activas === 1 ? "" : "s"} · tu perfil` : "Activa tus secciones y completa tu perfil"),
+    "",
+    "<i>Elige una opción 👇</i>",
+  ].join("\n");
 }
 
 export const tecladoMenu: Teclado = [
@@ -17,20 +29,21 @@ export const tecladoMenu: Teclado = [
 ];
 
 export const textoAyuda = [
-  "❓ <b>Ayuda</b>",
-  "Te mando cada día, a la hora que elijas, el tiempo, las noticias, tu agenda, tu horóscopo y los temas que sigas. También te aviso de tus alarmas, citas y tareas.",
+  cabecera("❓", "Ayuda", "Cómo funciona tu agenda"),
   "",
-  "<b>Comandos</b>",
-  "/menu — menú principal",
-  "/hoy — resumen de hoy",
-  "/nueva — nueva alarma, cita o tarea",
-  "/eventos — tus alarmas, citas y tareas",
-  "/secciones — activar, desactivar y cambiar horas",
-  "/perfil — tus datos",
-  "/cancelar — cancelar lo que estés haciendo",
-  "/borrar — borrar todos tus datos",
+  bloque("📬", "Qué recibes", "Cada día, a la hora que elijas: el tiempo, las noticias, tu agenda, tu horóscopo y los temas que sigas.", "Y un aviso de cada alarma, cita o tarea."),
   "",
-  "<i>Al crear un evento puedes escribir la fecha como quieras: «mañana 9:30», «15/10 18:00», «lunes 10h», «en 2 horas».</i>",
+  bloque("⌨️", "Comandos",
+    "/menu · menú principal",
+    "/hoy · resumen de hoy",
+    "/nueva · crear alarma, cita o tarea",
+    "/eventos · ver y modificar lo creado",
+    "/secciones · activar y cambiar horas",
+    "/perfil · tus datos",
+    "/cancelar · cancelar lo que haces",
+    "/borrar · borrar todos tus datos"),
+  "",
+  bloque("🕒", "Fechas", "Escríbelas como quieras:", "• mañana 9:30", "• 15/10 18:00", "• lunes 10h", "• en 2 horas"),
 ].join("\n");
 
 /** Secciones activas del usuario (integradas y temas) con su emoji y título. */
@@ -51,14 +64,19 @@ export function tecladoHoy(u: Usuario): Teclado {
 
 export function textoPerfil(u: Usuario): string {
   const signo = u.nacimiento ? signoDe(u.nacimiento) : null;
+  const sin = "<i>sin indicar</i>";
   return [
-    "👤 <b>Tu perfil</b>",
-    `Nombre: ${u.nombre ? esc(u.nombre) : "<i>sin indicar</i>"}`,
-    `Nacimiento: ${u.nacimiento ? `${u.nacimiento.split("-").reverse().join("/")} · ${signo!.simbolo} ${signo!.nombre}` : "<i>sin indicar</i>"}`,
-    `Ciudad: ${u.ciudad ? `${esc(u.ciudad.nombre)}${u.ciudad.provincia ? ` (${esc(u.ciudad.provincia)})` : ""}` : "<i>sin indicar</i>"}`,
-    `Zona horaria: ${esc(u.zona)}`,
+    cabecera("👤", "Tu perfil", "Los datos con los que preparo tus resúmenes"),
     "",
-    "<i>Solo guardo estos datos para prepararte los resúmenes. Puedes borrarlos cuando quieras con /borrar.</i>",
+    bloque("✏️", "Nombre", u.nombre ? esc(u.nombre) : sin),
+    "",
+    bloque("🎂", "Nacimiento", u.nacimiento ? `${u.nacimiento.split("-").reverse().join("/")} · ${signo!.simbolo} ${signo!.nombre}` : sin),
+    "",
+    bloque("📍", "Ciudad", u.ciudad ? `${esc(u.ciudad.nombre)}${u.ciudad.provincia ? ` (${esc(u.ciudad.provincia)})` : ""}` : sin),
+    "",
+    bloque("🕐", "Zona horaria", esc(u.zona)),
+    "",
+    "<i>Solo guardo esto para prepararte los resúmenes. Puedes borrarlo cuando quieras con /borrar.</i>",
   ].join("\n");
 }
 

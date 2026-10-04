@@ -7,6 +7,7 @@ type Borrador = Omit<Tema, "hora" | "activa">;
 import { sincronizarSecciones } from "../programar";
 import { signoDe } from "../signos";
 import { SECCIONES_BASICAS, TEMAS, separarIntereses, slug } from "./catalogo";
+import { bloque, cabecera } from "../util";
 import { Ctx } from "./ctx";
 import { textoMenu, tecladoMenu } from "./vistas";
 
@@ -23,7 +24,15 @@ const SIGUIENTE = (txt = "Siguiente ➡️", d = "o:sig") => ({ texto: txt, dato
 export async function iniciar(c: Ctx): Promise<void> {
   await c.esperar(FLUJO, "inicio", { secciones: ["noticias", "agenda", "mercados", "tiempo"], temas: [], extra: [] });
   await c.nuevo(
-    "👋 <b>¡Hola! Soy tu agenda personal.</b>\n\nTe mando cada día, a la hora que elijas, lo que te interesa: el tiempo, las noticias, tu horóscopo, la bolsa… y te aviso de tus alarmas, citas y tareas.\n\nTe haré unas preguntas rápidas para personalizarlo (todo es opcional).",
+    [
+      cabecera("👋", "¡Hola! Soy tu agenda personal", "Te ayudo a no olvidar nada"),
+      "",
+      bloque("📬", "Cada día, a tu hora", "⛅ el tiempo · 📰 noticias · 🔮 horóscopo · 📈 bolsa"),
+      "",
+      bloque("⏰", "Y te aviso de", "tus alarmas, citas y tareas"),
+      "",
+      "<i>Te haré unas preguntas rápidas para personalizarlo. Todo es opcional 👇</i>",
+    ].join("\n"),
     [[{ texto: "🚀 Empezar", datos: "o:sig" }], [OMITIR_TODO]],
   );
 }
@@ -43,6 +52,9 @@ function tecladoTemas(d: Datos): Teclado {
   return [...filas, [SIGUIENTE("Siguiente ➡️", "o:sig")], [OMITIR_TODO]];
 }
 
+const TEXTO_SECCIONES = [cabecera("📋", "¿Qué quieres recibir?", "Paso 1 de 6"), "", "Un resumen cada día, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+const TEXTO_TEMAS = [cabecera("⭐", "¿Qué te interesa?", "Paso 2 de 6"), "", "Crearé una sección de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+
 const PASOS = ["inicio", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"] as const;
 
 async function mostrarPaso(c: Ctx, paso: (typeof PASOS)[number]): Promise<void> {
@@ -52,17 +64,17 @@ async function mostrarPaso(c: Ctx, paso: (typeof PASOS)[number]): Promise<void> 
   switch (paso) {
     case "secciones":
       d.tocoIntereses = true;
-      await c.responder("📋 <b>¿Qué quieres recibir cada día?</b>\nPulsa para marcar o desmarcar.", tecladoIntereses(d)); break;
+      await c.responder(TEXTO_SECCIONES, tecladoIntereses(d)); break;
     case "temas":
-      await c.responder("⭐ <b>¿Qué aficiones o temas te interesan?</b>\nCrearé una sección de noticias para cada uno.", tecladoTemas(d)); break;
+      await c.responder(TEXTO_TEMAS, tecladoTemas(d)); break;
     case "extra":
-      await c.responder("✍️ ¿Algún otro interés? Escríbelos separados por comas (por ejemplo: <i>ajedrez, pesca, Real Madrid</i>).", [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("✍️", "¿Algún otro interés?", "Paso 3 de 6"), "", "Escríbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "nombre":
-      await c.responder("👤 ¿Cómo te llamo?", [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("👤", "¿Cómo te llamo?", "Paso 4 de 6"), "", "<i>Escribe tu nombre 👇</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "nacimiento":
-      await c.responder("🎂 ¿Cuál es tu fecha de nacimiento? (<i>dd/mm/aaaa</i>)\nLa uso para tu signo y tu horóscopo diario. Solo se guarda aquí y puedes borrarla cuando quieras.", [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("🎂", "Tu fecha de nacimiento", "Paso 5 de 6"), "", bloque("🔮", "Para qué", "Tu signo y tu horóscopo diario"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aquí y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "ciudad":
-      await c.responder("📍 ¿En qué municipio vives? Escribe el nombre (por ejemplo <i>Montoro</i>) y lo busco.\nLo uso para el tiempo y las noticias de tu zona.", [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("📍", "¿Dónde vives?", "Paso 6 de 6"), "", bloque("⛅", "Para qué", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "fin": await resumenFinal(c); break;
     default: break;
   }
@@ -80,8 +92,9 @@ async function resumenFinal(c: Ctx): Promise<void> {
   if (temas.length) lineas.push("⭐ " + temas.map(esc).join(", "));
   if ((d.secciones ?? []).includes("tiempo") && !c.u.ciudad) lineas.push("<i>Para activar el tiempo, indica tu ciudad en ‘Mi perfil’.</i>");
   if ((d.secciones ?? []).includes("horoscopo") && !c.u.nacimiento) lineas.push("<i>Para activar el horóscopo, indica tu fecha de nacimiento en ‘Mi perfil’.</i>");
+  const cuerpo = lineas.length ? lineas.flatMap((l) => [l, ""]).slice(0, -1) : ["📋 Lo básico: noticias, agenda y mercados"];
   await c.responder(
-    ["🎉 <b>¡Todo listo!</b> Esto es lo que voy a prepararte:", "", ...(lineas.length ? lineas : ["📋 Lo básico: noticias, agenda y mercados"]), "", "Podrás cambiar horas, temas y datos cuando quieras desde el menú."].join("\n"),
+    [cabecera("🎉", "¡Todo listo!", "Esto es lo que voy a prepararte"), "", ...cuerpo, "", "<i>Podrás cambiarlo cuando quieras desde el menú 👇</i>"].join("\n"),
     [[{ texto: "✅ Terminar", datos: "o:fin" }]],
   );
 }
@@ -119,13 +132,13 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     const id = p[2] as SeccionId;
     d.secciones = (d.secciones ?? []).includes(id) ? (d.secciones ?? []).filter((x) => x !== id) : [...(d.secciones ?? []), id];
     c.u.estado = { flujo: FLUJO, paso: "secciones", datos: d as Record<string, unknown> }; await c.guardar();
-    await c.responder("📋 <b>¿Qué quieres recibir cada día?</b>\nPulsa para marcar o desmarcar.", tecladoIntereses(d)); return true;
+    await c.responder(TEXTO_SECCIONES, tecladoIntereses(d)); return true;
   }
   if (p[1] === "t") {
     const t = TEMAS[+p[2]]; if (!t) return true;
     d.temas = (d.temas ?? []).includes(t.titulo) ? (d.temas ?? []).filter((x) => x !== t.titulo) : [...(d.temas ?? []), t.titulo];
     c.u.estado = { flujo: FLUJO, paso: "temas", datos: d as Record<string, unknown> }; await c.guardar();
-    await c.responder("⭐ <b>¿Qué aficiones o temas te interesan?</b>\nCrearé una sección de noticias para cada uno.", tecladoTemas(d)); return true;
+    await c.responder(TEXTO_TEMAS, tecladoTemas(d)); return true;
   }
   if (p[1] === "lugar") { // elección de una de las ciudades encontradas
     const l = (d.resultados ?? [])[+p[2]];

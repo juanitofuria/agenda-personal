@@ -37,13 +37,13 @@ test("asistente completo: intereses, aficiones, nombre, nacimiento y ciudad → 
   b.http.añadir("geocoding-api", geocodingFalso("Montoro"));
   await b.escribir(U, "/start");
   await b.pulsarTexto(U, "Empezar");
-  assert.match(textoUltimo(b), /¿Qué quieres recibir cada día\?/);
+  assert.match(textoUltimo(b), /¿Qué quieres recibir\?/);
   assert.ok(hayBoton(b, "✅ 📰 Noticias") && hayBoton(b, "▫️ 🔮 Horóscopo"));
   await b.pulsar(U, "o:s:horoscopo"); // activa el horóscopo
   await b.pulsar(U, "o:s:mercados");  // y desactiva los mercados
   assert.ok(hayBoton(b, "✅ 🔮 Horóscopo") && hayBoton(b, "▫️ 📈 Mercados"));
   await b.pulsar(U, "o:sig");
-  assert.match(textoUltimo(b), /aficiones o temas/);
+  assert.match(textoUltimo(b), /¿Qué te interesa\?/);
   await b.pulsarTexto(U, "Fútbol");
   await b.pulsarTexto(U, "Motociclismo");
   await b.pulsarTexto(U, "Fútbol"); // lo desmarca
@@ -189,7 +189,7 @@ test("alarma diaria: título, fecha escrita y repetición → guardada y program
   await b.escribir(U, "mañana 9:30");
   assert.match(textoUltimo(b), /¿Se repite\?/);
   await b.pulsar(U, "n:rep:diaria");
-  assert.match(textoUltimo(b), /Guardado/); assert.match(textoUltimo(b), /Tomar la pastilla/); assert.match(textoUltimo(b), /Se repite: cada día/);
+  assert.match(textoUltimo(b), /Guardado/); assert.match(textoUltimo(b), /Tomar la pastilla/); assert.match(textoUltimo(b), /Se repite<\/b>\ncada día/);
   const [e] = await evs(b);
   assert.equal(e.tipo, "alarma"); assert.equal(local(e.fechaHora!), "2026-10-05 09:30"); assert.equal(e.repeticion, "diaria"); assert.equal(e.antelacionMin, 0);
   assert.equal(prog(b, "evento", e.id)!.proximo.getTime(), e.fechaHora!.getTime());
@@ -205,7 +205,7 @@ test("cita: lugar con HTML, antelación de un día y aviso programado un día an
   await b.escribir(U, "Hospital <Reina Sofía>");
   assert.match(textoUltimo(b), /antelación/);
   await b.pulsar(U, "n:ant:1440");
-  assert.match(textoUltimo(b), /Aviso: 1 día antes/); assert.match(textoUltimo(b), /Hospital &lt;Reina Sofía&gt;/);
+  assert.match(textoUltimo(b), /Aviso<\/b>\n1 día antes/); assert.match(textoUltimo(b), /Hospital &lt;Reina Sofía&gt;/);
   const [e] = await evs(b);
   assert.equal(local(e.fechaHora!), "2026-10-15 18:00"); assert.equal(e.lugar, "Hospital <Reina Sofía>");
   assert.equal(local(prog(b, "evento", e.id)!.proximo), "2026-10-14 18:00");
@@ -260,12 +260,12 @@ async function conCita(b: Banco) {
 
 test("lista de eventos y detalle con todas las acciones", async () => {
   const b = await usuarioListo();
-  assert.match((await (async () => { await b.pulsar(U, "e:lista"); return textoUltimo(b); })()), /Aún no tienes alarmas/);
+  assert.match((await (async () => { await b.pulsar(U, "e:lista"); return textoUltimo(b); })()), /Todavía no tienes alarmas/);
   const e = await conCita(b);
   await b.pulsar(U, "e:lista");
   assert.match(textoUltimo(b), /1 próximo/); assert.ok(hayBoton(b, "mañana · 11:00 · Cardiología"));
   await b.pulsar(U, `e:ver:${e.id}`);
-  assert.match(textoUltimo(b), /Cardiología/); assert.match(textoUltimo(b), /📍 Hospital/); assert.match(textoUltimo(b), /Aviso: 1 h antes/);
+  assert.match(textoUltimo(b), /Cardiología/); assert.match(textoUltimo(b), /Dónde<\/b>\nHospital/); assert.match(textoUltimo(b), /Aviso<\/b>\n1 h antes/);
   for (const t of ["Título", "Fecha y hora", "Lugar", "Antelación", "Repetición", "Eliminar"]) assert.ok(hayBoton(b, t), t);
 });
 
@@ -298,7 +298,7 @@ test("eliminar pide confirmación; confirmar borra el evento y su aviso; cancela
   const b = await usuarioListo();
   const e = await conCita(b);
   await b.pulsar(U, `e:del:${e.id}`);
-  assert.match(textoUltimo(b), /¿Eliminar <b>Cardiología<\/b>\?/);
+  assert.match(textoUltimo(b), /¿Eliminar\?<\/b>\n<i>Cardiología<\/i>/);
   await b.pulsarTexto(U, "Cancelar");
   assert.equal((await evs(b)).length, 1);
   await b.pulsar(U, `e:del:${e.id}`); await b.pulsar(U, `e:delok:${e.id}`);
@@ -335,9 +335,9 @@ test("activar el tiempo sin ciudad la pide y activa la sección al elegirla; igu
   const b = await usuarioListo();
   b.http.añadir("geocoding-api", geocodingFalso());
   await b.pulsar(U, "s:tog:tiempo");
-  assert.match(textoUltimo(b), /necesito tu municipio/); assert.equal((await b.almacen.getUsuario(U))!.secciones.tiempo.activa, false);
+  assert.match(textoUltimo(b), /¿Dónde vives\?/); assert.equal((await b.almacen.getUsuario(U))!.secciones.tiempo.activa, false);
   await b.escribir(U, "Montoro"); await b.pulsar(U, "p:lugar:0");
-  assert.match(textoUltimo(b), /Listo: <b>Montoro<\/b>/);
+  assert.match(textoUltimo(b), /¡Listo!<\/b>[\s\S]*Ciudad<\/b>\nMontoro/);
   assert.equal((await b.almacen.getUsuario(U))!.secciones.tiempo.activa, true); assert.ok(prog(b, "seccion", "tiempo"));
   await b.pulsar(U, "s:tog:horoscopo"); assert.match(textoUltimo(b), /fecha de nacimiento/);
   await b.escribir(U, "05/04/1984");
@@ -347,9 +347,9 @@ test("activar el tiempo sin ciudad la pide y activa la sección al elegirla; igu
 test("añadir un tema: nombre y búsqueda; nombres repetidos no chocan; eliminar lo quita", async () => {
   const b = await usuarioListo();
   await b.pulsar(U, "s:tema+"); await b.escribir(U, "Ajedrez");
-  assert.match(textoUltimo(b), /¿Qué palabras busco\?/);
+  assert.match(textoUltimo(b), /¿Qué busco\?/);
   await b.escribir(U, "ajedrez OR Magnus Carlsen");
-  assert.match(textoUltimo(b), /Tema añadido: <b>Ajedrez<\/b>/);
+  assert.match(textoUltimo(b), /Tema añadido<\/b>\n<i>Ajedrez<\/i>/);
   let u = (await b.almacen.getUsuario(U))!;
   assert.deepEqual(u.temas.map((t) => [t.id, t.consulta, t.hora]), [["ajedrez", "ajedrez OR Magnus Carlsen", "08:30"]]);
   assert.equal(local(prog(b, "seccion", "tema:ajedrez")!.proximo), "2026-10-05 08:30");
@@ -399,7 +399,7 @@ test("borrar mis datos: confirma, elimina todo y deja de programar; /start vuelv
   await b.escribir(U, "/borrar"); assert.match(textoUltimo(b), /¿Borrar todos tus datos\?/);
   await b.pulsarTexto(U, "Cancelar"); assert.ok(await b.almacen.getUsuario(U));
   await b.pulsar(U, "p:borrar"); await b.pulsar(U, "p:borrarok");
-  assert.match(textoUltimo(b), /se han borrado/);
+  assert.match(textoUltimo(b), /Datos borrados/);
   assert.equal(await b.almacen.getUsuario(U), null); assert.equal((await evs(b)).length, 0); assert.equal(b.almacen.programaciones.size, 0);
   await b.escribir(U, "/start"); assert.match(textoUltimo(b), /Soy tu agenda personal/);
 });

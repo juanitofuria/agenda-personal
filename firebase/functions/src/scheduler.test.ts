@@ -224,7 +224,7 @@ test("cita con antelación: avisa antes y dice cuándo es", async () => {
   avanzar(b, "2026-10-05T06:00:10Z"); // 08:00 de mañana = 3 h antes
   assert.equal((await correr(b)).enviados >= 1, true);
   const m = b.canal.mensajes.find((x) => /Cardiología/.test(x.html))!;
-  assert.match(m.html, /🩺 <b>Cardiología<\/b>/); assert.match(m.html, /Tienes una cita/); assert.match(m.html, /📍 Hospital &lt;Norte&gt;/); assert.match(m.html, /Es hoy · 11:00/);
+  assert.match(m.html, /🩺 <b>Cardiología<\/b>/); assert.match(m.html, /Tienes una cita/); assert.match(m.html, /Dónde<\/b>\nHospital &lt;Norte&gt;/); assert.match(m.html, /Es<\/b>\nhoy · 11:00/);
 });
 
 test("tarea con aviso", async () => {
@@ -234,7 +234,7 @@ test("tarea con aviso", async () => {
   b.canal.limpiar();
   avanzar(b, "2026-10-04T10:00:10Z");
   await correr(b);
-  assert.match(b.canal.mensajes.find((x) => /banco/.test(x.html))!.html, /✅ <b>Llamar al banco<\/b>\nTienes una tarea pendiente/);
+  assert.match(b.canal.mensajes.find((x) => /banco/.test(x.html))!.html, /✅ <b>Llamar al banco<\/b>\n<i>Tienes una tarea pendiente/);
 });
 
 test("aviso retrasado: se marca si lleva más de 10 minutos y se descarta si es de hace más de un día", async () => {

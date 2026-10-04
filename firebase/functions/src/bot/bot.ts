@@ -30,7 +30,8 @@ async function entregarSeccion(c: Ctx, ref: string, pendiente: ReturnType<typeof
 }
 
 async function resumenHoy(c: Ctx): Promise<void> {
-  await c.responder("📋 <b>Resumen de hoy</b>\n¿Qué quieres ver?", tecladoHoy(c.u));
+  const activas = seccionesActivas(c.u);
+  await c.responder([cabecera("📋", "Resumen de hoy", activas.length ? `${activas.length} ${activas.length === 1 ? "sección" : "secciones"} activa${activas.length === 1 ? "" : "s"}` : "Aún no tienes secciones activas"), "", "<i>Elige una sección, o pulsa «Todo lo activado» para recibirlas todas 👇</i>"].join("\n"), tecladoHoy(c.u));
 }
 
 async function todo(c: Ctx): Promise<void> {

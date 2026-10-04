@@ -3,14 +3,23 @@ import { formatearFechaHora, parseFechaHora, Repeticion } from "../fechas";
 import { Evento, momentoAviso, TipoEvento } from "../modelo";
 import { cancelarEvento, posponerEvento, programarEvento } from "../programar";
 import { EMOJI_TIPO } from "../secciones/agenda";
+import { bloque, cabecera } from "../util";
 import { BTN_CANCELAR, BTN_MENU, Ctx } from "./ctx";
 
 const NOMBRE_TIPO: Record<TipoEvento, string> = { alarma: "Alarma", cita: "Cita", tarea: "Tarea" };
 const REP_TEXTO: Record<Repeticion, string> = { ninguna: "solo una vez", diaria: "cada día", semanal: "cada semana", laborables: "de lunes a viernes" };
 const ANT_TEXTO = (m: number) => (m === 0 ? "sin aviso previo" : m < 60 ? `${m} min antes` : m < 1440 ? `${m / 60} h antes` : `${m / 1440} día${m >= 2880 ? "s" : ""} antes`);
 
-const AYUDA_CUANDO =
-  "🕒 ¿Cuándo? Escríbelo como quieras: <i>mañana 9:30</i>, <i>15/10 18:00</i>, <i>lunes 10h</i>, <i>en 2 horas</i>…";
+const AYUDA_CUANDO = [
+  cabecera("🕒", "¿Cuándo?", "Escríbelo como quieras"),
+  "",
+  "• <i>mañana 9:30</i>",
+  "• <i>15/10 18:00</i>",
+  "• <i>lunes 10h</i>",
+  "• <i>en 2 horas</i>",
+  "",
+  "<i>O elige un atajo 👇</i>",
+].join("\n");
 const TECLADO_CUANDO = (extra: Teclado = []): Teclado => [
   [{ texto: "En 1 hora", datos: "n:t:1h" }, { texto: "Mañana 9:00", datos: "n:t:m9" }, { texto: "Mañana 18:00", datos: "n:t:m18" }],
   ...extra, [BTN_CANCELAR],
@@ -18,13 +27,16 @@ const TECLADO_CUANDO = (extra: Teclado = []): Teclado => [
 
 /** Detalle de un evento con sus acciones. */
 export function textoEvento(e: Evento, zona: string, ahora: Date): string {
-  const lineas = [`${EMOJI_TIPO[e.tipo]} <b>${esc(e.titulo)}</b> <i>(${NOMBRE_TIPO[e.tipo].toLowerCase()})</i>`];
-  lineas.push(`🕐 ${e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "sin fecha"}`);
-  if (e.lugar) lineas.push(`📍 ${esc(e.lugar)}`);
-  if (e.tipo === "cita") lineas.push(`🔔 Aviso: ${ANT_TEXTO(e.antelacionMin)}`);
-  if (e.tipo === "alarma" || e.repeticion !== "ninguna") lineas.push(`🔁 Se repite: ${REP_TEXTO[e.repeticion]}`);
-  if (e.tipo === "tarea" && e.hecho) lineas.push("✅ Hecha");
-  return lineas.join("\n");
+  const bloques = [
+    cabecera(EMOJI_TIPO[e.tipo], esc(e.titulo), NOMBRE_TIPO[e.tipo]),
+    "",
+    bloque("🕐", "Cuándo", e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "<i>sin fecha</i>"),
+  ];
+  if (e.lugar) bloques.push("", bloque("📍", "Dónde", esc(e.lugar)));
+  if (e.tipo === "cita") bloques.push("", bloque("🔔", "Aviso", ANT_TEXTO(e.antelacionMin)));
+  if (e.tipo === "alarma" || e.repeticion !== "ninguna") bloques.push("", bloque("🔁", "Se repite", REP_TEXTO[e.repeticion]));
+  if (e.tipo === "tarea" && e.hecho) bloques.push("", bloque("✅", "Estado", "Hecha"));
+  return bloques.join("\n");
 }
 
 function tecladoEvento(e: Evento): Teclado {
@@ -53,11 +65,28 @@ export async function lista(c: Ctx): Promise<void> {
     [{ texto: "➕ Nueva", datos: "n:menu" }, BTN_MENU],
   ];
   const vacio = futuros.length + tareas.length + pasados.length === 0;
-  await c.responder(vacio ? "📅 <b>Mis eventos</b>\nAún no tienes alarmas, citas ni tareas. ¡Crea la primera!" : `📅 <b>Mis eventos</b>\n${futuros.length} próximo(s) · ${tareas.filter((t) => !t.hecho).length} tarea(s) pendiente(s)\n<i>Toca uno para verlo, modificarlo o eliminarlo.</i>`, filas);
+  const pendientes = tareas.filter((t) => !t.hecho).length;
+  await c.responder(vacio
+    ? [cabecera("📅", "Mis eventos", "Aún no hay nada"), "", "Todavía no tienes alarmas, citas ni tareas.", "", "<i>¡Crea la primera con «➕ Nueva»! 👇</i>"].join("\n")
+    : [
+      cabecera("📅", "Mis eventos", `${futuros.length} próximo${futuros.length === 1 ? "" : "s"} · ${pendientes} tarea${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"}`),
+      "",
+      bloque("🔎", "Cómo leerlo", "⏰ alarma · 🩺 cita · ✅ tarea · 🕘 pasado"),
+      "",
+      "<i>Toca uno para verlo, modificarlo o eliminarlo 👇</i>",
+    ].join("\n"), filas);
 }
 
 export async function menuNueva(c: Ctx): Promise<void> {
-  await c.responder("➕ <b>¿Qué quieres crear?</b>", [
+  await c.responder([
+    cabecera("➕", "Crear nuevo", "¿Qué quieres crear?"),
+    "",
+    bloque("⏰", "Alarma", "Te avisa a una hora y puede repetirse"),
+    "",
+    bloque("🩺", "Cita", "Con lugar y aviso con antelación"),
+    "",
+    bloque("✅", "Tarea", "Algo pendiente, con o sin fecha"),
+  ].join("\n"), [
     [{ texto: "⏰ Alarma", datos: "n:tipo:alarma" }, { texto: "🩺 Cita", datos: "n:tipo:cita" }, { texto: "✅ Tarea", datos: "n:tipo:tarea" }],
     [BTN_MENU],
   ]);
@@ -78,21 +107,22 @@ async function guardarNuevo(c: Ctx, d: DatosNuevo): Promise<void> {
   await c.almacen.guardarEvento(ev);
   await c.terminarFlujo();
   const extra = ev.fechaHora && momentoAviso(ev)!.getTime() > ahora.getTime() ? "" : ev.fechaHora ? "" : "\n<i>Sin fecha: no habrá aviso.</i>";
-  await c.responder(`✅ <b>Guardado</b>\n\n${textoEvento(ev, c.u.zona, ahora)}${aviso}${extra}`, [[{ texto: "📅 Ver mis eventos", datos: "e:lista" }, { texto: "➕ Otra", datos: "n:menu" }], [BTN_MENU]]);
+  await c.responder(`✅ <b>¡Guardado!</b>\n\n${textoEvento(ev, c.u.zona, ahora)}${aviso}${extra}`, [[{ texto: "📅 Ver mis eventos", datos: "e:lista" }, { texto: "➕ Otra", datos: "n:menu" }], [BTN_MENU]]);
 }
 
 async function preguntarTrasFecha(c: Ctx, d: DatosNuevo): Promise<void> {
   if (d.tipo === "cita") {
     c.u.estado = { flujo: "nuevo", paso: "lugar", datos: d as unknown as Record<string, unknown> }; await c.guardar();
-    await c.nuevo("📍 ¿Dónde es? (hospital, consulta…)", [[{ texto: "Omitir", datos: "n:skip" }], [BTN_CANCELAR]]);
+    await c.nuevo([cabecera("📍", "¿Dónde es?", "Paso 3: el lugar"), "", "<i>Por ejemplo: hospital, consulta, centro de salud…</i>"].join("\n"), [[{ texto: "Omitir", datos: "n:skip" }], [BTN_CANCELAR]]);
   } else if (d.tipo === "alarma") {
     c.u.estado = { flujo: "nuevo", paso: "rep", datos: d as unknown as Record<string, unknown> }; await c.guardar();
-    await c.nuevo("🔁 ¿Se repite?", [[{ texto: "Solo una vez", datos: "n:rep:ninguna" }, { texto: "Cada día", datos: "n:rep:diaria" }], [{ texto: "Lunes a viernes", datos: "n:rep:laborables" }, { texto: "Cada semana", datos: "n:rep:semanal" }], [BTN_CANCELAR]]);
+    await c.nuevo([cabecera("🔁", "¿Se repite?", "Paso 3: la repetición"), "", "<i>Elige una opción 👇</i>"].join("\n"), [[{ texto: "Solo una vez", datos: "n:rep:ninguna" }, { texto: "Cada día", datos: "n:rep:diaria" }], [{ texto: "Lunes a viernes", datos: "n:rep:laborables" }, { texto: "Cada semana", datos: "n:rep:semanal" }], [BTN_CANCELAR]]);
   } else {
     await guardarNuevo(c, d);
   }
 }
 
+const TEXTO_ANT = [cabecera("🔔", "¿Cuándo te aviso?", "Paso 4: la antelación"), "", "<i>¿Cuánto tiempo antes quieres el aviso? 👇</i>"].join("\n");
 const TECLADO_ANT: Teclado = [[{ texto: "30 min", datos: "n:ant:30" }, { texto: "1 h", datos: "n:ant:60" }, { texto: "3 h", datos: "n:ant:180" }, { texto: "1 día", datos: "n:ant:1440" }], [{ texto: "Sin aviso previo", datos: "n:ant:0" }], [BTN_CANCELAR]];
 
 /** Interpreta una fecha escrita; si no vale, avisa y devuelve null. */
@@ -112,7 +142,7 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     if (acc === "tipo") {
       const tipo = a1 as TipoEvento;
       await c.esperar("nuevo", "titulo", { tipo });
-      await c.responder(`${EMOJI_TIPO[tipo]} <b>Nueva ${NOMBRE_TIPO[tipo].toLowerCase()}</b>\n\n¿Cómo la llamamos? Por ejemplo: <i>${tipo === "cita" ? "Cardiología" : tipo === "alarma" ? "Tomar la pastilla" : "Llamar al fontanero"}</i>`, [[BTN_CANCELAR]]);
+      await c.responder([cabecera(EMOJI_TIPO[tipo], `Nueva ${NOMBRE_TIPO[tipo].toLowerCase()}`, "Paso 1: el nombre"), "", "¿Cómo la llamamos?", "", `<i>Por ejemplo: ${tipo === "cita" ? "Cardiología" : tipo === "alarma" ? "Tomar la pastilla" : "Llamar al fontanero"}</i>`].join("\n"), [[BTN_CANCELAR]]);
       return true;
     }
     if (c.estado?.flujo !== "nuevo") { await menuNueva(c); return true; } // botón de una creación ya terminada
@@ -122,7 +152,7 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
       d.cuando = f.toISOString(); await preguntarTrasFecha(c, d); return true;
     }
     if (acc === "sinfecha") { await guardarNuevo(c, d); return true; }
-    if (acc === "skip") { d.lugar = ""; c.u.estado = { flujo: "nuevo", paso: "ant", datos: d as unknown as Record<string, unknown> }; await c.guardar(); await c.responder("🔔 ¿Con cuánta antelación te aviso?", TECLADO_ANT); return true; }
+    if (acc === "skip") { d.lugar = ""; c.u.estado = { flujo: "nuevo", paso: "ant", datos: d as unknown as Record<string, unknown> }; await c.guardar(); await c.responder(TEXTO_ANT, TECLADO_ANT); return true; }
     if (acc === "ant") { d.ant = +a1; await guardarNuevo(c, d); return true; }
     if (acc === "rep") { d.rep = a1 as Repeticion; await guardarNuevo(c, d); return true; }
     return true;
@@ -137,7 +167,7 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
   const ahora = c.ahora;
   switch (acc) {
     case "ver": await verEvento(c, ev); return true;
-    case "del": await c.responder(`¿Eliminar <b>${esc(ev.titulo)}</b>?`, [[{ texto: "🗑 Sí, eliminar", datos: `e:delok:${ev.id}` }, { texto: "Cancelar", datos: `e:ver:${ev.id}` }]]); return true;
+    case "del": await c.responder([cabecera("🗑", "¿Eliminar?", esc(ev.titulo)), "", "<i>No se puede deshacer.</i>"].join("\n"), [[{ texto: "🗑 Sí, eliminar", datos: `e:delok:${ev.id}` }, { texto: "Cancelar", datos: `e:ver:${ev.id}` }]]); return true;
     case "delok": await cancelarEvento(c.almacen, c.u.id, ev.id); await c.responder(`🗑 Eliminado: <b>${esc(ev.titulo)}</b>`, [[{ texto: "📅 Mis eventos", datos: "e:lista" }, BTN_MENU]]); return true;
     case "keep": await c.responder(`✅ Conservado: <b>${esc(ev.titulo)}</b>`, [[{ texto: "✏️ Modificar", datos: `e:ver:${ev.id}` }, { texto: "📅 Mis eventos", datos: "e:lista" }]]); return true;
     case "snz": {
@@ -147,10 +177,10 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     case "hecho": { const nuevo = { ...ev, hecho: !ev.hecho }; await c.almacen.guardarEvento(nuevo); await programarEvento(c.almacen, nuevo, c.u.zona, ahora); await verEvento(c, nuevo); return true; }
     case "ed": {
       const campo = a1;
-      if (campo === "rep") { await c.responder("🔁 ¿Se repite?", [[{ texto: "Solo una vez", datos: `e:rep:ninguna:${ev.id}` }, { texto: "Cada día", datos: `e:rep:diaria:${ev.id}` }], [{ texto: "Lunes a viernes", datos: `e:rep:laborables:${ev.id}` }, { texto: "Cada semana", datos: `e:rep:semanal:${ev.id}` }], [{ texto: "Cancelar", datos: `e:ver:${ev.id}` }]]); return true; }
-      if (campo === "ant") { await c.responder("🔔 ¿Con cuánta antelación te aviso?", [[30, 60, 180, 1440].map((m) => ({ texto: ANT_TEXTO(m).replace(" antes", ""), datos: `e:ant:${m}:${ev.id}` })), [{ texto: "Sin aviso previo", datos: `e:ant:0:${ev.id}` }, { texto: "Cancelar", datos: `e:ver:${ev.id}` }]]); return true; }
+      if (campo === "rep") { await c.responder([cabecera("🔁", "¿Se repite?", esc(ev.titulo)), "", "<i>Elige una opción 👇</i>"].join("\n"), [[{ texto: "Solo una vez", datos: `e:rep:ninguna:${ev.id}` }, { texto: "Cada día", datos: `e:rep:diaria:${ev.id}` }], [{ texto: "Lunes a viernes", datos: `e:rep:laborables:${ev.id}` }, { texto: "Cada semana", datos: `e:rep:semanal:${ev.id}` }], [{ texto: "Cancelar", datos: `e:ver:${ev.id}` }]]); return true; }
+      if (campo === "ant") { await c.responder([cabecera("🔔", "¿Cuándo te aviso?", esc(ev.titulo)), "", "<i>¿Cuánto tiempo antes quieres el aviso? 👇</i>"].join("\n"), [[30, 60, 180, 1440].map((m) => ({ texto: ANT_TEXTO(m).replace(" antes", ""), datos: `e:ant:${m}:${ev.id}` })), [{ texto: "Sin aviso previo", datos: `e:ant:0:${ev.id}` }, { texto: "Cancelar", datos: `e:ver:${ev.id}` }]]); return true; }
       await c.esperar("editar", campo, { id: ev.id });
-      const pregunta = campo === "titulo" ? "✏️ Escribe el nuevo título:" : campo === "lugar" ? "📍 Escribe el nuevo lugar:" : AYUDA_CUANDO;
+      const pregunta = campo === "titulo" ? [cabecera("✏️", "Nuevo título", esc(ev.titulo)), "", "<i>Escríbelo ahora 👇</i>"].join("\n") : campo === "lugar" ? [cabecera("📍", "Nuevo lugar", esc(ev.titulo)), "", "<i>Escríbelo ahora 👇</i>"].join("\n") : AYUDA_CUANDO;
       await c.responder(pregunta, campo === "cuando" ? TECLADO_CUANDO() : [[BTN_CANCELAR]]);
       return true;
     }
@@ -182,7 +212,7 @@ export async function texto(c: Ctx): Promise<boolean> {
     if (est.paso === "lugar") {
       d.lugar = c.texto.slice(0, 80);
       c.u.estado = { flujo: "nuevo", paso: "ant", datos: d as unknown as Record<string, unknown> }; await c.guardar();
-      await c.nuevo("🔔 ¿Con cuánta antelación te aviso?", TECLADO_ANT); return true;
+      await c.nuevo(TEXTO_ANT, TECLADO_ANT); return true;
     }
     return false;
   }
@@ -209,11 +239,12 @@ export async function texto(c: Ctx): Promise<boolean> {
 /** Mensaje de aviso de un evento, con los botones Eliminar / Conservar / Modificar / Posponer. */
 export function mensajeAviso(e: Evento, zona: string, ahora: Date, retrasado = false): { html: string; teclado: Teclado } {
   const cuando = e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "";
-  const antes = e.antelacionMin > 0 ? `\n⏳ Es ${cuando}` : "";
-  const html = [
-    `${EMOJI_TIPO[e.tipo]} <b>${esc(e.titulo)}</b>${retrasado ? " <i>(aviso retrasado)</i>" : ""}`,
-    e.tipo === "cita" ? "Tienes una cita" + (e.antelacionMin > 0 ? ` (${ANT_TEXTO(e.antelacionMin).replace("antes", "de antelación")})` : "") : e.tipo === "tarea" ? "Tienes una tarea pendiente" : "Es la hora de tu alarma",
-  ].join("\n") + (e.lugar ? `\n📍 ${esc(e.lugar)}` : "") + antes;
+  const frase = e.tipo === "cita" ? "Tienes una cita" : e.tipo === "tarea" ? "Tienes una tarea pendiente" : "Es la hora de tu alarma";
+  const bloques = [cabecera(EMOJI_TIPO[e.tipo], esc(e.titulo), `${frase}${retrasado ? " · aviso retrasado" : ""}`)];
+  if (e.antelacionMin > 0 && cuando) bloques.push("", bloque("⏳", "Es", `${cuando} <i>(${ANT_TEXTO(e.antelacionMin).replace("antes", "de antelación")})</i>`));
+  if (e.lugar) bloques.push("", bloque("📍", "Dónde", esc(e.lugar)));
+  bloques.push("", "<i>¿Qué hago con él? 👇</i>");
+  const html = bloques.join("\n");
   return {
     html,
     teclado: [
