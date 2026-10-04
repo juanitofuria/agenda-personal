@@ -1,5 +1,7 @@
 # Agenda Personal · bot de Telegram en Firebase
 
+> **¿Sin tarjeta?** Esta versión exige el plan Blaze de Firebase. La versión gratuita está en [`../cloudflare/README.md`](../cloudflare/README.md); comparte la lógica de `functions/src`.
+
 Un único sistema en la nube que funciona en **cualquier móvil** (Android, iPhone…) a través de Telegram: te pregunta lo que
 te interesa al empezar, te manda cada día los resúmenes a la hora que elijas y tiene menús con botones para crear y
 modificar alarmas, citas y tareas.

@@ -1,7 +1,7 @@
 # Agenda Personal
 
 Tu información de cada día y tus avisos, en **un bot de Telegram** que funciona en cualquier móvil (Android, iPhone…).
-Todo corre en la nube con **Firebase**; no hay que instalar nada más que Telegram.
+Todo corre en la nube, **gratis y sin tarjeta** en **Cloudflare Workers**; no hay que instalar nada más que Telegram.
 
 * **Asistente inicial**: te pregunta qué te interesa, tu fecha de nacimiento, tu ciudad… (todo opcional, con «Omitir»).
 * **Resúmenes programados** a la hora que elijas: tiempo (con lluvia prevista, sol, viento, UV y luna), noticias de tu zona,
@@ -9,9 +9,10 @@ Todo corre en la nube con **Firebase**; no hay que instalar nada más que Telegr
 * **Menús con botones** para crear, ver, **modificar y eliminar alarmas, citas y tareas** (con repetición, antelación y
   «posponer»), y para cambiar secciones, horas y datos.
 
-👉 **Dos formas de desplegarlo (misma lógica):**
-* **Cloudflare Workers + D1 — gratis, sin tarjeta:** [`cloudflare/README.md`](cloudflare/README.md).
-* **Firebase (plan Blaze, requiere tarjeta):** [`firebase/README.md`](firebase/README.md) (arquitectura, tests y límites).
+👉 **Puesta en marcha: [`cloudflare/README.md`](cloudflare/README.md)** (Cloudflare Workers + D1, plan gratuito).
+
+Alternativa con la misma lógica: [`firebase/README.md`](firebase/README.md) (Firebase, exige plan Blaze con tarjeta).
+La lógica común (bot, secciones, planificador) vive en `firebase/functions/src` y la usan las dos versiones.
 
 > La app Android que hay más abajo fue la primera versión del proyecto. Se conserva en el repositorio (carpeta `app/`) como
 > cliente alternativo, pero el sistema principal es el bot.
