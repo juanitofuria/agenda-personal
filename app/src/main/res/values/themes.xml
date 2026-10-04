@@ -1,4 +1,8 @@
 <resources>
-    <style name="Theme.AgendaPersonal" parent="android:Theme.Material.Light.NoActionBar" />
-    <color name="ic_launcher_background">#1E5AA8</color>
+    <style name="Theme.AgendaPersonal" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+    <color name="window_bg">#F5F6FA</color>
+    <color name="ic_launcher_background">#3B5BDB</color>
 </resources>
