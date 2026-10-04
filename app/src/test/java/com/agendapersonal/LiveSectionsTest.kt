@@ -34,7 +34,9 @@ class LiveSectionsTest {
             var digest = runBlocking { section.build(ctx) }
             repeat(4) { if (!digest.ok) digest = runBlocking { section.build(ctx) } } // red intermitente
             println("\n######## ${section.title} | ok=${digest.ok} | ${digest.summary}\n${digest.body}")
+            println("-- preview:\n" + digest.preview.joinToString("\n"))
             assertTrue("${section.id} sin datos", digest.ok)
+            assertTrue("${section.id} sin vista previa", digest.preview.isNotEmpty())
         }
     }
 }

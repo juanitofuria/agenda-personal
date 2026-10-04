@@ -29,6 +29,7 @@
         </activity>
 
         <receiver android:name=".notify.AlarmReceiver" android:exported="false" />
+        <receiver android:name=".notify.ReminderActionReceiver" android:exported="false" />
 
         <receiver android:name=".notify.BootReceiver" android:exported="true">
             <intent-filter>

@@ -15,6 +15,8 @@ object WeatherSection : Section {
     override val description = "Previsión por horas de tu zona, lluvia de ayer y acumulada del año"
     override val defaultHour = 7
     override val defaultMinute = 0
+    override val emoji = "🌤️"
+    override val accent = 0xFF0284C7.toInt()
 
     override suspend fun build(context: Context): Digest {
         val prefs = Prefs(context)
@@ -23,6 +25,7 @@ object WeatherSection : Section {
         val place = prefs.placeName
         val b = DigestBuilder()
         var summary = "Previsión para $place"
+        val preview = mutableListOf<String>()
 
         b.part("Previsión") {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
@@ -46,6 +49,12 @@ object WeatherSection : Section {
             val codes = h.getJSONArray("weather_code")
             val wind = h.getJSONArray("wind_speed_10m")
             val now = LocalDateTime.now()
+            val upcoming = (0 until times.length()).filter { !LocalDateTime.parse(times.getString(it)).isBefore(now.withMinute(0).withSecond(0).withNano(0)) }
+            preview += "${emoji(code)} ${describe(code).replaceFirstChar { it.uppercase() }} · ${fmt(tMin)}º / ${fmt(tMax)}º"
+            val slots = upcoming.filterIndexed { i, _ -> i % 3 == 0 }.take(4)
+            if (slots.isNotEmpty()) preview += "⏰ " + slots.joinToString(" · ") {
+                "%dh %s%sº".format(LocalDateTime.parse(times.getString(it)).hour, emoji(codes.optInt(it)), fmt(temp.optDouble(it)))
+            }
             val sb = StringBuilder("🌤️ $place · hoy\nMáx ${fmt(tMax)}º · mín ${fmt(tMin)}º · ${describe(code)}\n")
             for (i in 0 until times.length()) {
                 val t = LocalDateTime.parse(times.getString(i))
@@ -66,6 +75,7 @@ object WeatherSection : Section {
             val yesterday = today.minusDays(1)
             val yearStart = LocalDate.of(today.year, 1, 1)
             if (yesterday.isBefore(yearStart)) {
+                preview += "🌧️ Año nuevo · acumulado 0 l/m²"
                 "🌧️ Lluvia: año nuevo, acumulado 0 mm."
             } else {
                 // Historical Forecast API: sin retraso, valores de modelo (no de pluviómetro).
@@ -76,13 +86,14 @@ object WeatherSection : Section {
                 val yesterdayMm = values.lastOrNull() ?: 0.0
                 val year = values.sum()
                 val first = if (yesterdayMm >= 0.1) "Ayer llovió ${fmt(yesterdayMm)} l/m²." else "Ayer no llovió."
+                preview += (if (yesterdayMm >= 0.1) "🌧️ Ayer ${fmt(yesterdayMm)} l/m²" else "☀️ Ayer sin lluvia") + " · Año ${fmt(year)} l/m²"
                 "🌧️ $first\nAcumulado ${today.year}: ${fmt(year)} l/m² (desde el 1 de enero)."
             }
         }
-        return b.build("Tiempo · $place", summary)
+        return b.build("Tiempo · $place", summary, preview)
     }
 
-    private fun fmt(v: Double) = String.format(Locale.US, "%.1f", v).removeSuffix(".0")
+    private fun fmt(v: Double) = String.format(Locale("es", "ES"), "%.1f", v).removeSuffix(",0")
 
     private fun emoji(code: Int) = when (code) {
         0 -> "☀️"; 1, 2 -> "🌤️"; 3 -> "☁️"; 45, 48 -> "🌫️"

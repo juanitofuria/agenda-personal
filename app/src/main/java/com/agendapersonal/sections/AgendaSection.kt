@@ -16,6 +16,8 @@ object AgendaSection : Section {
     override val defaultHour = 7
     override val defaultMinute = 20
     override val needsNetwork = false
+    override val emoji = "🗓️"
+    override val accent = 0xFF0F9D8A.toInt()
 
     override suspend fun build(context: Context): Digest {
         val db = AppDb.get(context)
@@ -44,7 +46,19 @@ object AgendaSection : Section {
                 it.remindAt?.let { t -> append("  ⏰ ${day.format(Date(t))} ${hour.format(Date(t))}") }
             }
         }
+        val preview = buildList {
+            appts.take(3).forEach {
+                val label = if (it.at >= tomorrow) "mañana" else "hoy"
+                add("🩺 ${it.title} · $label ${hour.format(Date(it.at))}" + if (it.place.isNotBlank()) " (${it.place})" else "")
+            }
+            if (appts.isEmpty()) add("🩺 Sin citas hoy ni mañana")
+            if (tasks.isEmpty()) add("✅ Nada pendiente")
+            else {
+                add("✅ ${tasks.size} tarea${if (tasks.size == 1) "" else "s"} pendiente${if (tasks.size == 1) "" else "s"}")
+                tasks.take(2).forEach { add("• ${it.title}") }
+            }
+        }
         val summary = "${appts.size} cita(s) · ${tasks.size} tarea(s) pendiente(s)"
-        return Digest("Tu agenda de hoy", summary, body)
+        return Digest("Tu agenda de hoy", summary, body, preview)
     }
 }

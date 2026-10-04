@@ -26,12 +26,12 @@ class AlarmReceiver : BroadcastReceiver() {
                         DigestWorker.enqueue(app, it)
                     }
                     Scheduler.KIND_TASK -> AppDb.get(app).tasks().get(id.toLong())?.let {
-                        if (!it.done) Notifier.postReminder(app, 1_000_000 + it.id.toInt(), "Tarea pendiente", it.title)
+                        if (!it.done) Notifier.postReminder(app, Scheduler.KIND_TASK, it.id, "✅ ${it.title}", "Tienes una tarea pendiente.", "✅", 0xFF3B5BDB.toInt())
                     }
                     Scheduler.KIND_APPT -> AppDb.get(app).appointments().get(id.toLong())?.let {
                         val hour = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it.at))
-                        val where = if (it.place.isNotBlank()) " · ${it.place}" else ""
-                        Notifier.postReminder(app, 2_000_000 + it.id.toInt(), "Cita: ${it.title}", "A las $hour$where")
+                        val where = if (it.place.isNotBlank()) "\n📍 ${it.place}" else ""
+                        Notifier.postReminder(app, Scheduler.KIND_APPT, it.id, "🩺 ${it.title}", "Hoy a las $hour$where", "🩺", 0xFF0F9D8A.toInt())
                     }
                 }
             } finally {

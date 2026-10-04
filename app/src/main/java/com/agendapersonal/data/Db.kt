@@ -63,6 +63,9 @@ interface AppointmentDao {
     @Insert
     suspend fun insert(a: Appointment): Long
 
+    @Update
+    suspend fun update(a: Appointment)
+
     @Delete
     suspend fun delete(a: Appointment)
 }

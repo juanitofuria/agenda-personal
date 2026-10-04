@@ -31,12 +31,17 @@ private val reminderOptions = listOf(30 to "30 min", 60 to "1 h", 180 to "3 h", 
 private val ES = Locale("es", "ES")
 
 @Composable
-fun AppointmentsScreen() {
+fun AppointmentsScreen(editId: Long? = null, onEditConsumed: () -> Unit = {}) {
     val ctx = LocalContext.current
     val dao = remember { AppDb.get(ctx).appointments() }
     val all by dao.observeAll().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var adding by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Appointment?>(null) }
+    // Llega desde el botón "Modificar" de una notificación.
+    LaunchedEffect(editId) {
+        if (editId != null) { editing = dao.get(editId); onEditConsumed() }
+    }
     val now = System.currentTimeMillis()
     val upcoming = all.filter { it.at >= now }
     val past = all.filter { it.at < now }.reversed()
@@ -52,10 +57,10 @@ fun AppointmentsScreen() {
             if (all.isEmpty()) item {
                 EmptyState(Icons.Rounded.EventAvailable, "Sin citas", "Guarda tus citas médicas y recibirás un aviso con la antelación que elijas.", Modifier.padding(top = 48.dp))
             }
-            items(upcoming, key = { it.id }) { AppointmentCard(it, past = false) { scope.launch { Scheduler.cancelAppointment(ctx, it); dao.delete(it) } } }
+            items(upcoming, key = { it.id }) { AppointmentCard(it, past = false, onEdit = { editing = it }) { scope.launch { Scheduler.cancelAppointment(ctx, it); dao.delete(it) } } }
             if (past.isNotEmpty()) {
                 item { Text("Pasadas", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp)) }
-                items(past, key = { it.id }) { AppointmentCard(it, past = true) { scope.launch { Scheduler.cancelAppointment(ctx, it); dao.delete(it) } } }
+                items(past, key = { it.id }) { AppointmentCard(it, past = true, onEdit = { editing = it }) { scope.launch { Scheduler.cancelAppointment(ctx, it); dao.delete(it) } } }
             }
         }
         ExtendedFloatingActionButton(
@@ -68,19 +73,26 @@ fun AppointmentsScreen() {
         )
     }
 
-    if (adding) {
-        var title by remember { mutableStateOf("") }
-        var place by remember { mutableStateOf("") }
-        var at by remember { mutableStateOf<Long?>(null) }
-        var before by remember { mutableIntStateOf(60) }
+    if (adding || editing != null) {
+        val initial = editing
+        var title by remember(initial) { mutableStateOf(initial?.title ?: "") }
+        var place by remember(initial) { mutableStateOf(initial?.place ?: "") }
+        var at by remember(initial) { mutableStateOf(initial?.at) }
+        var before by remember(initial) { mutableIntStateOf(initial?.remindMinutesBefore ?: 60) }
+        val close = { adding = false; editing = null }
         FormSheet(
-            title = "Nueva cita médica", saveEnabled = title.isNotBlank() && at != null, onClose = { adding = false },
+            title = if (initial == null) "Nueva cita médica" else "Modificar cita", saveEnabled = title.isNotBlank() && at != null, onClose = close,
             onSave = {
                 scope.launch {
-                    val a = Appointment(title = title.trim(), place = place.trim(), at = at!!, remindMinutesBefore = before)
-                    Scheduler.scheduleAppointment(ctx, a.copy(id = dao.insert(a)))
+                    if (initial == null) {
+                        val a = Appointment(title = title.trim(), place = place.trim(), at = at!!, remindMinutesBefore = before)
+                        Scheduler.scheduleAppointment(ctx, a.copy(id = dao.insert(a)))
+                    } else {
+                        val a = initial.copy(title = title.trim(), place = place.trim(), at = at!!, remindMinutesBefore = before)
+                        dao.update(a); Scheduler.scheduleAppointment(ctx, a)
+                    }
                 }
-                adding = false
+                close()
             },
         ) {
             OutlinedTextField(title, { title = it }, label = { Text("Cita (p. ej. Cardiología)") }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium)
@@ -96,12 +108,16 @@ fun AppointmentsScreen() {
                     FilterChip(selected = before == min, onClick = { before = min }, label = { Text(label) })
                 }
             }
+            if (initial != null) TextButton(
+                onClick = { scope.launch { Scheduler.cancelAppointment(ctx, initial); dao.delete(initial) }; close() },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Eliminar cita") }
         }
     }
 }
 
 @Composable
-private fun AppointmentCard(a: Appointment, past: Boolean, onDelete: () -> Unit) {
+private fun AppointmentCard(a: Appointment, past: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
     val accents = LocalAccents.current
     val color = if (past) MaterialTheme.colorScheme.onSurfaceVariant else accents.agenda
     val date = java.time.Instant.ofEpochMilli(a.at).atZone(ZoneId.systemDefault()).toLocalDate()
@@ -113,7 +129,7 @@ private fun AppointmentCard(a: Appointment, past: Boolean, onDelete: () -> Unit)
         days < 7 -> "En $days días"
         else -> null
     }
-    AppCard(Modifier.fillMaxWidth().alpha(if (past) 0.65f else 1f)) {
+    AppCard(Modifier.fillMaxWidth().alpha(if (past) 0.65f else 1f), onClick = onEdit) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(
                 Modifier.size(width = 58.dp, height = 62.dp).clip(RoundedCornerShape(16.dp)).background(color.copy(alpha = 0.14f)),

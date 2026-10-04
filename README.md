@@ -12,9 +12,15 @@ información que necesitas, y gestiona **tareas pendientes** y **citas médicas*
 | **Agenda** | 07:20 | Citas de hoy y mañana y tareas pendientes (sin Internet). |
 | **Mercados** | 14:00 | Futuros/premercado de Wall Street, noticias económicas, cierre de la última sesión (EEUU, Europa, Asia) y crónica de mercados. Fuente: Yahoo Finance (API no oficial). |
 
-Cada sección se activa/desactiva y cambia de hora (la ubicación, provincia y ayuntamientos se cambian en Ajustes si te mudas) desde la pestaña **Resúmenes**; allí también puedes pulsar
-*Ver ahora* o *Enviar notificación de prueba*. Las tareas y las citas tienen su aviso individual
-(las citas con antelación configurable: 30 min, 1 h, 3 h, 1 día).
+## Cómo se usa
+
+- **Pantalla «Hoy»**: cada sección muestra sus **últimos datos guardados** al abrir la app. «Actualizar» (por sección) o
+  «Actualizar todo ahora» refrescan el contenido en la propia tarjeta; «Ver todo» abre la sección completa.
+  Cada una se activa/desactiva y cambia de hora (la ubicación, provincia y ayuntamientos se cambian en Ajustes si te mudas).
+- **Notificaciones de resumen**: diseño propio con barra e icono de color por sección, titulares destacados y vista
+  compacta/expandida. Al tocarlas se abre **solo esa sección**.
+- **Recordatorios de tareas y citas**: la notificación trae tres botones: **Eliminar**, **Conservar** y **Modificar**
+  (este último abre la edición de ese evento). También puedes tocar cualquier tarea o cita en la app para modificarla.
 
 ## Capturas
 
@@ -23,6 +29,7 @@ Cada sección se activa/desactiva y cambia de hora (la ubicación, provincia y a
 | ![Hoy](docs/screenshots/home_light.png) | ![Tareas](docs/screenshots/tasks_light.png) | ![Citas](docs/screenshots/appointments_light.png) | ![Ajustes](docs/screenshots/settings_light.png) |
 
 Resumen de mercados: [claro](docs/screenshots/detail_markets_light.png) · [oscuro](docs/screenshots/detail_markets_dark.png).
+Pantalla de sección: [Tiempo](docs/screenshots/section_weather_light.png). Aspecto de las notificaciones: [claro](docs/screenshots/notifications_light.png) · [oscuro](docs/screenshots/notifications_dark.png).
 Modo oscuro: [Hoy](docs/screenshots/home_dark.png) · [Tareas](docs/screenshots/tasks_dark.png) · [Citas](docs/screenshots/appointments_dark.png) · [Ajustes](docs/screenshots/settings_dark.png).
 
 ## Cómo añadir una sección nueva

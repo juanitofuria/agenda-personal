@@ -42,12 +42,17 @@ fun pickDateTime(ctx: Context, initial: Long?, onPicked: (Long) -> Unit) {
 fun formatDateTime(ms: Long): String = dateTimeFmt.format(Date(ms)).replaceFirstChar { it.uppercase() }
 
 @Composable
-fun TasksScreen() {
+fun TasksScreen(editId: Long? = null, onEditConsumed: () -> Unit = {}) {
     val ctx = LocalContext.current
     val dao = remember { AppDb.get(ctx).tasks() }
     val tasks by dao.observeAll().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var adding by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Task?>(null) }
+    // Llega desde el botón "Modificar" de una notificación.
+    LaunchedEffect(editId) {
+        if (editId != null) { editing = dao.get(editId); onEditConsumed() }
+    }
     val pending = tasks.filter { !it.done }
     val done = tasks.filter { it.done }
 
@@ -65,10 +70,10 @@ fun TasksScreen() {
             if (tasks.isEmpty()) item {
                 EmptyState(Icons.Rounded.TaskAlt, "Sin tareas", "Añade lo que tengas pendiente y, si quieres, un aviso a una hora concreta.", Modifier.padding(top = 48.dp))
             }
-            items(pending, key = { it.id }) { TaskRow(it, dao, ctx) }
+            items(pending, key = { it.id }) { TaskRow(it, dao, ctx) { t -> editing = t } }
             if (done.isNotEmpty()) {
                 item { Text("Completadas", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp)) }
-                items(done, key = { it.id }) { TaskRow(it, dao, ctx) }
+                items(done, key = { it.id }) { TaskRow(it, dao, ctx) { t -> editing = t } }
             }
         }
         ExtendedFloatingActionButton(
@@ -81,17 +86,24 @@ fun TasksScreen() {
         )
     }
 
-    if (adding) {
-        var title by remember { mutableStateOf("") }
-        var remindAt by remember { mutableStateOf<Long?>(null) }
+    if (adding || editing != null) {
+        val initial = editing
+        var title by remember(initial) { mutableStateOf(initial?.title ?: "") }
+        var remindAt by remember(initial) { mutableStateOf(initial?.remindAt) }
+        val close = { adding = false; editing = null }
         FormSheet(
-            title = "Nueva tarea", saveEnabled = title.isNotBlank(), onClose = { adding = false },
+            title = if (initial == null) "Nueva tarea" else "Modificar tarea", saveEnabled = title.isNotBlank(), onClose = close,
             onSave = {
                 scope.launch {
-                    val t = Task(title = title.trim(), remindAt = remindAt)
-                    Scheduler.scheduleTask(ctx, t.copy(id = dao.insert(t)))
+                    if (initial == null) {
+                        val t = Task(title = title.trim(), remindAt = remindAt)
+                        Scheduler.scheduleTask(ctx, t.copy(id = dao.insert(t)))
+                    } else {
+                        val t = initial.copy(title = title.trim(), remindAt = remindAt)
+                        dao.update(t); Scheduler.scheduleTask(ctx, t)
+                    }
                 }
-                adding = false
+                close()
             },
         ) {
             OutlinedTextField(title, { title = it }, label = { Text("¿Qué tienes que hacer?") }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium)
@@ -103,16 +115,20 @@ fun TasksScreen() {
                 )
                 if (remindAt != null) TextButton(onClick = { remindAt = null }) { Text("Quitar") }
             }
+            if (initial != null) TextButton(
+                onClick = { scope.launch { Scheduler.cancelTask(ctx, initial); dao.delete(initial) }; close() },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Eliminar tarea") }
         }
     }
 }
 
 @Composable
-private fun TaskRow(task: Task, dao: com.agendapersonal.data.TaskDao, ctx: Context) {
+private fun TaskRow(task: Task, dao: com.agendapersonal.data.TaskDao, ctx: Context, onEdit: (Task) -> Unit) {
     val scope = rememberCoroutineScope()
     val accents = LocalAccents.current
     val overdue = !task.done && task.remindAt != null && task.remindAt < System.currentTimeMillis()
-    AppCard(Modifier.fillMaxWidth().alpha(if (task.done) 0.6f else 1f)) {
+    AppCard(Modifier.fillMaxWidth().alpha(if (task.done) 0.6f else 1f), onClick = { onEdit(task) }) {
         Row(Modifier.padding(start = 6.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {
                 scope.launch {

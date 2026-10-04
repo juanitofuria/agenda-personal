@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.agendapersonal.notify.Notifier
 
 class MainActivity : ComponentActivity() {
-    private val openSection = mutableStateOf<String?>(null)
+    private val target = mutableStateOf<String?>(null)
 
     private val askNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -20,13 +20,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        openSection.value = intent?.getStringExtra(Notifier.EXTRA_SECTION)
+        target.value = intent?.getStringExtra(Notifier.EXTRA_TARGET)
         if (Build.VERSION.SDK_INT >= 33) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-        setContent { AgendaTheme { AppRoot(openSection) } }
+        setContent { AgendaTheme { AppRoot(target) } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        openSection.value = intent.getStringExtra(Notifier.EXTRA_SECTION)
+        target.value = intent.getStringExtra(Notifier.EXTRA_TARGET)
     }
 }

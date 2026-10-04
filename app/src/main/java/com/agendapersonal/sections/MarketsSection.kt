@@ -18,6 +18,8 @@ object MarketsSection : Section {
     override val description = "Noticias económicas de premercado y resumen de la sesión anterior"
     override val defaultHour = 14
     override val defaultMinute = 0
+    override val emoji = "📈"
+    override val accent = 0xFFD97706.toInt()
 
     private val futures = listOf(
         "S&P 500 fut." to "ES=F", "Nasdaq 100 fut." to "NQ=F", "Dow Jones fut." to "YM=F",
@@ -36,10 +38,13 @@ object MarketsSection : Section {
     override suspend fun build(context: Context): Digest {
         val b = DigestBuilder()
         var headline = "Premercado y cierre de ayer"
+        val fut = linkedMapOf<String, Quote>()
+        val close = linkedMapOf<String, Quote>()
+        var firstNews: String? = null
 
         b.part("Premercado") {
             val lines = futures.mapNotNull { (name, sym) ->
-                runCatching { live(sym) }.getOrNull()?.let { "${arrow(it.pct)} $name  ${num(it.price)}  (${pct(it.pct)})" }
+                runCatching { live(sym) }.getOrNull()?.also { fut[name] = it }?.let { "${arrow(it.pct)} $name  ${num(it.price)}  (${pct(it.pct)})" }
             }
             if (lines.isEmpty()) throw IllegalStateException("sin datos de futuros")
             val spx = runCatching { live("ES=F") }.getOrNull()
@@ -51,12 +56,13 @@ object MarketsSection : Section {
             val en = fetch(Rss.googleNewsUrl("premarket stocks futures Wall Street when:1d", "en", "US"))
             val es = fetch(Rss.googleNewsUrl("bolsa Wall Street premercado when:1d"))
             val items = (es.take(4) + en.take(5)).distinctBy { it.title.lowercase().take(50) }
+            firstNews = items.firstOrNull()?.title
             if (items.isEmpty()) null else "📰 NOTICIAS ECONÓMICAS\n" + items.joinToString("\n") { bullet(it) }
         }
 
         b.part("Cierre anterior") {
             val lines = indices.mapNotNull { (name, sym) ->
-                runCatching { lastSession(sym) }.getOrNull()?.let { (date, q) ->
+                runCatching { lastSession(sym) }.getOrNull()?.also { close[name] = it.second }?.let { (date, q) ->
                     "${arrow(q.pct)} $name  ${num(q.price)}  (${pct(q.pct)})  · $date"
                 }
             }
@@ -70,7 +76,16 @@ object MarketsSection : Section {
             val items = (es.take(5) + ibex.take(3)).distinctBy { it.title.lowercase().take(50) }
             if (items.isEmpty()) null else "🗞️ CRÓNICA DE MERCADOS\n" + items.joinToString("\n") { bullet(it) }
         }
-        return b.build("Mercados · premercado EEUU", headline)
+        fun line(prefix: String, src: Map<String, Quote>, vararg names: String) =
+            names.mapNotNull { n -> src[n]?.let { "${n.removeSuffix(" fut.")} ${pct(it.pct)}" } }
+                .takeIf { it.isNotEmpty() }?.let { "$prefix " + it.joinToString(" · ") }
+        val preview = listOfNotNull(
+            line("📈 Futuros", fut, "S&P 500 fut.", "Nasdaq 100 fut.", "Dow Jones fut."),
+            line("📊 Cierre", close, "S&P 500", "IBEX 35", "DAX"),
+            fut["Petróleo WTI"]?.let { "🛢️ Petróleo ${num(it.price)}" + (fut["Oro"]?.let { g -> " · Oro ${num(g.price)}" } ?: "") },
+            firstNews?.let { "📰 $it" },
+        )
+        return b.build("Mercados · premercado EEUU", headline, preview)
     }
 
     private val quotePage = Regex("Stock Price|Quote & History|Gráficos, datos y noticias|Cotización|Historical Prices", RegexOption.IGNORE_CASE)

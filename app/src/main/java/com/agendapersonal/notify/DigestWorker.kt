@@ -22,7 +22,7 @@ class DigestWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             section.title, "No se pudo obtener la información", "No se pudo obtener la información. Revisa tu conexión.", ok = false,
         )
         DigestStore.save(applicationContext, id, result)
-        Notifier.postDigest(applicationContext, id, result)
+        Notifier.postDigest(applicationContext, section, result)
         return Result.success()
     }
 

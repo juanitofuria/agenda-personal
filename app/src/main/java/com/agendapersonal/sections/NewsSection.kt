@@ -13,6 +13,8 @@ object NewsSection : Section {
     override val description = "Economía, política, fútbol, motociclismo y noticias locales"
     override val defaultHour = 7
     override val defaultMinute = 10
+    override val emoji = "📰"
+    override val accent = 0xFF7C3AED.toInt()
 
     private const val PER_TOPIC = 5
 
@@ -28,9 +30,10 @@ object NewsSection : Section {
         val prefs = Prefs(context)
         val b = DigestBuilder()
         val seen = HashSet<String>()
+        val heads = mutableListOf<String>()
 
         for ((name, query) in topics) {
-            b.part(name) { section(name, fetch("$query when:1d"), seen) }
+            b.part(name) { section(name, fetch("$query when:1d"), seen, heads) }
         }
 
         val province = prefs.province.trim()
@@ -44,7 +47,7 @@ object NewsSection : Section {
             val scope = " España" + if (province.isNotEmpty() && !province.equals(town, true)) " \"$province\"" else ""
             b.part("🏛️ Ayuntamiento de $town") {
                 val q = "(\"Ayuntamiento de $town\" OR \"alcalde de $town\" OR \"alcaldesa de $town\")$scope when:7d"
-                section("🏛️ Ayuntamiento de $town", fetch(q), seen)
+                section("🏛️ Ayuntamiento de $town", fetch(q), seen, heads)
             }
             b.part("🏘️ $town") { section("🏘️ $town", fetch("\"$town\"$scope when:7d"), seen) }
         }
@@ -57,15 +60,17 @@ object NewsSection : Section {
                 section("📰 ${hostOf(feed)}", items, seen)
             }
         }
-        return b.build("Noticias del día", "Resumen de economía, política, deportes y noticias locales")
+        return b.build("Noticias del día", "Resumen de economía, política, deportes y noticias locales", heads)
     }
 
     private suspend fun fetch(query: String): List<NewsItem> =
         Rss.parse(Http.get(Rss.googleNewsUrl(query))).sortedByDescending { it.publishedMs }
 
-    private fun section(name: String, items: List<NewsItem>, seen: MutableSet<String>): String? {
+    /** Si se pasa [heads], se añade el primer titular como destacado (emoji del tema + titular). */
+    private fun section(name: String, items: List<NewsItem>, seen: MutableSet<String>, heads: MutableList<String>? = null): String? {
         val fresh = items.filter { seen.add(it.title.lowercase().take(60)) }.take(PER_TOPIC)
         if (fresh.isEmpty()) return null
+        heads?.add("${name.substringBefore(' ')} ${fresh.first().title}")
         return buildString {
             append(name)
             fresh.forEach { append("\n• ").append(it.title); if (it.source.isNotEmpty()) append(" (${it.source})") }
