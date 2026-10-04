@@ -145,7 +145,7 @@ Para probar el Worker en local (workerd): `npx wrangler dev --test-scheduled`, c
 ## Límites y cosas a tener en cuenta
 
 * **Pendiente de medir en producción:** el CPU real (10 ms) de las secciones más pesadas (noticias con muchos temas, mercados) y
-  si las consultas a D1 cuentan como subpeticiones. En local no se puede medir. Si ocurre, `npm run logs` mostrará
+  si las consultas a D1 cuentan como subpeticiones. En local no se puede medir. Si ocurre, `npx wrangler@4.147.0 tail` mostrará
   «Worker exceeded CPU time limit»; la salida es reducir fuentes por sección o pasar al plan de pago.
 * **No comprobado en el entorno de desarrollo** (sin red hacia estos servicios): la API real de Telegram, las respuestas reales
   de Open-Meteo, Google News, Yahoo Finance y horoscopefree, y el despliegue en tu cuenta. Las pruebas usan dobles.

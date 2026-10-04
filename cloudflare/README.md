@@ -32,7 +32,7 @@ Fuente: [límites de Workers](https://developers.cloudflare.com/workers/platform
 | Cron Triggers | 5 por cuenta | Se usan 2 |
 
 **Pendiente de medir en producción:** el CPU real (10 ms) de las secciones más pesadas (noticias con muchos temas, mercados) y si las
-consultas a D1 cuentan como subpeticiones. Local no se puede medir. Con `npm run logs` verás errores del tipo
+consultas a D1 cuentan como subpeticiones. Local no se puede medir. Con `npx wrangler@4.147.0 tail` verás errores del tipo
 «Worker exceeded CPU time limit» si ocurre; en ese caso hay que reducir fuentes por sección o pasar al plan de pago.
 
 ## Tests
