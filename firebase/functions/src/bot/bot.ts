@@ -2,6 +2,7 @@ import { Entrada } from "../canal";
 import { usuarioNuevo } from "../modelo";
 import { sincronizarSecciones } from "../programar";
 import { construirContenido } from "../secciones";
+import { cabecera } from "../util";
 import * as ajustes from "./ajustes";
 import { Ctx, Deps, BTN_MENU } from "./ctx";
 import * as eventos from "./eventos";
@@ -28,6 +29,8 @@ async function resumenHoy(c: Ctx): Promise<void> {
 async function todo(c: Ctx): Promise<void> {
   const activas = seccionesActivas(c.u);
   if (activas.length === 0) { await c.nuevo("No tienes ninguna sección activada. Actívalas en 🧩 Mis secciones.", [[{ texto: "🧩 Mis secciones", datos: "s:lista" }]]); return; }
+  const fecha = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: c.u.zona }).format(c.ahora);
+  await c.nuevo([cabecera("📋", "Tu resumen de hoy", fecha.replace(/^./, (x) => x.toUpperCase())), "", ...activas.map((s) => `${s.emoji} ${s.titulo}`), "", "<i>Te lo envío ahora, uno por uno 👇</i>"].join("\n"));
   for (const s of activas) await mostrarSeccion(c, s.ref);
 }
 

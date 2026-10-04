@@ -1,5 +1,5 @@
 import { fechaIso } from "../fechas";
-import { cacheado, conReintentos, num0, pct } from "../util";
+import { cabecera, cacheado, conReintentos, num0, pct } from "../util";
 import { resumenNoticias } from "./noticias";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
@@ -69,9 +69,9 @@ export async function contenidoMercados(ctx: Contexto): Promise<Contenido> {
     return { fut: ok(fut), ind: ok(ind) };
   });
   if (bloque.fut.length === 0 && bloque.ind.length === 0) throw new Error("no se pudo obtener ninguna cotización");
-  const partes: string[] = ["📈 <b>Mercados</b>"];
-  if (bloque.fut.length) partes.push(`<b>Premercado y activos refugio</b>\n${bloque.fut.join("\n")}`);
-  if (bloque.ind.length) partes.push(`<b>Cierre de la última sesión</b>\n${bloque.ind.join("\n")}`);
+  const partes: string[] = [cabecera("📈", "Mercados")];
+  if (bloque.fut.length) partes.push(`🇺🇸 <b>Premercado y activos refugio</b>\n${bloque.fut.join("\n")}`);
+  if (bloque.ind.length) partes.push(`🔔 <b>Cierre de la última sesión</b>\n${bloque.ind.join("\n")}`);
   let noticias = "";
   try {
     noticias = await resumenNoticias(ctx, "", [

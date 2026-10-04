@@ -83,10 +83,10 @@ test("tiempo: resumen completo con lluvia prevista, sol, viento, UV, luna y lluv
   const c = await construirContenido("tiempo", { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA });
   assert.match(c.html, /Tiempo · Montoro/); assert.match(c.html, /Cubierto · mín 19º \/ máx 28º/);
   assert.match(c.html, /<code>[▁▂▃▄▅▆▇█]{18}<\/code>/);
-  assert.match(c.html, /Lluvia prevista:<\/b> 17–22 h/); assert.match(c.html, /prob\. 70 %/);
-  assert.match(c.html, /Amanece 08:12 · 🌇 anochece 19:42 \(11 h 30 min de luz\)/);
-  assert.match(c.html, /Viento .* del SO/); assert.match(c.html, /UV máx\. 5,4 \(moderado\) — protección solar/);
-  assert.match(c.html, /iluminada/); assert.match(c.html, /Ayer llovió 0,5 l\/m² · acumulado 2026: /);
+  assert.match(c.html, /Lluvia prevista<\/b>\n• 17–22 h/); assert.match(c.html, /prob\. 70 %/);
+  assert.match(c.html, /Amanece 08:12 · Anochece 19:42\n11 h 30 min de luz/);
+  assert.match(c.html, /Viento<\/b> .* del SO/); assert.match(c.html, /UV máx\.<\/b> 5,4 \(moderado\) — protección solar/);
+  assert.match(c.html, /iluminada/); assert.match(c.html, /Ayer llovió 0,5 l\/m²\nAcumulado 2026: /);
   assert.deepEqual(c.teclado!.flat().map((x) => x.datos), ["sev:tiempo:horas", "sev:tiempo:luna", "m:menu"]);
   // dos usuarios de la misma ciudad comparten las consultas (caché)
   const antes = b.http.llamadas.length;

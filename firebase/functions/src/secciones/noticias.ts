@@ -1,6 +1,6 @@
 import { esc } from "../canal";
 import { Noticia, leerRss, lineaNoticia, urlGoogleNews } from "../rss";
-import { cacheado, conReintentos } from "../util";
+import { cabecera, cacheado, conReintentos } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
 /** Pide un RSS de Google News y devuelve las noticias más recientes (cacheado 30 min para todos los usuarios). */
@@ -22,7 +22,8 @@ export async function resumenNoticias(ctx: Contexto, cabecera: string, secciones
     try {
       const items = (await noticiasDe(ctx, s.consulta)).filter((n) => { const k = n.titulo.toLowerCase().slice(0, 60); if (vistas.has(k)) return false; vistas.add(k); return true; }).slice(0, porSeccion);
       ok++;
-      bloques.push(items.length ? `${s.titulo}\n${items.map(lineaNoticia).join("\n")}` : `${s.titulo}\n<i>Sin novedades.</i>`);
+      const t = s.titulo ? `${s.titulo}\n` : "";
+      bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
     } catch {
       bloques.push(`${s.titulo}\n⚠️ <i>No disponible ahora.</i>`);
     }
@@ -44,11 +45,11 @@ export async function contenidoNoticias(ctx: Contexto): Promise<Contenido> {
       { titulo: `📍 <b>${esc(c.nombre)}</b>`, consulta: `"${c.nombre}" España${prov} when:7d` },
     );
   }
-  return { html: await resumenNoticias(ctx, "📰 <b>Noticias del día</b>", secciones), teclado: [NAV_MENU] };
+  return { html: await resumenNoticias(ctx, cabecera("📰", "Noticias del día"), secciones), teclado: [NAV_MENU] };
 }
 
 export async function contenidoTema(ctx: Contexto, temaId: string): Promise<Contenido> {
   const t = ctx.usuario.temas.find((x) => x.id === temaId);
   if (!t) return { html: "No encuentro ese tema.", teclado: [NAV_MENU] };
-  return { html: await resumenNoticias(ctx, `${esc(t.emoji)} <b>${esc(t.titulo)}</b>`, [{ titulo: "", consulta: `${t.consulta} when:2d` }], 7), teclado: [NAV_MENU] };
+  return { html: await resumenNoticias(ctx, cabecera(esc(t.emoji), esc(t.titulo)), [{ titulo: "", consulta: `${t.consulta} when:2d` }], 7), teclado: [NAV_MENU] };
 }

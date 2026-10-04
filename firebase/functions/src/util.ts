@@ -19,6 +19,12 @@ export function sparkline(valores: number[]): string {
 
 export const sinTildes = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 
+/** Línea fina que separa la cabecera del contenido en los mensajes. */
+export const SEPARADOR = "▬▬▬▬▬▬▬▬▬▬▬▬▬▬";
+/** Cabecera de un mensaje: título en negrita, subtítulo en cursiva y una línea de separación. `titulo` y `subtitulo` ya van escapados. */
+export const cabecera = (emoji: string, titulo: string, subtitulo?: string) =>
+  `${emoji} <b>${titulo}</b>${subtitulo ? `\n<i>${subtitulo}</i>` : ""}\n${SEPARADOR}`;
+
 export interface HttpGet {
   get(url: string, opciones?: { timeout?: number; headers?: Record<string, string> }): Promise<{ data: unknown }>;
 }

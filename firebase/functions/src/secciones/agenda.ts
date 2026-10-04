@@ -1,6 +1,7 @@
 import { esc } from "../canal";
 import { fechaIso, formatearFechaHora, partesEnZona } from "../fechas";
 import { Evento } from "../modelo";
+import { cabecera } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
 export const EMOJI_TIPO = { alarma: "⏰", cita: "🩺", tarea: "✅" } as const;
@@ -24,9 +25,9 @@ export async function contenidoAgenda(ctx: Contexto): Promise<Contenido> {
   const lineasEv = proximos.map((e) => `${EMOJI_TIPO[e.tipo]} ${fechaIso(e.fechaHora!, u.zona) === hoy ? "hoy" : "mañana"} ${hhmm(e.fechaHora!, u.zona)} · ${esc(e.titulo)}${e.lugar ? ` (${esc(e.lugar)})` : ""}`);
   const lineasTa = tareas.map((e) => `• ${esc(e.titulo)}${e.fechaHora ? ` <i>(${formatearFechaHora(e.fechaHora, u.zona, ahora)})</i>` : ""}`);
   const html = [
-    "🗓 <b>Tu agenda</b>",
-    "<b>Hoy y mañana</b>\n" + (lineasEv.length ? lineasEv.join("\n") : "<i>Sin citas ni alarmas.</i>"),
-    "<b>Tareas pendientes</b>\n" + (lineasTa.length ? lineasTa.join("\n") : "<i>Nada pendiente 🎉</i>"),
+    cabecera("🗓", "Tu agenda"),
+    "📌 <b>Hoy y mañana</b>\n" + (lineasEv.length ? lineasEv.join("\n") : "<i>Sin citas ni alarmas.</i>"),
+    "📝 <b>Tareas pendientes</b>\n" + (lineasTa.length ? lineasTa.join("\n") : "<i>Nada pendiente 🎉</i>"),
   ].join("\n\n");
   return { html, teclado: [[{ texto: "➕ Nueva", datos: "n:menu" }, { texto: "📅 Mis eventos", datos: "e:lista" }], NAV_MENU] };
 }

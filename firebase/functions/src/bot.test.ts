@@ -161,7 +161,8 @@ test("el resumen de hoy muestra las secciones y envía cada una; un fallo no rom
   b.canal.limpiar();
   b.http.añadir("news.google.com", rssFalso("Noticia", 5));
   await b.pulsar(U, "sec:todo"); // noticias + agenda + mercados (Yahoo no está definido en el test: ese mensaje es el de error)
-  assert.equal(b.canal.mensajes.length, 3);
+  assert.equal(b.canal.mensajes.length, 4); // tarjeta de resumen + 3 secciones
+  assert.match(b.canal.mensajes[0].html, /Tu resumen de hoy/);
 });
 
 test("la vista del tiempo se navega editando el mismo mensaje", async () => {

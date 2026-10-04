@@ -1,7 +1,7 @@
 import { esc } from "../canal";
 import { fechaIso, formatearFechaHora, localAUtc, partesEnZona } from "../fechas";
 import { edadDias, faseDelDia, iluminacion, proximoDia } from "../luna";
-import { cacheado, conReintentos, grados, num0, num1, sparkline } from "../util";
+import { cabecera, cacheado, conReintentos, grados, num0, num1, sparkline } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
 export interface HoraTiempo {
@@ -68,43 +68,47 @@ export function parsearPrevision(json: any, ahora: Date, zona: string): DatosTie
 
 const minutos = (hhmm: string) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
-function lineaSol(d: DatosTiempo): string {
+function bloqueSol(d: DatosTiempo): string {
   if (!d.amanece || !d.anochece) return "";
   const luz = minutos(d.anochece) - minutos(d.amanece);
-  return `🌅 Amanece ${d.amanece} · 🌇 anochece ${d.anochece} (${Math.floor(luz / 60)} h ${luz % 60} min de luz)`;
+  return `🌅 <b>Sol</b>\nAmanece ${d.amanece} · Anochece ${d.anochece}\n${Math.floor(luz / 60)} h ${luz % 60} min de luz`;
 }
 
+/** Mensaje del tiempo: bloques separados por una línea en blanco, cada uno con su título, para entenderlo de un vistazo. */
 export function renderTiempo(d: DatosTiempo, ciudad: string, zona: string, ahora: Date): string {
   const p = partesEnZona(ahora, zona);
   const temps = d.horas.map((h) => h.temp);
   const primera = d.horas[0], ultima = d.horas[d.horas.length - 1];
-  const lineas: string[] = [
-    `${emojiTiempo(d.codigo)} <b>Tiempo · ${esc(ciudad)}</b>`,
-    `${descTiempo(d.codigo).replace(/^./, (c) => c.toUpperCase())} · mín ${grados(d.tMin)} / máx ${grados(d.tMax)}`,
+  const bloques: string[] = [
+    cabecera(emojiTiempo(d.codigo), `Tiempo · ${esc(ciudad)}`, `${descTiempo(d.codigo).replace(/^./, (c) => c.toUpperCase())} · mín ${grados(d.tMin)} / máx ${grados(d.tMax)}`),
   ];
   if (temps.length >= 2) {
     const iMax = temps.indexOf(Math.max(...temps)), iMin = temps.indexOf(Math.min(...temps));
-    lineas.push("", `🌡 <b>Temperatura</b> (${hh(primera.hora)} → ${hh(ultima.hora)} h)`, `<code>${sparkline(temps)}</code>`,
-      `máx ${grados(temps[iMax])} a las ${hh(d.horas[iMax].hora)} h · mín ${grados(temps[iMin])} a las ${hh(d.horas[iMin].hora)} h`);
+    bloques.push(`🌡 <b>Temperatura</b> · ${hh(primera.hora)} → ${hh(ultima.hora)} h\n<code>${sparkline(temps)}</code>\n🔺 Máx ${grados(temps[iMax])} a las ${hh(d.horas[iMax].hora)} h\n🔻 Mín ${grados(temps[iMin])} a las ${hh(d.horas[iMin].hora)} h`);
   }
   const tramos = tramosLluvia(d.horas);
-  lineas.push("", tramos.length === 0 ? `☀️ <b>Sin lluvia prevista</b> en las próximas ${d.horas.length} h` : `🌦 <b>Lluvia prevista:</b> ${tramos.map(textoTramo).join(" · ")}`);
-  const sol = lineaSol(d);
-  if (sol) lineas.push(sol);
-  const ahoraH = primera;
-  lineas.push(`💨 Viento ${num0(ahoraH?.viento ?? d.vientoMax)} km/h del ${brujula(ahoraH?.dir ?? d.dir)} (hoy hasta ${num0(d.vientoMax)}, rachas ${num0(d.rachaMax)})`);
-  lineas.push(`💧 Humedad ${ahoraH?.humedad ?? "–"} % · 🕶 UV máx. ${num1(d.uvMax)} (${nivelUv(d.uvMax)})${d.uvMax >= 3 ? " — protección solar" : ""}`);
+  bloques.push(tramos.length === 0
+    ? `☀️ <b>Sin lluvia prevista</b>\nEn las próximas ${d.horas.length} h`
+    : `🌦 <b>Lluvia prevista</b>\n${tramos.map((t) => `• ${textoTramo(t)}`).join("\n")}`);
+  const sol = bloqueSol(d);
+  if (sol) bloques.push(sol);
+  bloques.push([
+    `💨 <b>Viento</b> ${num0(primera?.viento ?? d.vientoMax)} km/h del ${brujula(primera?.dir ?? d.dir)}`,
+    `     hoy hasta ${num0(d.vientoMax)} · rachas ${num0(d.rachaMax)} km/h`,
+    `💧 <b>Humedad</b> ${primera?.humedad ?? "–"} %`,
+    `🕶 <b>UV máx.</b> ${num1(d.uvMax)} (${nivelUv(d.uvMax)})${d.uvMax >= 3 ? " — protección solar" : ""}`,
+  ].join("\n"));
   const f = faseDelDia(p.y, p.m, p.d, zona);
-  lineas.push(`${f.emoji} ${f.nombre} · ${Math.round(iluminacion(p.y, p.m, p.d, zona) * 100)} % iluminada`);
+  bloques.push(`${f.emoji} <b>${f.nombre}</b>\n${Math.round(iluminacion(p.y, p.m, p.d, zona) * 100)} % iluminada`);
   if (d.lluviaAyer !== undefined && d.lluviaAnio !== undefined) {
-    lineas.push(`🌧 Ayer ${d.lluviaAyer >= 0.1 ? `llovió ${num1(d.lluviaAyer)} l/m²` : "no llovió"} · acumulado ${d.anio}: ${num1(d.lluviaAnio)} l/m²`);
+    bloques.push(`🌧 <b>Lluvia caída</b>\nAyer ${d.lluviaAyer >= 0.1 ? `llovió ${num1(d.lluviaAyer)} l/m²` : "no llovió"}\nAcumulado ${d.anio}: ${num1(d.lluviaAnio)} l/m²`);
   }
-  return lineas.join("\n");
+  return bloques.join("\n\n");
 }
 
 export function renderHoraAHora(d: DatosTiempo, ciudad: string): string {
   const filas = d.horas.map((h) => `${hh(h.hora)}:00 ${emojiTiempo(h.codigo)} <b>${grados(h.temp)}</b> · 💧${h.prob} % · 💨${num0(h.viento)} · 🌫${h.humedad} %`);
-  return [`🕐 <b>Hora a hora · ${esc(ciudad)}</b>`, "", ...filas].join("\n");
+  return [cabecera("🕐", `Hora a hora · ${esc(ciudad)}`, "💧 prob. lluvia · 💨 viento km/h · 🌫 humedad"), "", ...filas].join("\n");
 }
 
 /** Calendario lunar del mes: fase de hoy, próximas lunas llena y nueva, y las fases día a día por semanas. */
@@ -123,7 +127,7 @@ export function renderLuna(ahora: Date, zona: string): string {
     semanas.push(celdas.join("  "));
   }
   return [
-    `🌙 <b>Calendario lunar · ${mes}</b>`, "",
+    cabecera("🌙", `Calendario lunar · ${mes}`), "",
     `Hoy: ${hoy.emoji} ${hoy.nombre} · ${Math.round(iluminacion(p.y, p.m, p.d, zona) * 100)} % iluminada · ${Math.round(edadDias(p.y, p.m, p.d, zona))} días`,
     `🌕 Próxima llena: ${fmt(llena)}`, `🌑 Próxima nueva: ${fmt(nueva)}`, "", "<i>Por semanas (lunes a domingo):</i>", ...semanas,
   ].join("\n");

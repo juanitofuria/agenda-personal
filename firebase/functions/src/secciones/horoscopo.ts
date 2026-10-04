@@ -2,6 +2,7 @@ import { esc, escAttr } from "../canal";
 import { fechaIso } from "../fechas";
 import { urlSegura } from "../horoscopo";
 import { signoDe } from "../signos";
+import { cabecera } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
 /** Horóscopo del signo del usuario, leído de `horoscopos/{signo}` (lo escribe cada día la función de actualización). */
@@ -20,7 +21,7 @@ export async function contenidoHoroscopo(ctx: Contexto): Promise<Contenido> {
   const url = doc.fuenteUrl ? urlSegura(doc.fuenteUrl) : "";
   const fuente = url ? `\n\n<i>Fuente:</i> <a href="${escAttr(url)}">${esc(doc.fuente || url)}</a>` : "";
   const html = [
-    `🔮 <b>Horóscopo · ${signo.simbolo} ${signo.nombre}</b>`,
+    cabecera("🔮", `Horóscopo · ${signo.simbolo} ${signo.nombre}`),
     desactualizado ? `⚠️ <i>Aún no se ha publicado el de hoy: este es el del ${doc.fecha}.</i>` : "",
     esc(doc.prediccion.trim()),
   ].filter(Boolean).join("\n\n") + fuente + "\n<i>Contenido informativo y de entretenimiento; los derechos pertenecen a su editor.</i>";
