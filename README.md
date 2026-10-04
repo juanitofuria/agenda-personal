@@ -53,3 +53,10 @@ El workflow `.github/workflows/build-apk.yml` compila el APK en cada push y lo d
 - En algunos móviles (Xiaomi, Huawei, Samsung…) hay que quitar la optimización de batería a la app para que las alarmas
   no se retrasen. Y en Android 12+ hay que conceder «Alarmas y recordatorios» (la app te lo indica).
 - Los resúmenes son listados de titulares y cifras; no hay resumen redactado por IA (sería una posible ampliación).
+
+## Tests
+
+```
+./gradlew :app:testDebugUnitTest            # parser RSS con datos reales de ejemplo
+LIVE=1 ./gradlew :app:testDebugUnitTest -i  # además, ejecuta cada sección contra Internet real e imprime el resultado
+```

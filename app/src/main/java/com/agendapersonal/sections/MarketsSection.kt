@@ -65,7 +65,7 @@ object MarketsSection : Section {
         }
 
         b.part("Noticias de cierre") {
-            val es = fetch(Rss.googleNewsUrl("cierre Wall Street bolsa ayer when:2d"))
+            val es = fetch(Rss.googleNewsUrl("\"Wall Street\" cierre sesión Ibex when:2d"))
             val ibex = fetch(Rss.googleNewsUrl("Ibex 35 cierre sesión when:1d"))
             val items = (es.take(5) + ibex.take(3)).distinctBy { it.title.lowercase().take(50) }
             if (items.isEmpty()) null else "🗞️ CRÓNICA DE MERCADOS\n" + items.joinToString("\n") { bullet(it) }
@@ -73,8 +73,11 @@ object MarketsSection : Section {
         return b.build("Mercados · premercado EEUU", headline)
     }
 
+    private val quotePage = Regex("Stock Price|Quote & History|Gráficos, datos y noticias|Cotización|Historical Prices", RegexOption.IGNORE_CASE)
+
+    /** Descarta fichas de cotización que Google News mezcla con las noticias. */
     private suspend fun fetch(url: String): List<NewsItem> =
-        Rss.parse(Http.get(url)).sortedByDescending { it.publishedMs }
+        Rss.parse(Http.get(url)).filter { !quotePage.containsMatchIn(it.title) }.sortedByDescending { it.publishedMs }
 
     private fun bullet(i: NewsItem) = "• ${i.title}" + if (i.source.isNotEmpty()) " (${i.source})" else ""
 
@@ -83,11 +86,25 @@ object MarketsSection : Section {
         return JSONObject(Http.get(url)).getJSONObject("chart").getJSONArray("result").getJSONObject(0)
     }
 
-    /** Precio actual frente al cierre anterior. */
+    /**
+     * Precio actual frente al cierre de la sesión anterior.
+     * (No sirve `chartPreviousClose`: con range=5d es el cierre previo a la ventana, no el de ayer.)
+     */
     private suspend fun live(symbol: String): Quote {
-        val meta = chart(symbol, "5d", "1d").getJSONObject("meta")
+        val result = chart(symbol, "10d", "1d")
+        val meta = result.getJSONObject("meta")
         val price = meta.getDouble("regularMarketPrice")
-        val prev = meta.optDouble("chartPreviousClose", meta.optDouble("previousClose", price))
+        val offset = meta.optInt("gmtoffset", 0)
+        val zone = ZoneOffset.ofTotalSeconds(offset)
+        val ts = result.getJSONArray("timestamp")
+        val closes = result.getJSONObject("indicators").getJSONArray("quote").getJSONObject(0).getJSONArray("close")
+        val rows = (0 until ts.length()).filter { !closes.isNull(it) }.map {
+            LocalDate.ofInstant(Instant.ofEpochSecond(ts.getLong(it)), zone) to closes.getDouble(it)
+        }
+        val priceDay = LocalDate.ofInstant(Instant.ofEpochSecond(meta.optLong("regularMarketTime", ts.getLong(ts.length() - 1))), zone)
+        // Si la última vela es la sesión del precio actual, la referencia es la anterior.
+        val prev = rows.lastOrNull { it.first.isBefore(priceDay) }?.second
+            ?: meta.optDouble("chartPreviousClose", price)
         return Quote(price, prev)
     }
 
@@ -109,5 +126,9 @@ object MarketsSection : Section {
 
     private fun arrow(p: Double) = if (p > 0.05) "🟢" else if (p < -0.05) "🔴" else "⚪"
     private fun pct(p: Double) = String.format(Locale.US, "%+.2f%%", p)
-    private fun num(v: Double) = if (abs(v) >= 1000) String.format(Locale.US, "%,.0f", v) else String.format(Locale.US, "%.2f", v)
+    private fun num(v: Double) = when {
+        abs(v) >= 1000 -> String.format(Locale.US, "%,.0f", v)
+        abs(v) < 10 -> String.format(Locale.US, "%.4f", v) // divisas
+        else -> String.format(Locale.US, "%.2f", v)
+    }
 }

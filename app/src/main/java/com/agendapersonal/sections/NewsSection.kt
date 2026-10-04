@@ -20,7 +20,7 @@ object NewsSection : Section {
     private val topics = listOf(
         "💶 Economía" to "economía España",
         "🏛️ Política" to "política nacional España",
-        "⚽ Fútbol" to "fútbol",
+        "⚽ Fútbol" to "fútbol España OR LaLiga OR Champions OR selección",
         "🏍️ Motociclismo" to "MotoGP OR motociclismo OR Superbike",
     )
 
@@ -40,12 +40,13 @@ object NewsSection : Section {
             }
         }
         for (town in prefs.lines(prefs.councils)) {
-            val scope = if (province.isNotEmpty()) " \"$province\"" else ""
+            // "España" y la provincia evitan homónimos (Montoro en Italia, Córdoba en Argentina o México).
+            val scope = " España" + if (province.isNotEmpty() && !province.equals(town, true)) " \"$province\"" else ""
             b.part("🏛️ Ayuntamiento de $town") {
-                val q = "\"Ayuntamiento de $town\" OR \"alcalde de $town\" OR \"alcaldesa de $town\" when:7d"
+                val q = "(\"Ayuntamiento de $town\" OR \"alcalde de $town\" OR \"alcaldesa de $town\")$scope when:7d"
                 section("🏛️ Ayuntamiento de $town", fetch(q), seen)
             }
-            b.part("🏘️ $town") { section("🏘️ $town", fetch("\"$town\"$scope when:2d"), seen) }
+            b.part("🏘️ $town") { section("🏘️ $town", fetch("\"$town\"$scope when:7d"), seen) }
         }
         for (term in prefs.lines(prefs.watchTerms)) {
             b.part("🔎 $term") { section("🔎 $term", fetch("\"$term\" when:3d"), seen) }
