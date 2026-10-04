@@ -83,7 +83,7 @@ class HoroscopeSectionTest {
         assertTrue(d.ok); assertFalse("no debe avisar cada día de que falta configurar", d.notify); assertNull(d.extra)
     }
 
-    @Test fun realDocIsShownWithSourceFields() = runBlocking {
+    @Test fun realDocIsShownWithItsSource() = runBlocking {
         Prefs(ctx).birthDate = "1984-04-05" // Aries
         FakeHoroscope.install()
         val d = HoroscopeSection.build(ctx)
@@ -91,11 +91,11 @@ class HoroscopeSectionTest {
         assertTrue(d.title.contains("Aries"))
         val h = HoroscopeData.fromJson(d.extra)!!
         assertEquals(Sign.ARIES, h.sign); assertFalse(h.stale)
-        assertEquals("Optimista", h.mood); assertEquals("17", h.luckyNumber); assertEquals("Libra", h.compatible)
         assertEquals(FakeHoroscope.doc.prediccion.trim(), h.text)
-        assertTrue(d.body.contains("Número de la suerte: 17") && d.body.contains("Fuente: Aztro"))
-        assertTrue(d.preview.first().startsWith("🔮 Hoy es un buen día"))
-        assertTrue(d.preview[1].contains("🍀 17"))
+        assertEquals("20minutos.es", h.source); assertEquals("https://www.20minutos.es/horoscopo/aries/", h.sourceUrl)
+        // La API de origen exige mostrar la fuente junto al texto: está en el cuerpo (notificación y pantalla).
+        assertTrue(d.body.contains("Fuente: 20minutos.es · https://www.20minutos.es/horoscopo/aries/"))
+        assertTrue(d.preview.single().startsWith("🔮 Hoy es un buen día"))
     }
 
     @Test fun asksTheRepositoryForTheSignOfTheUser() = runBlocking {
@@ -113,15 +113,20 @@ class HoroscopeSectionTest {
         assertTrue(d.ok); assertTrue(HoroscopeData.fromJson(d.extra)!!.stale); assertTrue(d.body.contains("desactualizado"))
     }
 
-    @Test fun englishTextIsFlaggedAndNoServerDataIsAFailure() = runBlocking {
+    @Test fun noServerDataOrEmptyTextIsAFailureThatRetries() = runBlocking {
         Prefs(ctx).birthDate = "1984-04-05"
-        FakeHoroscope.install(FakeHoroscope.doc.copy(idioma = "en"))
-        assertEquals("en", HoroscopeData.fromJson(HoroscopeSection.build(ctx).extra)!!.lang)
         FakeHoroscope.install(null)
         val d = HoroscopeSection.build(ctx)
         assertFalse(d.ok); assertTrue(d.notify); assertNull(d.extra)
         FakeHoroscope.install(FakeHoroscope.doc.copy(prediccion = "  "))
         assertFalse(HoroscopeSection.build(ctx).ok)
+    }
+
+    @Test fun docWithoutSourceStillShowsTheText() = runBlocking {
+        Prefs(ctx).birthDate = "1984-04-05"
+        FakeHoroscope.install(FakeHoroscope.doc.copy(fuente = "", fuenteUrl = ""))
+        val d = HoroscopeSection.build(ctx)
+        assertTrue(d.ok); assertFalse(d.body.contains("Fuente:"))
     }
 
     @Test fun dataRoundTripsThroughJson() {

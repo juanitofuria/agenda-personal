@@ -247,12 +247,7 @@ fun SectionCard(
                                 Text(h.text, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                         }
-                        val facts = listOfNotNull(
-                            h.mood.takeIf { it.isNotBlank() }?.let { "😊 $it" },
-                            h.luckyNumber.takeIf { it.isNotBlank() }?.let { "🍀 $it" },
-                            h.color.takeIf { it.isNotBlank() }?.let { "🎨 $it" },
-                        )
-                        if (facts.isNotEmpty()) Text(facts.joinToString("  ·  "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (h.source.isNotBlank()) Text("Fuente: ${h.source}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     else -> {
                         val lines = stored.preview.ifEmpty { listOf(stored.summary) }.take(4)

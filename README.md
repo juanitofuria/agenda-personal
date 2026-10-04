@@ -11,7 +11,7 @@ información que necesitas, y gestiona **tareas pendientes** y **citas médicas*
 | **Noticias** | 07:10 | Economía, política, fútbol y motociclismo (Google News RSS) + provincia, ayuntamientos a seguir (por defecto Montoro y Córdoba, editables) y nombres a vigilar (alcalde, concejales…) + feeds RSS propios. |
 | **Agenda** | 07:20 | Citas de hoy y mañana y tareas pendientes (sin Internet). |
 | **Mercados** | 14:00 | Futuros/premercado de Wall Street, noticias económicas, cierre de la última sesión (EEUU, Europa, Asia) y crónica de mercados. Fuente: Yahoo Finance (API no oficial). |
-| **Horóscopo** | 08:00 | Horóscopo **real** del día de tu signo: texto en español, ánimo, color, número y hora de la suerte y afinidad. Lo descarga cada día una Cloud Function de Firebase desde [Aztro](https://github.com/sameerkumar18/aztro) y la app lo lee de Firestore (con caché offline). Hay que desplegar `firebase/` y añadir `google-services.json`: ver [`firebase/README.md`](firebase/README.md). Sin eso la sección indica que no está disponible (no inventa nada). |
+| **Horóscopo** | 08:00 | Horóscopo **real** del día de tu signo, en español, con enlace a la fuente. Lo descarga cada día una Cloud Function de Firebase desde [horoscopefree](https://github.com/vitorebatista/horoscopefree) (texto de 20minutos.es) y la app lo lee de Firestore, con caché offline. Hay que desplegar `firebase/` y añadir `google-services.json`: ver [`firebase/README.md`](firebase/README.md). Sin eso la sección indica que no está disponible (no inventa nada). |
 | **Secciones propias** | 08:30+ | Las que crees tú (ajedrez, cine, tu equipo…): noticias sobre el tema que elijas, con su propia hora y notificación. |
 
 ## Primera vez: configuración inicial
@@ -33,7 +33,7 @@ defecto. Todo se puede cambiar después en **Ajustes** (Perfil, Mis secciones, �
 
 ## Capturas
 
-> Las capturas se generan en tests con datos de ejemplo (por ejemplo, el texto del horóscopo es de prueba, no de Aztro).
+> Las capturas se generan en tests con datos de ejemplo (por ejemplo, el texto del horóscopo es de prueba, no el del editor).
 
 | Hoy | Tiempo (completo) | Horóscopo | Asistente inicial |
 |---|---|---|---|

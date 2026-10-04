@@ -49,13 +49,9 @@ data class HoroscopoDoc(
     val signo: String = "",
     val fecha: String = "",          // yyyy-MM-dd
     val prediccion: String = "",
-    val idioma: String = "es",       // "en" si no se pudo traducir
-    val animo: String = "",
-    val color: String = "",
-    val numeroSuerte: String = "",
-    val horaSuerte: String = "",
-    val compatibilidad: String = "",
-    val fuente: String = "",
+    val idioma: String = "es",
+    val fuente: String = "",         // nombre legible de la fuente, p. ej. "20minutos.es"
+    val fuenteUrl: String = "",      // página original: se muestra junto al texto, como exige la API de origen
 )
 
 /** Origen del horóscopo (Firestore en producción, un doble en los tests). */
@@ -101,28 +97,25 @@ class HoroscopoRepository(
 
 /** Datos del horóscopo ya preparados para mostrar (se guardan junto al resumen). */
 data class HoroscopeData(
-    val sign: Sign, val date: String, val text: String, val lang: String,
-    val mood: String, val color: String, val luckyNumber: String, val luckyTime: String, val compatible: String,
-    val stale: Boolean, val source: String,
+    val sign: Sign, val date: String, val text: String,
+    val source: String, val sourceUrl: String, val stale: Boolean,
 ) {
     fun toJson(): String = JSONObject()
-        .put("sign", sign.name).put("date", date).put("text", text).put("lang", lang).put("mood", mood).put("color", color)
-        .put("number", luckyNumber).put("time", luckyTime).put("compat", compatible).put("stale", stale).put("source", source)
+        .put("sign", sign.name).put("date", date).put("text", text)
+        .put("source", source).put("url", sourceUrl).put("stale", stale)
         .toString()
 
     companion object {
         fun fromJson(raw: String?): HoroscopeData? = runCatching {
             val j = JSONObject(raw ?: return null)
             HoroscopeData(
-                Sign.valueOf(j.getString("sign")), j.getString("date"), j.getString("text"), j.optString("lang", "es"),
-                j.optString("mood"), j.optString("color"), j.optString("number"), j.optString("time"), j.optString("compat"),
-                j.optBoolean("stale"), j.optString("source"),
+                Sign.valueOf(j.getString("sign")), j.getString("date"), j.getString("text"),
+                j.optString("source"), j.optString("url"), j.optBoolean("stale"),
             )
         }.getOrNull()
 
         fun from(sign: Sign, doc: HoroscopoDoc, today: LocalDate = LocalDate.now()) = HoroscopeData(
-            sign, doc.fecha, doc.prediccion.trim(), doc.idioma, doc.animo, doc.color, doc.numeroSuerte, doc.horaSuerte,
-            doc.compatibilidad, stale = doc.fecha != today.toString(), source = doc.fuente,
+            sign, doc.fecha, doc.prediccion.trim(), doc.fuente, doc.fuenteUrl, stale = doc.fecha != today.toString(),
         )
     }
 }
@@ -162,24 +155,9 @@ object HoroscopeSection : Section {
             append("${sign.symbol} ${sign.label} · ")
             append(if (data.stale) "horóscopo del $day (desactualizado)" else "hoy, $day")
             append("\n").append(data.text)
-            val extras = listOfNotNull(
-                data.mood.takeIf { it.isNotBlank() }?.let { "😊 Ánimo: $it" },
-                data.color.takeIf { it.isNotBlank() }?.let { "🎨 Color: $it" },
-                data.luckyNumber.takeIf { it.isNotBlank() }?.let { "🍀 Número de la suerte: $it" },
-                data.luckyTime.takeIf { it.isNotBlank() }?.let { "⏰ Hora de la suerte: $it" },
-                data.compatible.takeIf { it.isNotBlank() }?.let { "💞 Afinidad: $it" },
-            )
-            if (extras.isNotEmpty()) append("\n\n").append(extras.joinToString("\n"))
-            if (data.source.isNotBlank()) append("\n\nFuente: ${data.source}")
+            if (data.sourceUrl.isNotBlank()) append("\n\nFuente: ${data.source.ifBlank { data.sourceUrl }} · ${data.sourceUrl}")
         }
-        val preview = listOfNotNull(
-            "🔮 " + data.text.take(150).let { if (data.text.length > 150) "$it…" else it },
-            listOfNotNull(
-                data.mood.takeIf { it.isNotBlank() }?.let { "😊 $it" },
-                data.luckyNumber.takeIf { it.isNotBlank() }?.let { "🍀 $it" },
-                data.color.takeIf { it.isNotBlank() }?.let { "🎨 $it" },
-            ).takeIf { it.isNotEmpty() }?.joinToString(" · "),
-        )
+        val preview = listOf("🔮 " + data.text.take(170).let { if (data.text.length > 170) "$it…" else it })
         val firstSentence = data.text.substringBefore(". ").take(120)
         return Digest("Horóscopo · ${sign.symbol} ${sign.label}", firstSentence, body, preview, data.toJson())
     }

@@ -2,6 +2,8 @@ package com.agendapersonal.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -9,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.agendapersonal.sections.HoroscopeData
@@ -55,46 +58,25 @@ fun HoroscopeView(data: HoroscopeData) {
         }
 
         AppCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(data.text, style = MaterialTheme.typography.bodyLarge)
-                if (data.lang == "en") {
-                    Text("Texto en inglés: no se pudo traducir.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (data.sourceUrl.isNotBlank()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    // La API de origen exige mostrar la fuente junto al texto.
+                    val uri = LocalUriHandler.current
+                    TextButton(onClick = { runCatching { uri.openUri(data.sourceUrl) } }, contentPadding = PaddingValues(0.dp)) {
+                        Text("Fuente: ${data.source.ifBlank { data.sourceUrl }}", style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, Modifier.size(16.dp))
+                    }
                 }
             }
         }
 
-        val facts = listOfNotNull(
-            data.mood.takeIf { it.isNotBlank() }?.let { Triple("😊", "Ánimo", it) },
-            data.color.takeIf { it.isNotBlank() }?.let { Triple("🎨", "Color", it) },
-            data.luckyNumber.takeIf { it.isNotBlank() }?.let { Triple("🍀", "Número de la suerte", it) },
-            data.luckyTime.takeIf { it.isNotBlank() }?.let { Triple("⏰", "Hora de la suerte", it) },
-            data.compatible.takeIf { it.isNotBlank() }?.let { Triple("💞", "Afinidad", it) },
-        )
-        facts.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { (emoji, title, value) -> Fact(emoji, title, value, Modifier.weight(1f)) }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-
         Text(
-            (if (data.source.isNotBlank()) "Fuente: ${data.source}. " else "") +
-                "Contenido de carácter informativo y de entretenimiento.",
+            "Texto publicado por " + (data.source.ifBlank { "el editor original" }) +
+                ", obtenido a través de horoscopefree; los derechos pertenecen a su editor. Contenido de carácter informativo y de entretenimiento.",
             style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun Fact(emoji: String, title: String, value: String, modifier: Modifier = Modifier) {
-    AppCard(modifier) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(emoji, fontSize = 24.sp)
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text(title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value, style = MaterialTheme.typography.titleSmall)
-            }
-        }
     }
 }
