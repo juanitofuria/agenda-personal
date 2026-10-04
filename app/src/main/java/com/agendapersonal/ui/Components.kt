@@ -19,8 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-data class SectionStyle(val icon: ImageVector, val color: Color)
+data class SectionStyle(val icon: ImageVector, val color: Color, val emoji: String? = null)
 
 /** Icono y color de cada sección; las secciones nuevas usan uno por defecto. */
 @Composable
@@ -31,16 +32,21 @@ fun sectionStyle(id: String): SectionStyle {
         "news" -> SectionStyle(Icons.Rounded.Newspaper, a.news)
         "agenda" -> SectionStyle(Icons.Rounded.Today, a.agenda)
         "markets" -> SectionStyle(Icons.Rounded.TrendingUp, a.markets)
-        else -> SectionStyle(Icons.Rounded.AutoAwesome, MaterialTheme.colorScheme.primary)
+        else -> com.agendapersonal.sections.SectionRegistry.byId(id)
+            ?.let { SectionStyle(Icons.Rounded.AutoAwesome, Color(it.accent), it.emoji) }
+            ?: SectionStyle(Icons.Rounded.AutoAwesome, MaterialTheme.colorScheme.primary)
     }
 }
 
 @Composable
-fun IconBadge(icon: ImageVector, color: Color, size: Dp = 44.dp, modifier: Modifier = Modifier) {
+fun IconBadge(icon: ImageVector, color: Color, size: Dp = 44.dp, modifier: Modifier = Modifier, emoji: String? = null) {
     Box(
         modifier.size(size).clip(RoundedCornerShape(size * 0.32f)).background(color.copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, tint = color, modifier = Modifier.size(size * 0.54f)) }
+    ) {
+        if (emoji != null) Text(emoji, fontSize = (size.value * 0.5f).sp)
+        else Icon(icon, null, tint = color, modifier = Modifier.size(size * 0.54f))
+    }
 }
 
 @Composable

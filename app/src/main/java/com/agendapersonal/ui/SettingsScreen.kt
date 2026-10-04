@@ -17,16 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.agendapersonal.data.Prefs
-import com.agendapersonal.net.Http
+import com.agendapersonal.net.Geocoding
+import com.agendapersonal.net.Place
 import com.agendapersonal.notify.Scheduler
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-private data class Place(val name: String, val admin1: String, val admin2: String, val country: String, val lat: Double, val lon: Double)
-
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onRerunOnboarding: () -> Unit = {}) {
     val ctx = LocalContext.current
     val prefs = remember { Prefs(ctx) }
     val scope = rememberCoroutineScope()
@@ -39,18 +39,17 @@ fun SettingsScreen() {
     var councils by remember { mutableStateOf(prefs.councils) }
     var terms by remember { mutableStateOf(prefs.watchTerms) }
     var feeds by remember { mutableStateOf(prefs.customFeeds) }
+    var userName by remember { mutableStateOf(prefs.userName) }
+    var birth by remember { mutableStateOf(prefs.birthDate) }
+    var topicsVersion by remember { mutableIntStateOf(0) }
+    var addingTopic by remember { mutableStateOf(false) }
+    val topics = remember(topicsVersion) { com.agendapersonal.sections.CustomTopics.load(prefs) }
+    if (addingTopic) AddTopicSheet(onClose = { addingTopic = false }, onAdded = { topicsVersion++ })
 
     fun search() {
         scope.launch {
             status = "Buscando…"
-            runCatching {
-                val json = JSONObject(Http.get("https://geocoding-api.open-meteo.com/v1/search?name=${Http.enc(query)}&count=6&language=es&format=json"))
-                val arr = json.optJSONArray("results")
-                (0 until (arr?.length() ?: 0)).map {
-                    val o = arr!!.getJSONObject(it)
-                    Place(o.getString("name"), o.optString("admin1"), o.optString("admin2"), o.optString("country"), o.getDouble("latitude"), o.getDouble("longitude"))
-                }
-            }.onSuccess { results = it; status = if (it.isEmpty()) "Sin resultados" else null }
+            runCatching { Geocoding.search(query) }.onSuccess { results = it; status = if (it.isEmpty()) "Sin resultados" else null }
                 .onFailure { status = "No se pudo buscar. Revisa tu conexión." }
         }
     }
@@ -60,6 +59,45 @@ fun SettingsScreen() {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         ScreenHeader("Ajustes", "Personaliza tu información")
+
+        Group(Icons.Rounded.Person, LocalAccents.current.news, "Perfil", "Solo se guarda en tu móvil") {
+            OutlinedTextField(userName, { userName = it; prefs.userName = it }, label = { Text("Nombre") }, singleLine = true, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(
+                onClick = {
+                    val d = runCatching { java.time.LocalDate.parse(birth) }.getOrNull() ?: java.time.LocalDate.of(1990, 1, 1)
+                    android.app.DatePickerDialog(ctx, { _, y, m, day ->
+                        birth = java.time.LocalDate.of(y, m + 1, day).toString(); prefs.birthDate = birth
+                        // Con fecha de nacimiento ya se puede mostrar el horóscopo.
+                        com.agendapersonal.sections.SectionRegistry.byId("horoscope")?.let { sec -> prefs.setEnabled(sec.id, true); Scheduler.scheduleSection(ctx, sec) }
+                    }, d.year, d.monthValue - 1, d.dayOfMonth).show()
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+            ) {
+                Icon(Icons.Rounded.Cake, null, Modifier.size(20.dp)); Spacer(Modifier.width(10.dp))
+                val parsed = runCatching { java.time.LocalDate.parse(birth) }.getOrNull()
+                Text(parsed?.let { "${it.dayOfMonth}/${it.monthValue}/${it.year} · ${com.agendapersonal.sections.Sign.of(it).symbol} ${com.agendapersonal.sections.Sign.of(it).label}" } ?: "Fecha de nacimiento (para el horóscopo)")
+            }
+        }
+
+        Group(Icons.Rounded.AutoAwesome, LocalAccents.current.markets, "Mis secciones", "Temas que sigues además de las básicas") {
+            if (topics.isEmpty()) Text("Aún no has añadido ninguna.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            topics.forEach { t ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(t.emoji, fontSize = 22.sp, modifier = Modifier.width(36.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(t.title, style = MaterialTheme.typography.titleSmall)
+                        Text(t.query, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    IconButton(onClick = {
+                        com.agendapersonal.sections.CustomTopics.remove(prefs, t.id)
+                        Scheduler.cancelSection(ctx, "topic_${t.id}")
+                        topicsVersion++
+                    }) { Icon(Icons.Rounded.DeleteOutline, "Eliminar", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+            }
+            OutlinedButton(onClick = { addingTopic = true }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Añadir sección") }
+            TextButton(onClick = onRerunOnboarding) { Text("Repetir la configuración inicial") }
+        }
 
         Group(Icons.Rounded.LocationOn, MaterialTheme.colorScheme.primary, "Ubicación del tiempo", "Ahora: $placeName") {
             OutlinedTextField(

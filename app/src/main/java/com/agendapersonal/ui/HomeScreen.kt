@@ -27,6 +27,7 @@ import com.agendapersonal.notify.Scheduler
 import com.agendapersonal.sections.DigestStore
 import com.agendapersonal.sections.Section
 import com.agendapersonal.sections.SectionRegistry
+import com.agendapersonal.sections.HoroscopeData
 import com.agendapersonal.sections.WeatherData
 import com.agendapersonal.sections.WeatherIcons
 import androidx.compose.ui.unit.sp
@@ -50,6 +51,8 @@ fun HomeScreen(onOpen: (String) -> Unit) {
     var version by remember { mutableIntStateOf(0) }
     var refreshingAll by remember { mutableStateOf(false) }
     val loadingIds = remember { mutableStateListOf<String>() }
+    var addingTopic by remember { mutableStateOf(false) }
+    val sections = remember(version) { SectionRegistry.all }
 
     suspend fun refresh(section: Section) {
         loadingIds += section.id
@@ -59,9 +62,11 @@ fun HomeScreen(onOpen: (String) -> Unit) {
     }
 
     // Primer uso: las secciones sin datos guardados se rellenan solas.
-    LaunchedEffect(Unit) {
-        SectionRegistry.all.filter { DigestStore.load(ctx, it.id) == null }.forEach { refresh(it) }
+    LaunchedEffect(sections.size) {
+        SectionRegistry.all.filter { prefs.isEnabled(it) && DigestStore.load(ctx, it.id) == null }.forEach { refresh(it) }
     }
+
+    if (addingTopic) AddTopicSheet(onClose = { addingTopic = false }, onAdded = { version++ })
 
     LazyColumn(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp),
@@ -71,14 +76,14 @@ fun HomeScreen(onOpen: (String) -> Unit) {
             Hero(prefs, version, refreshingAll) {
                 refreshingAll = true
                 scope.launch {
-                    SectionRegistry.all.forEach { refresh(it) }
+                    SectionRegistry.all.filter { prefs.isEnabled(it) }.forEach { refresh(it) }
                     refreshingAll = false
                 }
             }
         }
         if (!Scheduler.canScheduleExact(ctx)) item { ExactAlarmWarning() }
         item { Text("Tus resúmenes", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 6.dp)) }
-        items(SectionRegistry.all, key = { it.id }) { section ->
+        items(sections, key = { it.id }) { section ->
             SectionCard(
                 section, prefs, version,
                 loading = section.id in loadingIds,
@@ -86,6 +91,12 @@ fun HomeScreen(onOpen: (String) -> Unit) {
                 onRefresh = { scope.launch { refresh(section) } },
                 onOpen = { onOpen(section.id) },
             )
+        }
+        item {
+            OutlinedButton(onClick = { addingTopic = true }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Icon(Icons.Rounded.Add, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp))
+                Text("Añadir sección")
+            }
         }
     }
 }
@@ -137,7 +148,7 @@ private fun HeroChip(icon: ImageVector, text: String) {
 
 /** "Tiempo · 07:00" del próximo aviso programado. */
 private fun nextAlert(prefs: Prefs): String? {
-    val best = SectionRegistry.all.filter { prefs.isEnabled(it.id) }.map {
+    val best = SectionRegistry.all.filter { prefs.isEnabled(it) }.map {
         val h = prefs.hour(it.id, it.defaultHour); val m = prefs.minute(it.id, it.defaultMinute)
         Triple(it, h, m) to Scheduler.nextTrigger(h, m)
     }.minByOrNull { it.second } ?: return null
@@ -174,7 +185,7 @@ fun SectionCard(
     val ctx = LocalContext.current
     val style = sectionStyle(section.id)
 
-    val enabled = remember(version) { prefs.isEnabled(section.id) }
+    val enabled = remember(version) { prefs.isEnabled(section) }
     val hour = remember(version) { prefs.hour(section.id, section.defaultHour) }
     val minute = remember(version) { prefs.minute(section.id, section.defaultMinute) }
     val stored = remember(version, loading) { DigestStore.load(ctx, section.id) }
@@ -182,7 +193,7 @@ fun SectionCard(
     AppCard(Modifier.fillMaxWidth(), onClick = onOpen) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(style.icon, style.color, modifier = Modifier.alpha(if (enabled) 1f else 0.45f))
+                IconBadge(style.icon, style.color, emoji = style.emoji, modifier = Modifier.alpha(if (enabled) 1f else 0.45f))
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(section.title, style = MaterialTheme.typography.titleMedium)
@@ -222,8 +233,25 @@ fun SectionCard(
                             Text("${w.tMin.roundToInt()}º / ${w.tMax.roundToInt()}º", style = MaterialTheme.typography.titleMedium)
                         }
                         HourlyChart(w.hours, height = 150.dp, compact = true)
-                        stored.preview.lastOrNull { it.contains("Ayer") || it.contains("Año") }?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        stored.preview.drop(1).filterNot { it.startsWith("⏰") }.take(3).forEach {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                        }
+                    }
+                    HoroscopeData.fromJson(stored.extra) != null -> {
+                        val h = HoroscopeData.fromJson(stored.extra)!!
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(h.sign.symbol, fontSize = 30.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Text("${h.sign.label} · ${h.advice}", style = MaterialTheme.typography.bodyMedium, maxLines = 2, modifier = Modifier.weight(1f))
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            h.items.forEach {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(it.emoji, fontSize = 20.sp)
+                                    Text(it.category, style = MaterialTheme.typography.labelSmall)
+                                    Stars(it.stars, style.color, size = 11.dp)
+                                }
+                            }
                         }
                     }
                     else -> {

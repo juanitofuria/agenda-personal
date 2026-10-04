@@ -30,6 +30,9 @@ interface Section {
     val emoji: String get() = "🔔"
     val accent: Int get() = 0xFF3B5BDB.toInt()
 
+    /** Si la sección está activada la primera vez (el horóscopo, por ejemplo, necesita antes la fecha de nacimiento). */
+    val defaultEnabled: Boolean get() = true
+
     /** Requiere conexión a Internet (si falla, el trabajo se reintenta). */
     val needsNetwork: Boolean get() = true
 

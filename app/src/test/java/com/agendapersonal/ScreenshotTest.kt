@@ -65,6 +65,10 @@ class ScreenshotTest {
         DigestStore.save(ctx, "agenda", Digest("Tu agenda de hoy", "2 citas", "🩺 CITAS\n• Cardiología", AGENDA_PREVIEW))
         DigestStore.save(ctx, "markets", Digest("Mercados · premercado EEUU", "Futuros S&P 500 +0.69%", MARKETS, MARKETS_PREVIEW))
         prefs.setTime("markets", 14, 0)
+        prefs.birthDate = "1984-04-05"; prefs.setEnabled("horoscope", true)
+        DigestStore.save(ctx, "horoscope", runBlocking { com.agendapersonal.sections.HoroscopeSection.build(ctx) })
+        val t = com.agendapersonal.sections.CustomTopics.add(prefs, "Ajedrez", "ajedrez", "♟️")
+        DigestStore.save(ctx, "topic_${t.id}", Digest("Ajedrez", "x", "♟️ Ajedrez\n• Carlsen gana el torneo de Stavanger (Chess.com)", listOf("♟️ Carlsen gana el torneo de Stavanger", "♟️ Gukesh, nuevo líder del ranking mundial", "♟️ Llega el Mundial de ajedrez rápido")))
     }
 
     private fun screens(suffix: String, dark: Boolean) {
@@ -75,6 +79,7 @@ class ScreenshotTest {
                 when (val s = scene.value) {
                     is Tab -> AppRoot(mutableStateOf<String?>(null), s)
                     is com.agendapersonal.sections.Section -> SectionDetailScreen(s, onBack = {})
+                    is Int -> OnboardingScreen(initialStep = s, onFinished = {})
                     else -> Column(Modifier.background(MaterialTheme.colorScheme.background).padding(20.dp)) { DigestContent(s as String) }
                 }
             }
@@ -86,7 +91,7 @@ class ScreenshotTest {
         }
         scene.value = MARKETS; rule.waitForIdle(); shot("detail_markets_$suffix")
         scene.value = WEATHER; rule.waitForIdle(); shot("detail_weather_$suffix")
-        scene.value = com.agendapersonal.sections.WeatherSection; rule.waitForIdle(); shot("section_weather_$suffix")
+        for (i in 0..5) { scene.value = i; rule.waitForIdle(); shot("onboarding_${i}_$suffix") }
     }
 
     /** Dibuja las vistas personalizadas de la notificación (aproximación a cómo las pinta el sistema). */
@@ -139,11 +144,16 @@ class ScreenshotTest {
             (7..24).map { h ->
                 val t = 20 + 8.4 * kotlin.math.sin((h - 5) / 18.0 * Math.PI)
                 val code = when { h < 10 -> 2; h < 15 -> 3; h in 17..19 -> 80; h in 20..21 -> 95; else -> 3 }
-                com.agendapersonal.sections.HourPoint(h % 24, t, code, when { h in 17..21 -> 60 + (h - 17) * 8; h in 14..16 -> 25; else -> 5 }, if (h in 18..20) 1.2 else 0.0, 4.0 + h % 7)
+                com.agendapersonal.sections.HourPoint(
+                    h % 24, t, code, when { h in 17..21 -> 60 + (h - 17) * 8; h in 14..16 -> 25; else -> 5 }, if (h in 18..20) 1.2 else 0.0, 4.0 + h % 7,
+                    humidity = (85 - 40 * kotlin.math.sin((h - 5) / 18.0 * Math.PI)).toInt(), uv = maxOf(0.0, 5.4 * kotlin.math.sin((h - 7) / 12.0 * Math.PI)),
+                    radiation = maxOf(0.0, 700 * kotlin.math.sin((h - 7) / 12.0 * Math.PI)), gust = 10.0 + h % 9, windDir = 225,
+                )
             },
             rainYesterday = 0.5, rainYear = 475.7, year = 2026,
+            sunrise = "08:12", sunset = "19:42", uvMax = 5.4, radiationSum = 17.8, windMax = 24.0, gustMax = 41.0, windDir = 225,
         )
-        val WEATHER_PREVIEW = listOf("☁️ Cubierto · 19º / 28º", "⏰ 7h 🌤️20º · 10h 🌤️25º · 13h ☁️28º · 16h ☁️27º", "🌧️ Ayer 0,5 l/m² · Año 475,7 l/m²")
+        val WEATHER_PREVIEW = listOf("☁️ Cubierto · 19º / 28º", "⏰ 7h 🌤️20º · 10h 🌤️25º · 13h ☁️28º · 16h ☁️27º", "🌦️ Lluvia 17–22 h · ~4,8 l/m² · prob. 92 %", "🌅 08:12 · 🌇 19:42 · 💨 24 km/h SO · ☀️ UV 5,4", "🌧️ Ayer 0,5 l/m² · Año 475,7 l/m²")
         val NEWS_PREVIEW = listOf(
             "💶 El Banco de España aboga por un equilibrio entre disciplina y empoderamiento financiero",
             "🏛️ El Gobierno quiere dar luz verde en octubre al decreto de los centros de datos",

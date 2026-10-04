@@ -18,6 +18,26 @@ class Prefs(context: Context) {
     fun lastDigest(id: String): String? = sp.getString("last_$id", null)
     fun setLastDigest(id: String, text: String) = sp.edit().putString("last_$id", text).apply()
 
+    fun isEnabled(section: com.agendapersonal.sections.Section) = sp.getBoolean("en_${section.id}", section.defaultEnabled)
+
+    // ---- Perfil y configuración inicial ----
+    var onboarded: Boolean
+        get() = sp.getBoolean("onboarded", false)
+        set(v) = sp.edit().putBoolean("onboarded", v).apply()
+    var userName: String
+        get() = sp.getString("user_name", "") ?: ""
+        set(v) = sp.edit().putString("user_name", v).apply()
+
+    /** Fecha de nacimiento (yyyy-MM-dd) para el horóscopo; vacío si no se ha dado. Solo se guarda en el móvil. */
+    var birthDate: String
+        get() = sp.getString("birth_date", "") ?: ""
+        set(v) = sp.edit().putString("birth_date", v).apply()
+
+    /** Secciones personalizadas (JSON), ver [com.agendapersonal.sections.CustomTopics]. */
+    var customTopicsJson: String
+        get() = sp.getString("custom_topics", "[]") ?: "[]"
+        set(v) = sp.edit().putString("custom_topics", v).apply()
+
     // ---- Ubicación (para el tiempo) ----
     var placeName: String
         get() = sp.getString("place_name", "Montoro") ?: "Montoro"

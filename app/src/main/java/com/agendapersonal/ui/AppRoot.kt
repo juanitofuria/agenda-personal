@@ -23,7 +23,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
  * y "edit_task:<id>"/"edit_appt:<id>" abre directamente la edición de ese evento.
  */
 @Composable
-fun AppRoot(target: MutableState<String?>, initialTab: Tab = Tab.Home) {
+fun AppRoot(target: MutableState<String?>, initialTab: Tab = Tab.Home, onRerunOnboarding: () -> Unit = {}) {
     var tab by remember(initialTab) { mutableStateOf(initialTab) }
     var detail by remember { mutableStateOf<String?>(null) }
     var editTask by remember { mutableStateOf<Long?>(null) }
@@ -69,7 +69,7 @@ fun AppRoot(target: MutableState<String?>, initialTab: Tab = Tab.Home) {
                 Tab.Home -> HomeScreen(onOpen = { detail = it })
                 Tab.Tasks -> TasksScreen(editId = editTask, onEditConsumed = { editTask = null })
                 Tab.Appointments -> AppointmentsScreen(editId = editAppt, onEditConsumed = { editAppt = null })
-                Tab.Settings -> SettingsScreen()
+                Tab.Settings -> SettingsScreen(onRerunOnboarding)
             }
         }
     }

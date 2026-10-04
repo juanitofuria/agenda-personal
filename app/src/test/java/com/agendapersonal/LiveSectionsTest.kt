@@ -26,6 +26,17 @@ class LiveSectionsTest {
         assertFalse("el título conserva ' - Medio'", items.first().title.endsWith(" - ${items.first().source}"))
     }
 
+    /** Una sección personalizada obtiene noticias reales. Solo con LIVE=1. */
+    @Test
+    fun liveCustomTopic() {
+        assumeTrue(System.getenv("LIVE") == "1")
+        val section = com.agendapersonal.sections.TopicSection(com.agendapersonal.sections.CustomTopic("ajedrez", "Ajedrez", "♟️", "ajedrez"))
+        var d = runBlocking { section.build(ctx) }
+        repeat(3) { if (!d.ok || d.preview.isEmpty()) d = runBlocking { section.build(ctx) } }
+        println("\n######## TOPIC ${d.title} | ${d.preview.size} titulares\n" + d.body)
+        assertTrue(d.ok); assertTrue(d.preview.isNotEmpty())
+    }
+
     /** Ejecuta cada sección contra Internet real. Solo con LIVE=1. */
     @Test
     fun liveSections() {
@@ -40,6 +51,12 @@ class LiveSectionsTest {
             if (section.id == "weather") {
                 val w = com.agendapersonal.sections.WeatherData.fromJson(digest.extra)
                 assertNotNull("tiempo sin datos para la gráfica", w)
+                assertTrue("amanecer inválido: '${w!!.sunrise}'", Regex("\\d{2}:\\d{2}").matches(w.sunrise))
+                assertTrue("anochecer inválido: '${w.sunset}'", Regex("\\d{2}:\\d{2}").matches(w.sunset))
+                assertTrue("humedad fuera de rango", w.hours.all { it.humidity in 0..100 })
+                assertTrue("UV fuera de rango", w.uvMax in 0.0..16.0)
+                println("-- sol ${w.sunrise}-${w.sunset} · UV ${w.uvMax} · rad ${w.radiationSum} MJ/m² · viento ${w.windMax}/${w.gustMax} km/h ${com.agendapersonal.sections.WeatherData.compass(w.windDir)} · hum ${w.hours.first().humidity}%")
+                println("-- lluvia: ${w.rainOutlook()}")
                 println("-- gráfica: ${w!!.hours.size} horas, " + w.hours.joinToString { "${it.hour}h ${it.temp.toInt()}º p${it.prob}%" })
             }
         }

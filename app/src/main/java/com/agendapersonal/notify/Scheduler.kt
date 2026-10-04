@@ -36,14 +36,20 @@ object Scheduler {
 
     fun scheduleSection(context: Context, section: Section) {
         val prefs = Prefs(context)
-        val index = SectionRegistry.all.indexOfFirst { it.id == section.id }
-        if (!prefs.isEnabled(section.id)) {
+        val index = sectionCode(section.id)
+        if (!prefs.isEnabled(section)) {
             cancel(context, index, KIND_SECTION, section.id)
             return
         }
         val at = nextTrigger(prefs.hour(section.id, section.defaultHour), prefs.minute(section.id, section.defaultMinute))
         set(context, index, KIND_SECTION, section.id, at)
     }
+
+    /** Código de alarma estable por sección (no depende del orden, que cambia al añadir o quitar secciones). */
+    private fun sectionCode(id: String) = (id.hashCode() and 0x7FFFFFFF) % 900_000
+
+    /** Cancela la alarma de una sección que ya no existe (p. ej. una personalizada eliminada). */
+    fun cancelSection(context: Context, id: String) = cancel(context, sectionCode(id), KIND_SECTION, id)
 
     fun scheduleTask(context: Context, task: Task) {
         val at = task.remindAt

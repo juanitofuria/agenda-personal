@@ -7,16 +7,25 @@ información que necesitas, y gestiona **tareas pendientes** y **citas médicas*
 
 | Sección | Hora por defecto | Contenido |
 |---|---|---|
-| **Tiempo** | 07:00 | Gráfica de temperatura por horas con iconos (sol, nubes, lluvia, tormenta) y probabilidad de lluvia, lista hora a hora, lluvia de ayer (l/m²) y acumulada del año. Fuente: [Open-Meteo](https://open-meteo.com) (sin clave). |
+| **Tiempo** | 07:00 | Gráfica por horas (temperatura, humedad, viento o UV) con iconos del tiempo; **lluvia prevista** (cuándo y cuántos l/m²); **amanecer y anochecer** con el arco del sol y las horas de luz; viento con dirección y rachas; humedad; **índice UV y radiación solar**; **calendario lunar** (fase de hoy, próximas lunas llena y nueva, y el mes completo); lista hora a hora; lluvia de ayer y acumulada del año. Datos de [Open-Meteo](https://open-meteo.com) (sin clave); la luna se calcula en el móvil (algoritmo de Meeus). |
 | **Noticias** | 07:10 | Economía, política, fútbol y motociclismo (Google News RSS) + provincia, ayuntamientos a seguir (por defecto Montoro y Córdoba, editables) y nombres a vigilar (alcalde, concejales…) + feeds RSS propios. |
 | **Agenda** | 07:20 | Citas de hoy y mañana y tareas pendientes (sin Internet). |
 | **Mercados** | 14:00 | Futuros/premercado de Wall Street, noticias económicas, cierre de la última sesión (EEUU, Europa, Asia) y crónica de mercados. Fuente: Yahoo Finance (API no oficial). |
+| **Horóscopo** | 08:00 | Salud, dinero, trabajo y amor de tu signo, con estrellas, número y color de la suerte. Necesita la fecha de nacimiento (solo se guarda en el móvil). **Es de entretenimiento**: se genera en el propio móvil a partir del signo y la fecha, no consulta ningún servicio ni es una predicción real. |
+| **Secciones propias** | 08:30+ | Las que crees tú (ajedrez, cine, tu equipo…): noticias sobre el tema que elijas, con su propia hora y notificación. |
+
+## Primera vez: configuración inicial
+
+Al abrir la app por primera vez aparece un asistente (todo opcional, con **Omitir** en cada paso):
+intereses y aficiones (secciones básicas, 23 temas y los que escribas), nombre y fecha de nacimiento, municipio,
+y una tarea o cita para empezar. Si se omite, se entra directamente en la pantalla principal con la configuración por
+defecto. Todo se puede cambiar después en **Ajustes** (Perfil, Mis secciones, «Repetir la configuración inicial»).
 
 ## Cómo se usa
 
 - **Pantalla «Hoy»**: cada sección muestra sus **últimos datos guardados** al abrir la app. «Actualizar» (por sección) o
   «Actualizar todo ahora» refrescan el contenido en la propia tarjeta; «Ver todo» abre la sección completa.
-  Cada una se activa/desactiva y cambia de hora (la ubicación, provincia y ayuntamientos se cambian en Ajustes si te mudas).
+  Cada una se activa/desactiva y cambia de hora; «Añadir sección» crea una nueva (la ubicación, provincia y ayuntamientos se cambian en Ajustes si te mudas).
 - **Notificaciones de resumen**: diseño propio con barra e icono de color por sección, titulares destacados y vista
   compacta/expandida. Al tocarlas se abre **solo esa sección**.
 - **Recordatorios de tareas y citas**: la notificación trae tres botones: **Eliminar**, **Conservar** y **Modificar**
@@ -24,12 +33,16 @@ información que necesitas, y gestiona **tareas pendientes** y **citas médicas*
 
 ## Capturas
 
-| Hoy | Tareas | Citas | Ajustes |
+| Hoy | Tiempo (completo) | Horóscopo | Asistente inicial |
 |---|---|---|---|
-| ![Hoy](docs/screenshots/home_light.png) | ![Tareas](docs/screenshots/tasks_light.png) | ![Citas](docs/screenshots/appointments_light.png) | ![Ajustes](docs/screenshots/settings_light.png) |
+| ![Hoy](docs/screenshots/full_home.png) | ![Tiempo](docs/screenshots/full_weather.png) | ![Horóscopo](docs/screenshots/full_horoscope.png) | ![Asistente](docs/screenshots/onboarding_1_light.png) |
+
+| Tareas | Citas | Ajustes |
+|---|---|---|
+| ![Tareas](docs/screenshots/tasks_light.png) | ![Citas](docs/screenshots/appointments_light.png) | ![Ajustes](docs/screenshots/settings_light.png) |
 
 Resumen de mercados: [claro](docs/screenshots/detail_markets_light.png) · [oscuro](docs/screenshots/detail_markets_dark.png).
-Pantalla de sección: [Tiempo](docs/screenshots/section_weather_light.png). Aspecto de las notificaciones: [claro](docs/screenshots/notifications_light.png) · [oscuro](docs/screenshots/notifications_dark.png).
+Asistente: [pasos 2](docs/screenshots/onboarding_2_light.png) · [3](docs/screenshots/onboarding_3_light.png) · [4](docs/screenshots/onboarding_4_light.png) · [5](docs/screenshots/onboarding_5_light.png). Aspecto de las notificaciones: [claro](docs/screenshots/notifications_light.png) · [oscuro](docs/screenshots/notifications_dark.png).
 Modo oscuro: [Hoy](docs/screenshots/home_dark.png) · [Tareas](docs/screenshots/tasks_dark.png) · [Citas](docs/screenshots/appointments_dark.png) · [Ajustes](docs/screenshots/settings_dark.png).
 
 ## Cómo añadir una sección nueva
