@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "empaquetar": "wrangler deploy src/worker.ts --dry-run --outdir dist-tmp && node scripts/copiar-bundle.mjs",
     "test": "tsc && node --test lib/cloudflare/src/*.test.js",
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy",

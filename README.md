@@ -33,38 +33,48 @@ Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/c
 ## Puesta en marcha
 
 Necesitas **Node 20 o superior** y una cuenta gratuita en [Cloudflare](https://dash.cloudflare.com/sign-up).
+**No hace falta `npm install`**: el Worker ya viene empaquetado en `cloudflare/dist/worker.js` y se despliega con `npx`, que
+guarda sus herramientas fuera del proyecto. Por eso la carpeta puede estar en una unidad sincronizada (Google Drive, OneDrive…).
+
+Todos los comandos, desde la carpeta `cloudflare/`:
 
 1. **Crea el bot** en Telegram: habla con [@BotFather](https://t.me/BotFather), envía `/newbot` y guarda el **token**.
-2. **Instala y entra en Cloudflare** (desde la carpeta `cloudflare/`):
+2. **Entra en Cloudflare** (abre el navegador y autoriza tu cuenta):
    ```bash
-   cd cloudflare
-   npm install
-   npx wrangler login          # abre el navegador y autoriza tu cuenta
+   npx wrangler@4.147.0 login
    ```
-3. **Crea la base de datos** y copia el `database_id` que imprime en `wrangler.toml` (línea `database_id = "PON-AQUI-EL-ID"`):
+3. **Crea la base de datos**, copia el `database_id` que imprime en `wrangler.toml` (línea `database_id = …`) y crea las tablas:
    ```bash
-   npx wrangler d1 create agenda-personal
-   npm run db:crear            # crea las tablas
+   npx wrangler@4.147.0 d1 create agenda-personal
+   npx wrangler@4.147.0 d1 execute agenda-personal --remote --file=schema.sql
    ```
 4. **Guarda los secretos** (Cloudflare los cifra; no van en el código):
    ```bash
-   npx wrangler secret put TELEGRAM_BOT_TOKEN        # pega el token de BotFather
-   npx wrangler secret put TELEGRAM_WEBHOOK_SECRET   # una cadena aleatoria de 16–256 letras, números, - o _
+   npx wrangler@4.147.0 secret put TELEGRAM_BOT_TOKEN        # pega el token de BotFather
+   npx wrangler@4.147.0 secret put TELEGRAM_WEBHOOK_SECRET   # una cadena aleatoria de 16–256 letras, números, - o _
    ```
 5. **Despliega**:
    ```bash
-   npm run deploy
+   npx wrangler@4.147.0 deploy
    ```
    Imprime la URL del Worker: `https://agenda-personal.TU-USUARIO.workers.dev`.
 6. **Registra el webhook** en Telegram con esa URL **terminada en `/telegram`** y el mismo secreto del paso 4
-   (también registra el menú de comandos del bot):
-   ```bash
-   TELEGRAM_BOT_TOKEN=123:ABC TELEGRAM_WEBHOOK_SECRET=la-misma-cadena \
-     npm run webhook -- https://agenda-personal.TU-USUARIO.workers.dev/telegram
+   (también registra el menú de comandos del bot). En Windows (`cmd`):
+   ```bat
+   set TELEGRAM_BOT_TOKEN=123:ABC
+   set TELEGRAM_WEBHOOK_SECRET=la-misma-cadena
+   node ..\firebase\functions\scripts\configurar-telegram.mjs https://agenda-personal.TU-USUARIO.workers.dev/telegram
    ```
-7. Abre tu bot en Telegram y escribe **/start**. Para ver los registros en directo: `npm run logs`.
+   En Linux/macOS: `TELEGRAM_BOT_TOKEN=123:ABC TELEGRAM_WEBHOOK_SECRET=la-misma-cadena node ../firebase/functions/scripts/configurar-telegram.mjs <URL>`.
+7. Abre tu bot en Telegram y escribe **/start**. Para ver los registros en directo: `npx wrangler@4.147.0 tail`.
+
+**Para actualizar** a una versión nueva del código: descarga los archivos y repite solo el paso 5 (`npx wrangler@4.147.0 deploy`).
+Los pasos 1–4 y 6 se hacen una sola vez.
 
 **Prueba de humo recomendada:** `/start` → «Resumen de hoy» → una alarma «en 2 minutos» → `/borrar`.
+
+> **Para desarrolladores:** `cd cloudflare && npm install` solo hace falta para ejecutar los tests o cambiar el código. Tras cambiar algo en
+> `src/` (o en `../firebase/functions/src`), ejecuta `npm run empaquetar` y sube también `dist/worker.js`; CI lo comprueba.
 
 ## Datos en D1 (solo accesibles desde el Worker)
 
@@ -87,6 +97,7 @@ El esquema está en `cloudflare/schema.sql`. No hay API pública de la base de d
 | `cloudflare/src/almacenD1.ts` | Persistencia en D1 (implementa la interfaz `Almacen`) |
 | `cloudflare/src/http.ts` | Cliente HTTP sobre `fetch` con presupuesto de peticiones y concurrencia limitada |
 | `cloudflare/wrangler.toml` | Configuración: cron, base de datos, variables |
+| `cloudflare/dist/worker.js` | El Worker ya empaquetado (con sus librerías dentro): es lo que se despliega |
 | `firebase/functions/src/bot/` | El bot: rutas, asistente inicial, eventos, ajustes, vistas y catálogo de temas |
 | `firebase/functions/src/scheduler.ts` | Envía lo vencido: reclamo atómico, reintentos, repeticiones, posponer, retrasos, bloqueos |
 | `firebase/functions/src/secciones/` | Contenido de cada resumen: tiempo, noticias, mercados, horóscopo, agenda, temas |
@@ -120,7 +131,7 @@ Fuente: [límites de Workers](https://developers.cloudflare.com/workers/platform
 ## Tests
 
 ```bash
-cd cloudflare && npm install && npm test              # 10 tests: almacén D1 (sobre SQLite), bot + planificador con D1, webhook, cliente HTTP
+cd cloudflare && npm install && npm test              # 11 tests: almacén D1 (sobre SQLite), bot + planificador con D1, webhook, cliente HTTP
 cd firebase/functions && npm install && npm test      # 128 tests de la lógica común
 ```
 

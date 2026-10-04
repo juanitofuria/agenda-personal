@@ -1,5 +1,5 @@
 name = "agenda-personal"
-main = "src/worker.ts"
+main = "dist/worker.js"   # Worker ya empaquetado (se genera con `npm run empaquetar`): así no hace falta instalar nada para desplegar
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]   # necesario para `node:crypto` y `Buffer` (comparación segura del secreto)
 
@@ -14,7 +14,7 @@ crons = ["* * * * *", "*/10 4-10 * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "agenda-personal"
-database_id = "PON-AQUI-EL-ID"   # lo imprime `npx wrangler d1 create agenda-personal`
+database_id = "8365b814-ff49-4946-b802-2809f951abbf"   # id de tu base de datos D1 (no es secreto: solo vale con tu sesión de Cloudflare)
 
 [vars]
 HOROSCOPO_BASE_URL = "https://horoscopefree.fly.dev"

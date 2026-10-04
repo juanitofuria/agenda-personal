@@ -133,3 +133,11 @@ test("worker: rutas y secreto del webhook", async () => {
   // sin nada vencido, el tick no hace nada y no llama a Internet
   assert.deepEqual(await manejarTick(env), { enviados: 0, omitidos: 0, fallidos: 0 });
 });
+
+test("dist/worker.js existe, está empaquetado (sin imports sueltos de librerías) y exporta los handlers", () => {
+  const f = join(__dirname, "..", "..", "..", "dist", "worker.js");
+  const js = readFileSync(f, "utf8");
+  assert.match(js, /export\s*\{[^}]*as default/); // handlers fetch y scheduled
+  assert.doesNotMatch(js, /from\s+["']fast-xml-parser["']/); // la librería va dentro
+  assert.match(js, /\/telegram/); assert.match(js, /\*\/10 4-10 \* \* \*/); // ruta del webhook y cron del horóscopo
+});

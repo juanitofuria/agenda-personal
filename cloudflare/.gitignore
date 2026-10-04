@@ -2,3 +2,4 @@ node_modules/
 lib/
 .wrangler/
 .dev.vars
+dist-tmp/

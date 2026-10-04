@@ -7,38 +7,17 @@ Los datos se guardan en **D1** (SQLite de Cloudflare).
 | Pieza | Archivo |
 |---|---|
 | Handlers del Worker (solo `fetch` y `scheduled`) | `src/worker.ts` |
+| Worker empaquetado que se despliega | `dist/worker.js` (se genera con `npm run empaquetar`) |
 | Lógica de webhook, planificador y horóscopo | `src/app.ts` |
 | Almacenamiento en D1 (implementa `Almacen`) | `src/almacenD1.ts` · esquema en `schema.sql` |
 | Cliente HTTP sobre `fetch` con presupuesto de peticiones | `src/http.ts` |
 
-## Puesta en marcha (una sola vez)
+## Puesta en marcha y despliegue
 
-Necesitas Node 20+ y la cuenta de Cloudflare. Desde esta carpeta (`cloudflare/`):
+Está en [`../README.md`](../README.md#puesta-en-marcha). Resumen: no hace falta `npm install`; el Worker se despliega ya
+empaquetado con `npx wrangler@4.147.0 deploy` (el `wrangler.toml` apunta a `dist/worker.js`).
 
-```bash
-npm install
-npx wrangler login                                  # abre el navegador y autoriza tu cuenta
-npx wrangler d1 create agenda-personal              # imprime un database_id
-```
-
-1. Copia ese `database_id` en `wrangler.toml` (línea `database_id = "PON-AQUI-EL-ID"`).
-2. Crea las tablas y publica:
-
-```bash
-npm run db:crear
-npx wrangler secret put TELEGRAM_BOT_TOKEN          # pega el token de @BotFather (no se muestra en pantalla)
-npx wrangler secret put TELEGRAM_WEBHOOK_SECRET     # inventa una cadena de 16-256 letras/números/-/_
-npm run deploy                                      # imprime la URL: https://agenda-personal.TU-USUARIO.workers.dev
-```
-
-3. Registra el webhook en Telegram (usa la URL anterior **terminada en `/telegram`**):
-
-```bash
-TELEGRAM_BOT_TOKEN=123:ABC TELEGRAM_WEBHOOK_SECRET=la-misma-cadena \
-  npm run webhook -- https://agenda-personal.TU-USUARIO.workers.dev/telegram
-```
-
-Abre tu bot en Telegram y escribe `/start`. Para ver qué pasa: `npm run logs`.
+Si cambias código: `npm install` → `npm test` → `npm run empaquetar` (regenera `dist/worker.js`) y sube también `dist/`.
 
 ## Límites del plan gratuito y cómo se respetan
 

@@ -53,3 +53,7 @@ jobs:
       - run: npm ci
       - name: Tests del Worker de Cloudflare
         run: npm test
+      - name: El Worker empaquetado (dist/) debe coincidir con el código
+        run: |
+          npm run empaquetar
+          git diff --exit-code -- dist || (echo "dist/worker.js está desfasado: ejecuta 'npm run empaquetar' y sube el cambio" && exit 1)
