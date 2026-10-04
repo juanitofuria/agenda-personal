@@ -234,3 +234,21 @@ test("agenda: citas y alarmas de hoy y mañana, tareas pendientes, y nada de lo 
 test("fechaIso/partesEnZona se usan de forma coherente", () => {
   assert.equal(fechaIso(AHORA, MAD), "2026-10-04"); assert.equal(partesEnZona(AHORA, MAD).h, 7);
 });
+
+// ---------- Velocidad ----------
+test("noticias y tiempo piden sus datos a la vez, no uno detrás de otro", async () => {
+  let activas = 0, maximo = 0;
+  const lento = (data: unknown) => async () => { activas++; maximo = Math.max(maximo, activas); await new Promise((r) => setTimeout(r, 15)); activas--; return { data }; };
+  const noticias = lento(rssFalso("Tema", 3));
+  const u = usuarioNuevo("1", "Ana", AHORA); u.ciudad = { nombre: "Montoro", provincia: "Córdoba", lat: 38, lon: -4 };
+  const b = crearBanco(AHORA);
+  await construirContenido("noticias", { usuario: u, http: { get: noticias }, almacen: b.almacen, ahora: AHORA });
+  assert.ok(maximo >= 4, `noticias: como mucho ${maximo} a la vez`); // economía, política, ayuntamiento y localidad
+
+  activas = 0; maximo = 0;
+  const previsionJson = prevision();
+  const http = { get: async (url: string) => { activas++; maximo = Math.max(maximo, activas); await new Promise((r) => setTimeout(r, 15)); activas--; return { data: url.includes("historical") ? { daily: { precipitation_sum: [1, 2] } } : previsionJson }; } };
+  const c = await construirContenido("tiempo", { usuario: u, http, almacen: b.almacen, ahora: AHORA });
+  assert.equal(maximo, 2, "previsión e histórico a la vez");
+  assert.match(c.html, /Acumulado 2026/);
+});

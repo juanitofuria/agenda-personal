@@ -13,8 +13,15 @@ async function menu(c: Ctx): Promise<void> { await c.responder(textoMenu(c.u), t
 
 /** Envía una sección. `editar`: sustituye el mensaje del botón (navegación dentro de una misma sección). */
 async function mostrarSeccion(c: Ctx, ref: string, editar = false): Promise<void> {
+  await entregarSeccion(c, ref, construirSeccion(c, ref), editar);
+}
+
+const construirSeccion = (c: Ctx, ref: string) => construirContenido(ref, { usuario: c.u, http: c.deps.http, almacen: c.almacen, ahora: c.ahora });
+
+/** Envía el contenido (ya pedido o en camino) de una sección; si falló, avisa. */
+async function entregarSeccion(c: Ctx, ref: string, pendiente: ReturnType<typeof construirSeccion>, editar = false): Promise<void> {
   try {
-    const cont = await construirContenido(ref, { usuario: c.u, http: c.deps.http, almacen: c.almacen, ahora: c.ahora });
+    const cont = await pendiente;
     if (editar) await c.responder(cont.html, cont.teclado); else await c.nuevo(cont.html, cont.teclado);
   } catch (e) {
     console.error(`sección ${ref}:`, (e as Error).message);
@@ -31,7 +38,9 @@ async function todo(c: Ctx): Promise<void> {
   if (activas.length === 0) { await c.nuevo("No tienes ninguna sección activada. Actívalas en 🧩 Mis secciones.", [[{ texto: "🧩 Mis secciones", datos: "s:lista" }]]); return; }
   const fecha = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: c.u.zona }).format(c.ahora);
   await c.nuevo([cabecera("📋", "Tu resumen de hoy", fecha.replace(/^./, (x) => x.toUpperCase())), "", ...activas.map((s) => `${s.emoji} ${s.titulo}`), "", "<i>Te lo envío ahora, uno por uno 👇</i>"].join("\n"));
-  for (const s of activas) await mostrarSeccion(c, s.ref);
+  // Todas se piden a la vez (así tarda lo de la más lenta, no la suma) y se envían en orden.
+  const pendientes = activas.map((s) => { const p = construirSeccion(c, s.ref); p.catch(() => undefined); return p; });
+  for (let i = 0; i < activas.length; i++) await entregarSeccion(c, activas[i].ref, pendientes[i]);
 }
 
 async function cancelar(c: Ctx): Promise<void> {
@@ -61,22 +70,32 @@ async function comando(c: Ctx, texto: string): Promise<boolean> {
 async function despachar(c: Ctx): Promise<void> {
   const cb = c.entrada.callback;
   if (cb) {
-    await c.deps.canal.responderCallback(cb.id);
     const p = cb.datos.split(":");
-    if (!c.u.onboardingHecho && p[0] !== "o" && p[0] !== "x") { await onboarding.iniciar(c); return; }
-    switch (p[0]) {
-      case "o": await onboarding.callback(c, p); return;
-      case "m":
-        if (p[1] === "hoy") await resumenHoy(c); else if (p[1] === "ayuda") await c.responder(textoAyuda, [[BTN_MENU]]); else { await c.terminarFlujo(); await menu(c); }
-        return;
-      case "sec": if (p[1] === "todo") await todo(c); else await mostrarSeccion(c, p.slice(1).join(":")); return;
-      case "sev": await mostrarSeccion(c, p.slice(1).join(":"), true); return;
-      case "n": case "e": await eventos.callback(c, p); return;
-      case "s": case "p": await ajustes.callback(c, p); return;
-      case "x": await cancelar(c); return;
-      default: return; // "noop" y botones desconocidos
-    }
+    // Se confirma el botón a la vez que se trabaja (no antes): así no se suma la espera. En las secciones, con un aviso de «cargando».
+    const confirmado = c.deps.canal.responderCallback(cb.id, p[0] === "sec" || p[0] === "sev" ? "⏳ Preparando…" : undefined);
+    try { await atenderBoton(c, p); } finally { await confirmado; }
+    return;
   }
+  await atenderTexto(c);
+}
+
+async function atenderBoton(c: Ctx, p: string[]): Promise<void> {
+  if (!c.u.onboardingHecho && p[0] !== "o" && p[0] !== "x") { await onboarding.iniciar(c); return; }
+  switch (p[0]) {
+    case "o": await onboarding.callback(c, p); return;
+    case "m":
+      if (p[1] === "hoy") await resumenHoy(c); else if (p[1] === "ayuda") await c.responder(textoAyuda, [[BTN_MENU]]); else { await c.terminarFlujo(); await menu(c); }
+      return;
+    case "sec": if (p[1] === "todo") await todo(c); else await mostrarSeccion(c, p.slice(1).join(":")); return;
+    case "sev": await mostrarSeccion(c, p.slice(1).join(":"), true); return;
+    case "n": case "e": await eventos.callback(c, p); return;
+    case "s": case "p": await ajustes.callback(c, p); return;
+    case "x": await cancelar(c); return;
+    default: return; // "noop" y botones desconocidos
+  }
+}
+
+async function atenderTexto(c: Ctx): Promise<void> {
   const t = c.texto;
   if (!t) return;
   if (t.startsWith("/") && (await comando(c, t))) return;

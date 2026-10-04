@@ -142,20 +142,19 @@ async function pedirPrevision(ctx: Contexto): Promise<DatosTiempo> {
       "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,relative_humidity_2m,uv_index,wind_gusts_10m,wind_direction_10m" +
       "&daily=temperature_2m_max,temperature_2m_min,weather_code,sunrise,sunset,uv_index_max,shortwave_radiation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant" +
       `&timezone=${encodeURIComponent(u.zona)}&forecast_days=2`;
-    const datos = parsearPrevision((await conReintentos(() => ctx.http.get(url, { timeout: 20000 }))).data, ahora, u.zona);
-    // Lluvia de ayer y acumulada del año (modelo, sin retraso). Si falla no se pierde el resto.
-    try {
+    // Lluvia de ayer y acumulada del año (modelo, sin retraso): se pide a la vez que la previsión. Si falla no se pierde el resto.
+    const pasada = (async () => {
       const p = partesEnZona(ahora, u.zona);
       const ayer = new Date(Date.UTC(p.y, p.m - 1, p.d - 1));
-      if (ayer.getUTCFullYear() === p.y) {
-        const iso = ayer.toISOString().slice(0, 10);
-        const h = `https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&start_date=${p.y}-01-01&end_date=${iso}&daily=precipitation_sum&timezone=${encodeURIComponent(u.zona)}`;
-        const arr = ((await conReintentos(() => ctx.http.get(h, { timeout: 20000 }))).data as any).daily.precipitation_sum as (number | null)[];
-        const v = arr.map((x) => x ?? 0);
-        datos.lluviaAyer = v[v.length - 1] ?? 0;
-        datos.lluviaAnio = v.reduce((a, b) => a + b, 0);
-      }
-    } catch { /* sin datos de lluvia pasada */ }
+      if (ayer.getUTCFullYear() !== p.y) return null;
+      const iso = ayer.toISOString().slice(0, 10);
+      const h = `https://historical-forecast-api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&start_date=${p.y}-01-01&end_date=${iso}&daily=precipitation_sum&timezone=${encodeURIComponent(u.zona)}`;
+      const arr = ((await conReintentos(() => ctx.http.get(h, { timeout: 20000 }))).data as any).daily.precipitation_sum as (number | null)[];
+      return arr.map((x) => x ?? 0);
+    })().catch(() => null); // sin datos de lluvia pasada
+    const [prev, v] = await Promise.all([conReintentos(() => ctx.http.get(url, { timeout: 20000 })), pasada]);
+    const datos = parsearPrevision(prev.data, ahora, u.zona);
+    if (v) { datos.lluviaAyer = v[v.length - 1] ?? 0; datos.lluviaAnio = v.reduce((a, b) => a + b, 0); }
     return datos;
   });
 }

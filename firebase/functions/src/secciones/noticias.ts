@@ -18,16 +18,16 @@ export async function resumenNoticias(ctx: Contexto, cabecera: string, secciones
   const vistas = new Set<string>();
   const bloques: string[] = [];
   let ok = 0;
-  for (const s of secciones) {
-    try {
-      const items = (await noticiasDe(ctx, s.consulta)).filter((n) => { const k = n.titulo.toLowerCase().slice(0, 60); if (vistas.has(k)) return false; vistas.add(k); return true; }).slice(0, porSeccion);
-      ok++;
-      const t = s.titulo ? `${s.titulo}\n` : "";
-      bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
-    } catch {
-      bloques.push(`${s.titulo}\n⚠️ <i>No disponible ahora.</i>`);
-    }
-  }
+  // Se piden todas a la vez; luego se recorren en orden para que la deduplicación sea la misma de siempre.
+  const respuestas = await Promise.allSettled(secciones.map((s) => noticiasDe(ctx, s.consulta)));
+  secciones.forEach((s, i) => {
+    const r = respuestas[i];
+    if (r.status === "rejected") { bloques.push(`${s.titulo}\n⚠️ <i>No disponible ahora.</i>`); return; }
+    const items = r.value.filter((n) => { const k = n.titulo.toLowerCase().slice(0, 60); if (vistas.has(k)) return false; vistas.add(k); return true; }).slice(0, porSeccion);
+    ok++;
+    const t = s.titulo ? `${s.titulo}\n` : "";
+    bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
+  });
   if (ok === 0) throw new Error("no se pudo obtener ninguna noticia");
   return [cabecera, ...bloques].join("\n\n");
 }
