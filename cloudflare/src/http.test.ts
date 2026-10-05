@@ -29,3 +29,16 @@ test("un fallo de red se convierte en ErrorHttp sin response", async () => {
   const h = new HttpFetch(5, 5, async () => { throw new Error("boom"); });
   await assert.rejects(h.get("https://x"), (e: ErrorHttp) => e.message === "boom" && e.response === undefined);
 });
+
+test("maxBytes lee solo el principio de una respuesta enorme y cancela el resto", async () => {
+  let cancelado = false, enviados = 0;
+  const cuerpo = new ReadableStream<Uint8Array>({
+    pull(c) { enviados++; c.enqueue(new TextEncoder().encode("<item>x</item>".repeat(500))); },
+    cancel() { cancelado = true; },
+  });
+  const h = new HttpFetch(45, 5, async () => new Response(cuerpo, { status: 200, headers: { "content-type": "application/rss+xml" } }));
+  const r = await h.get("https://x/feed", { maxBytes: 20_000 });
+  const t = String(r.data);
+  assert.ok(t.length >= 20_000 && t.length < 40_000, `leído ${t.length}`); // solo el principio
+  assert.ok(cancelado && enviados < 20, "se dejó de descargar"); // y no se bajó todo
+});

@@ -2,13 +2,10 @@ import { esc } from "../canal";
 import { fechaIso } from "../fechas";
 import { SIGNOS, urlHoroscopo } from "../horoscopo";
 import { leerPagina20min, urlSigno20min } from "../horoscopo20min";
-import { leerEpisodios } from "../podcast";
+import { episodioDeSigno, FEED_PODCAST } from "../podcast";
 import { leerRss, urlBingNews, urlGoogleNews } from "../rss";
 import { cabecera, conPlazo } from "../util";
 import { BTN_MENU, Ctx } from "./ctx";
-
-/** Feed del podcast «El Horóscopo Diario» (un episodio por signo y día). */
-export const FEED_PODCAST = "https://feeds.megaphone.fm/ASAHO6840420465";
 
 const CABECERAS = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9" };
 
@@ -39,9 +36,16 @@ export async function diagnostico(c: Ctx): Promise<void> {
     probar("Yahoo Finance (mercados)", async () => { await http.get("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d", { timeout: 8000, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } }); }),
     probar("20minutos (horóscopo directo)", async () => { const e = leerPagina20min(String((await http.get(urlSigno20min(SIGNOS[0]), { timeout: 8000, headers: CABECERAS })).data)); return e.length ? `última fecha ${e[0].fecha}` : "página sin horóscopo"; }),
     probar("Podcast El Horóscopo Diario (RSS)", async () => {
-      const [e] = leerEpisodios(String((await http.get(FEED_PODCAST, { timeout: 8000, headers: CABECERAS })).data));
-      return e ? `«${e.titulo.slice(0, 55)}» · notas de ${e.notas.length} caracteres · audio ${e.audioTipo || "?"} ${(e.audioBytes / 1048576).toFixed(1).replace(".", ",")} MB` : "sin episodios";
+      const e = await episodioDeSigno(http, c.deps.podcastFeed ?? FEED_PODCAST, SIGNOS[0], hoy);
+      return e ? `«${e.titulo.slice(0, 50)}» · ${e.fecha} · ${new URL(e.url).hostname}` : "no encuentro episodios de Aries";
     }),
+    c.deps.simplificar
+      ? probar("IA de Cloudflare (texto sencillo)", async () => {
+        const s = await c.deps.simplificar!("Hoy es un día favorable para tomar decisiones importantes en el trabajo, aunque conviene evitar las discusiones por la tarde.");
+        if (!s) throw new Error("no devolvió texto");
+        return `«${s.slice(0, 70)}…»`;
+      })
+      : Promise.resolve<Resultado>({ nombre: "IA de Cloudflare (texto sencillo)", ok: false, detalle: "no está activada (falta el binding AI)", ms: 0 }),
     cfg ? probar("horoscopefree (respaldo)", async () => { await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8000 }); }) : Promise.resolve<Resultado>({ nombre: "horoscopefree (respaldo)", ok: false, detalle: "sin configurar", ms: 0 }),
   ]);
   const guardados = (await Promise.all(SIGNOS.map((s) => c.almacen.getHoroscopo(s.id).catch(() => null)))).filter((d) => d?.fecha === hoy).length;

@@ -5,6 +5,8 @@ import { Deps } from "../../firebase/functions/src/bot/ctx";
 import { Canal, Teclado } from "../../firebase/functions/src/canal";
 import { actualizarTodos } from "../../firebase/functions/src/horoscopo";
 import { Programacion } from "../../firebase/functions/src/modelo";
+import { FEED_PODCAST } from "../../firebase/functions/src/podcast";
+import { INSTRUCCION_SENCILLO } from "../../firebase/functions/src/simplificar";
 import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/functions/src/scheduler";
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
 import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
@@ -18,6 +20,11 @@ export interface Env {
   TELEGRAM_WEBHOOK_SECRET: string; // secreto
   HOROSCOPO_BASE_URL?: string;
   HOROSCOPO_IDIOMA?: string;
+  /** IA de Cloudflare (Workers AI), opcional: reescribe el horóscopo con palabras sencillas. Sin ella se muestra el texto original. */
+  AI?: { run(modelo: string, entrada: unknown): Promise<any> };
+  MODELO_IA?: string;
+  /** Feed RSS del podcast con un episodio por signo y día (botón «Escuchar»). */
+  PODCAST_FEED?: string;
 }
 
 /** Contexto de ejecución de Cloudflare (solo lo que usamos). */
@@ -60,10 +67,21 @@ async function llamarInterno<T>(env: Env, ruta: string, cuerpo: unknown): Promis
 /** `directo`: el horóscopo se pide primero a 20minutos.es y horoscopefree queda de respaldo (su servicio público falla a veces). */
 const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es", directo: true });
 
+/** Reescribe un texto con palabras sencillas con la IA de Cloudflare; undefined si no está activada. */
+function simplificador(env: Env): Deps["simplificar"] {
+  if (!env.AI) return undefined;
+  const ia = env.AI, modelo = env.MODELO_IA ?? "@cf/meta/llama-3.1-8b-instruct";
+  return async (texto) => {
+    const r = await ia.run(modelo, { messages: [{ role: "system", content: INSTRUCCION_SENCILLO }, { role: "user", content: texto }], max_tokens: 700 });
+    return typeof r?.response === "string" ? r.response : null;
+  };
+}
+
 /** `remoto`: las secciones se construyen en otra ejecución (la principal solo las envía). */
 function dependencias(env: Env, s: Servicios, remoto: boolean): Deps & { almacen: AlmacenD1 } {
   return {
     almacen: new AlmacenD1(env.DB), canal: s.canal, http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
+    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, simplificar: simplificador(env),
     construirRemoto: remoto && env.SELF ? async (p) => {
       const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecución interna");

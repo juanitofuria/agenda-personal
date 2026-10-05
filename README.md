@@ -29,7 +29,7 @@ Corre en **Cloudflare Workers** con **D1**, en el **plan gratuito y sin tarjeta*
 * **Privacidad**: `/borrar` elimina todos tus datos y deja de enviarte mensajes.
 
 Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/cancelar` `/borrar`.
-Hay además `/diagnostico` (no sale en el menú): comprueba desde el servidor si llegan Open-Meteo, Google News, Bing News, Yahoo Finance, 20minutos y
+Hay además `/diagnostico` (no sale en el menú): comprueba desde el servidor si llegan Open-Meteo, Google News, Bing News, Yahoo Finance, 20minutos, el podcast, la IA y
 horoscopefree, y cuántos horóscopos hay guardados hoy. Sirve para saber por qué falla una sección.
 
 ## Puesta en marcha
@@ -173,10 +173,14 @@ Para probar el Worker en local (workerd): `npx wrangler dev --test-scheduled`, c
   servidores una de las dos se cuelga. Ninguna es una API garantizada.
 * **Horóscopo**: el texto es el que publica **20minutos.es** en la página de cada signo. El bot lo lee **directamente** (una petición por signo
   y día; no hay afiliación con el editor) y, si eso falla, pide a [horoscopefree](https://github.com/vitorebatista/horoscopefree) (MIT), un
-  servicio público que hace lo mismo y que a veces está caído. Si falta el de hoy se pide en el momento y se guarda. El bot muestra siempre
-  la fuente con enlace. Para uso personal es razonable; **antes de abrir el bot a otras personas** conviene pedir permiso al editor o usar
-  una fuente con licencia. Si 20minutos cambia el diseño de su página, el lector (`firebase/functions/src/horoscopo20min.ts`) dejará de
-  encontrar el texto y el bot usará el respaldo.
+  servicio público que hace lo mismo y que a veces está caído. Si falta el de hoy se pide en el momento y se guarda.
+  Con la **IA de Cloudflare** (Workers AI, binding `AI`; el modelo se cambia con `MODELO_IA`) el texto se **explica con palabras sencillas**; es una
+  ayuda para entenderlo mejor, no un modo de ocultar el origen, así que el bot sigue indicando «Basado en el horóscopo de 20minutos.es»
+  (con enlace). Si la IA falla o no hay cuota se muestra el original con su fuente. Un botón enlaza al episodio del **podcast
+  «El Horóscopo Diario»** del signo (feed RSS; se cambia con `PODCAST_FEED`); el audio no se descarga ni se copia, solo se enlaza.
+  Para uso personal es razonable; **antes de abrir el bot a otras personas** conviene pedir permiso al editor o usar una fuente con
+  licencia. Si 20minutos cambia el diseño de su página, el lector (`firebase/functions/src/horoscopo20min.ts`) dejará de encontrar el
+  texto y el bot usará el respaldo. Los límites de la IA gratuita no los he podido comprobar.
 * **Datos personales**: se guarda el id del chat, el nombre que escribe el usuario, la fecha de nacimiento y la ciudad. Si el bot
   lo van a usar otras personas, habrá que informarles (política de privacidad) y atender sus peticiones; `/borrar` ya elimina todo.
   Open-Meteo es gratuito para uso no comercial con límites diarios: la caché evita repetir consultas iguales.

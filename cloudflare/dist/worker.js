@@ -1086,7 +1086,7 @@ var HttpFetch = class {
     this.activas--;
     this.cola.shift()?.();
   }
-  async pedir(url, init, timeout = 2e4) {
+  async pedir(url, init, timeout = 2e4, maxBytes) {
     if (this.usadas >= this.maxPeticiones) throw new ErrorHttp("presupuesto de peticiones salientes agotado en esta ejecuci\xF3n");
     this.usadas++;
     await this.turno();
@@ -1097,7 +1097,7 @@ var HttpFetch = class {
       } catch (e) {
         throw new ErrorHttp(e.message || "error de red");
       }
-      const texto4 = await r.text();
+      const texto4 = maxBytes ? await leerInicio(r, maxBytes) : await r.text();
       let data = texto4;
       if ((r.headers.get("content-type") ?? "").includes("json") || /^\s*[[{]/.test(texto4)) {
         try {
@@ -1112,12 +1112,33 @@ var HttpFetch = class {
     }
   }
   get(url, opciones) {
-    return this.pedir(url, { method: "GET", headers: opciones?.headers }, opciones?.timeout);
+    return this.pedir(url, { method: "GET", headers: opciones?.headers }, opciones?.timeout, opciones?.maxBytes);
   }
   post(url, cuerpo, opciones) {
     return this.pedir(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo ?? {}) }, opciones?.timeout);
   }
 };
+async function leerInicio(r, maxBytes) {
+  if (!r.body) return (await r.text()).slice(0, maxBytes);
+  const lector = r.body.getReader();
+  const trozos = [];
+  let total = 0;
+  while (total < maxBytes) {
+    const { done, value } = await lector.read();
+    if (done || !value) break;
+    trozos.push(value);
+    total += value.byteLength;
+  }
+  await lector.cancel().catch(() => void 0);
+  const todo2 = new Uint8Array(total);
+  let pos = 0;
+  for (const t of trozos) {
+    todo2.set(t, pos);
+    pos += t.byteLength;
+  }
+  return new TextDecoder().decode(todo2);
+}
+__name(leerInicio, "leerInicio");
 
 // ../firebase/functions/src/canal.ts
 var esc = /* @__PURE__ */ __name((s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), "esc");
@@ -1463,6 +1484,7 @@ function sparkline(valores) {
   return valores.map((v) => BARRAS[Math.min(7, Math.floor((v - min) / (max - min) * 8))]).join("");
 }
 __name(sparkline, "sparkline");
+var sinTildes2 = /* @__PURE__ */ __name((s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim(), "sinTildes");
 var SEPARADOR = "\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC";
 var cabecera = /* @__PURE__ */ __name((emoji, titulo, subtitulo) => `${emoji} <b>${titulo}</b>${subtitulo ? `
 <i>${subtitulo}</i>` : ""}
@@ -1768,6 +1790,84 @@ function signoDe(iso) {
 }
 __name(signoDe, "signoDe");
 
+// ../firebase/functions/src/podcast.ts
+var ENTIDADES2 = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+var decodificar = /* @__PURE__ */ __name((s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+  if (e[0] === "#") {
+    try {
+      return String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+    } catch {
+      return m;
+    }
+  }
+  return ENTIDADES2[e.toLowerCase()] ?? m;
+}), "decodificar");
+var sinHtml = /* @__PURE__ */ __name((s) => decodificar(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), "sinHtml");
+function etiqueta(bloque2, nombre) {
+  const m = new RegExp(`<${nombre}(?:\\s[^>]*)?>([\\s\\S]*?)</${nombre}>`, "i").exec(bloque2);
+  return m ? m[1] : "";
+}
+__name(etiqueta, "etiqueta");
+function leerEpisodios(xml, max = 1) {
+  const res = [];
+  let pos = 0;
+  while (res.length < max) {
+    const ini = xml.indexOf("<item", pos);
+    if (ini < 0) break;
+    const fin = xml.indexOf("</item>", ini);
+    if (fin < 0) break;
+    pos = fin + 7;
+    const it = xml.slice(ini, fin);
+    const enc = /<enclosure\b([^>]*)>/i.exec(it)?.[1] ?? "";
+    const atributo = /* @__PURE__ */ __name((n) => new RegExp(`${n}="([^"]*)"`, "i").exec(enc)?.[1] ?? "", "atributo");
+    const notas = ["content:encoded", "itunes:summary", "description"].map((n) => sinHtml(etiqueta(it, n))).sort((a, b) => b.length - a.length)[0] ?? "";
+    res.push({
+      titulo: sinHtml(etiqueta(it, "title")),
+      fecha: sinHtml(etiqueta(it, "pubDate")),
+      notas,
+      enlace: sinHtml(etiqueta(it, "link")),
+      audioUrl: decodificar(atributo("url")),
+      audioBytes: Number(atributo("length")) || 0,
+      audioTipo: atributo("type")
+    });
+  }
+  return res;
+}
+__name(leerEpisodios, "leerEpisodios");
+var FEED_PODCAST = "https://feeds.megaphone.fm/ASAHO6840420465";
+var MESES3 = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+function fechaDeTitulo(titulo) {
+  const m = /(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i.exec(titulo);
+  const mes = m ? MESES3.indexOf(sinTildes2(m[2])) : -1;
+  return m && mes >= 0 ? `${m[3]}-${String(mes + 1).padStart(2, "0")}-${m[1].padStart(2, "0")}` : null;
+}
+__name(fechaDeTitulo, "fechaDeTitulo");
+async function episodioDeSigno(http, feed, signo, hoy) {
+  const xml = String((await http.get(feed, { timeout: 8e3, maxBytes: 15e4, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } })).data);
+  const clave = `horoscopo diario de ${sinTildes2(signo.nombre)}`;
+  const candidatos = leerEpisodios(xml, 80).flatMap((e) => {
+    const fecha = fechaDeTitulo(e.titulo);
+    const url = urlSegura(e.enlace) || urlSegura(e.audioUrl);
+    return fecha && url && sinTildes2(e.titulo).includes(clave) ? [{ titulo: e.titulo, fecha, url }] : [];
+  });
+  return candidatos.find((c) => c.fecha === hoy) ?? candidatos.reduce((a, c) => !a || c.fecha > a.fecha ? c : a, null);
+}
+__name(episodioDeSigno, "episodioDeSigno");
+
+// ../firebase/functions/src/simplificar.ts
+var INSTRUCCION_SENCILLO = "Eres un redactor que explica con palabras sencillas. Reescribe el texto que te doy en espa\xF1ol claro y cercano, con frases cortas y vocabulario de uso diario, para que lo entienda cualquier persona. Mant\xE9n las mismas ideas y el mismo tono; no a\xF1adas consejos, datos ni predicciones nuevos ni quites ideas importantes. No menciones fuentes ni uses listas ni t\xEDtulos. Responde solo con el texto reescrito, en un \xFAnico p\xE1rrafo.";
+var MAX_ENTRADA_SENCILLO = 1500;
+function validarSencillo(original, salida) {
+  if (typeof salida !== "string") return null;
+  const t = salida.replace(/^\s*["«]|["»]\s*$/g, "").replace(/\s+/g, " ").trim();
+  const o = original.replace(/\s+/g, " ").trim();
+  if (t.length < Math.max(40, o.length * 0.4) || t.length > o.length * 1.8) return null;
+  if (/\b(the|and|your|you)\b/i.test(t) && !/\b(el|la|de|que|y)\b/i.test(t)) return null;
+  if (t === o) return null;
+  return t;
+}
+__name(validarSencillo, "validarSencillo");
+
 // ../firebase/functions/src/secciones/horoscopo.ts
 async function contenidoHoroscopo(ctx) {
   const nac = ctx.usuario.nacimiento;
@@ -1795,21 +1895,45 @@ Todav\xEDa no hay hor\xF3scopo publicado para hoy. Lo intentar\xE9 de nuevo m\xE
   const hoy = fechaIso(ctx.ahora, ctx.usuario.zona);
   const desactualizado = doc.fecha !== hoy;
   const url = doc.fuenteUrl ? urlSegura(doc.fuenteUrl) : "";
-  const fuente = url ? `
-
-<i>Fuente:</i> <a href="${escAttr(url)}">${esc(doc.fuente || url)}</a>` : "";
+  const original = doc;
+  const [sencillo, episodio] = await Promise.all([
+    (async () => {
+      if (original.sencillo) return original.sencillo;
+      if (!ctx.simplificar) return null;
+      try {
+        const s = validarSencillo(original.prediccion, await conPlazo(ctx.simplificar(original.prediccion.slice(0, MAX_ENTRADA_SENCILLO)), 1e4));
+        if (s) await ctx.almacen.guardarHoroscopo(signo.id, { ...original, sencillo: s }).catch(() => void 0);
+        return s;
+      } catch {
+        return null;
+      }
+    })(),
+    (async () => {
+      if (!ctx.podcastFeed) return null;
+      const feed = ctx.podcastFeed;
+      try {
+        return await cacheado(ctx.almacen, `podcast:${signo.id}:${hoy}`, 30 * 6e4, ctx.ahora, () => conPlazo(episodioDeSigno(ctx.http, feed, signo, hoy), 7e3));
+      } catch {
+        return null;
+      }
+    })()
+  ]);
+  const enlaceFuente = url ? `<a href="${escAttr(url)}">${esc(original.fuente || "20minutos.es")}</a>` : esc(original.fuente || "20minutos.es");
+  const pie = sencillo ? `\u270D\uFE0F <i>Basado en el hor\xF3scopo de ${enlaceFuente}, explicado con palabras sencillas.</i>` : `<i>Fuente:</i> ${enlaceFuente}
+<i>Contenido informativo y de entretenimiento; los derechos pertenecen a su editor.</i>`;
   const html = [
     cabecera("\u{1F52E}", `Hor\xF3scopo \xB7 ${signo.simbolo} ${signo.nombre}`),
     desactualizado ? `\u26A0\uFE0F <i>A\xFAn no se ha publicado el de hoy: este es el del ${doc.fecha}.</i>` : "",
-    esc(doc.prediccion.trim())
-  ].filter(Boolean).join("\n\n") + fuente + "\n<i>Contenido informativo y de entretenimiento; los derechos pertenecen a su editor.</i>";
-  return { html, teclado: [NAV_MENU] };
+    esc((sencillo ?? original.prediccion).trim())
+  ].filter(Boolean).join("\n\n") + "\n\n" + pie;
+  const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "\u{1F3A7} Escuchar el podcast de hoy" : `\u{1F3A7} Escuchar el \xFAltimo podcast (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
+  return { html, teclado: [...botones, NAV_MENU] };
 }
 __name(contenidoHoroscopo, "contenidoHoroscopo");
 
 // ../firebase/functions/src/rss.ts
-var ENTIDADES2 = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\xA0" };
-function decodificar(s) {
+var ENTIDADES3 = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\xA0" };
+function decodificar2(s) {
   return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
     if (e[0] === "#") {
       const n = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
@@ -1819,11 +1943,11 @@ function decodificar(s) {
         return m;
       }
     }
-    return ENTIDADES2[e.toLowerCase()] ?? m;
+    return ENTIDADES3[e.toLowerCase()] ?? m;
   });
 }
-__name(decodificar, "decodificar");
-function etiqueta(bloque2, nombre) {
+__name(decodificar2, "decodificar");
+function etiqueta2(bloque2, nombre) {
   let desde = 0;
   for (; ; ) {
     const ini = bloque2.indexOf(`<${nombre}`, desde);
@@ -1840,10 +1964,10 @@ function etiqueta(bloque2, nombre) {
     if (cierre < 0) return "";
     const crudo = bloque2.slice(finApertura + 1, cierre).trim();
     const cdata = /^<!\[CDATA\[([\s\S]*)\]\]>$/.exec(crudo);
-    return (cdata ? cdata[1] : decodificar(crudo)).trim();
+    return (cdata ? cdata[1] : decodificar2(crudo)).trim();
   }
 }
-__name(etiqueta, "etiqueta");
+__name(etiqueta2, "etiqueta");
 function leerRss(xml) {
   const noticias = [];
   let pos = 0;
@@ -1859,16 +1983,16 @@ function leerRss(xml) {
     if (fin < 0) break;
     pos = fin + 7;
     const it = xml.slice(ini, fin);
-    let titulo = etiqueta(it, "title");
+    let titulo = etiqueta2(it, "title");
     if (!titulo) continue;
-    let fuente = etiqueta(it, "source") || etiqueta(it, "News:Source");
+    let fuente = etiqueta2(it, "source") || etiqueta2(it, "News:Source");
     const i = titulo.lastIndexOf(" - ");
     if (i > 0 && (!fuente || titulo.endsWith(` - ${fuente}`))) {
       if (!fuente) fuente = titulo.slice(i + 3);
       titulo = titulo.slice(0, i);
     }
-    const fecha = Date.parse(etiqueta(it, "pubDate"));
-    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha });
+    const fecha = Date.parse(etiqueta2(it, "pubDate"));
+    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta2(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha });
   }
   return noticias;
 }
@@ -2826,52 +2950,7 @@ async function texto(c) {
 }
 __name(texto, "texto");
 
-// ../firebase/functions/src/podcast.ts
-var ENTIDADES3 = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
-var decodificar2 = /* @__PURE__ */ __name((s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
-  if (e[0] === "#") {
-    try {
-      return String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
-    } catch {
-      return m;
-    }
-  }
-  return ENTIDADES3[e.toLowerCase()] ?? m;
-}), "decodificar");
-var sinHtml = /* @__PURE__ */ __name((s) => decodificar2(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), "sinHtml");
-function etiqueta2(bloque2, nombre) {
-  const m = new RegExp(`<${nombre}(?:\\s[^>]*)?>([\\s\\S]*?)</${nombre}>`, "i").exec(bloque2);
-  return m ? m[1] : "";
-}
-__name(etiqueta2, "etiqueta");
-function leerEpisodios(xml, max = 1) {
-  const res = [];
-  let pos = 0;
-  while (res.length < max) {
-    const ini = xml.indexOf("<item", pos);
-    if (ini < 0) break;
-    const fin = xml.indexOf("</item>", ini);
-    if (fin < 0) break;
-    pos = fin + 7;
-    const it = xml.slice(ini, fin);
-    const enc = /<enclosure\b([^>]*)>/i.exec(it)?.[1] ?? "";
-    const atributo = /* @__PURE__ */ __name((n) => new RegExp(`${n}="([^"]*)"`, "i").exec(enc)?.[1] ?? "", "atributo");
-    const notas = ["content:encoded", "itunes:summary", "description"].map((n) => sinHtml(etiqueta2(it, n))).sort((a, b) => b.length - a.length)[0] ?? "";
-    res.push({
-      titulo: sinHtml(etiqueta2(it, "title")),
-      fecha: sinHtml(etiqueta2(it, "pubDate")),
-      notas,
-      audioUrl: decodificar2(atributo("url")),
-      audioBytes: Number(atributo("length")) || 0,
-      audioTipo: atributo("type")
-    });
-  }
-  return res;
-}
-__name(leerEpisodios, "leerEpisodios");
-
 // ../firebase/functions/src/bot/diagnostico.ts
-var FEED_PODCAST = "https://feeds.megaphone.fm/ASAHO6840420465";
 var CABECERAS2 = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9" };
 async function probar(nombre, f) {
   const t0 = Date.now();
@@ -2902,9 +2981,14 @@ async function diagnostico(c) {
       return e.length ? `\xFAltima fecha ${e[0].fecha}` : "p\xE1gina sin hor\xF3scopo";
     }),
     probar("Podcast El Hor\xF3scopo Diario (RSS)", async () => {
-      const [e] = leerEpisodios(String((await http.get(FEED_PODCAST, { timeout: 8e3, headers: CABECERAS2 })).data));
-      return e ? `\xAB${e.titulo.slice(0, 55)}\xBB \xB7 notas de ${e.notas.length} caracteres \xB7 audio ${e.audioTipo || "?"} ${(e.audioBytes / 1048576).toFixed(1).replace(".", ",")} MB` : "sin episodios";
+      const e = await episodioDeSigno(http, c.deps.podcastFeed ?? FEED_PODCAST, SIGNOS[0], hoy);
+      return e ? `\xAB${e.titulo.slice(0, 50)}\xBB \xB7 ${e.fecha} \xB7 ${new URL(e.url).hostname}` : "no encuentro episodios de Aries";
     }),
+    c.deps.simplificar ? probar("IA de Cloudflare (texto sencillo)", async () => {
+      const s = await c.deps.simplificar("Hoy es un d\xEDa favorable para tomar decisiones importantes en el trabajo, aunque conviene evitar las discusiones por la tarde.");
+      if (!s) throw new Error("no devolvi\xF3 texto");
+      return `\xAB${s.slice(0, 70)}\u2026\xBB`;
+    }) : Promise.resolve({ nombre: "IA de Cloudflare (texto sencillo)", ok: false, detalle: "no est\xE1 activada (falta el binding AI)", ms: 0 }),
     cfg ? probar("horoscopefree (respaldo)", async () => {
       await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8e3 });
     }) : Promise.resolve({ nombre: "horoscopefree (respaldo)", ok: false, detalle: "sin configurar", ms: 0 })
@@ -3468,7 +3552,7 @@ async function mostrarSeccion(c, ref2, editar = false) {
   await entregarSeccion(c, ref2, construirSeccion(c, ref2), editar);
 }
 __name(mostrarSeccion, "mostrarSeccion");
-var contenidoDeSeccion = /* @__PURE__ */ __name((deps, u, ref2) => construirContenido(ref2, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg }), "contenidoDeSeccion");
+var contenidoDeSeccion = /* @__PURE__ */ __name((deps, u, ref2) => construirContenido(ref2, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg, podcastFeed: deps.podcastFeed, simplificar: deps.simplificar }), "contenidoDeSeccion");
 var construirSeccion = /* @__PURE__ */ __name((c, ref2) => c.deps.construirRemoto ? c.deps.construirRemoto({ uid: c.u.id, ref: ref2 }) : contenidoDeSeccion(c.deps, c.u, ref2), "construirSeccion");
 async function entregarSeccion(c, ref2, pendiente, editar = false) {
   try {
@@ -3951,6 +4035,15 @@ async function llamarInterno(env2, ruta, cuerpo) {
 }
 __name(llamarInterno, "llamarInterno");
 var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es", directo: true }), "horoscopoCfg");
+function simplificador(env2) {
+  if (!env2.AI) return void 0;
+  const ia = env2.AI, modelo = env2.MODELO_IA ?? "@cf/meta/llama-3.1-8b-instruct";
+  return async (texto4) => {
+    const r = await ia.run(modelo, { messages: [{ role: "system", content: INSTRUCCION_SENCILLO }, { role: "user", content: texto4 }], max_tokens: 700 });
+    return typeof r?.response === "string" ? r.response : null;
+  };
+}
+__name(simplificador, "simplificador");
 function dependencias(env2, s, remoto) {
   return {
     almacen: new AlmacenD1(env2.DB),
@@ -3958,6 +4051,8 @@ function dependencias(env2, s, remoto) {
     http: s.http,
     ahora: /* @__PURE__ */ __name(() => /* @__PURE__ */ new Date(), "ahora"),
     horoscopoCfg: horoscopoCfg(env2),
+    podcastFeed: env2.PODCAST_FEED ?? FEED_PODCAST,
+    simplificar: simplificador(env2),
     construirRemoto: remoto && env2.SELF ? async (p) => {
       const r = await llamarInterno(env2, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");

@@ -24,7 +24,7 @@ export class HttpFetch implements HttpGet, HttpPost {
   }
   private liberar() { this.activas--; this.cola.shift()?.(); }
 
-  private async pedir(url: string, init: RequestInit, timeout = 20000): Promise<{ data: unknown }> {
+  private async pedir(url: string, init: RequestInit, timeout = 20000, maxBytes?: number): Promise<{ data: unknown }> {
     if (this.usadas >= this.maxPeticiones) throw new ErrorHttp("presupuesto de peticiones salientes agotado en esta ejecución");
     this.usadas++;
     await this.turno();
@@ -35,7 +35,7 @@ export class HttpFetch implements HttpGet, HttpPost {
       } catch (e) {
         throw new ErrorHttp((e as Error).message || "error de red");
       }
-      const texto = await r.text();
+      const texto = maxBytes ? await leerInicio(r, maxBytes) : await r.text();
       let data: unknown = texto;
       if ((r.headers.get("content-type") ?? "").includes("json") || /^\s*[[{]/.test(texto)) { try { data = JSON.parse(texto); } catch { /* se queda como texto */ } }
       if (!r.ok) throw new ErrorHttp(`HTTP ${r.status}`, { status: r.status, data });
@@ -45,10 +45,28 @@ export class HttpFetch implements HttpGet, HttpPost {
     }
   }
 
-  get(url: string, opciones?: { timeout?: number; headers?: Record<string, string> }) {
-    return this.pedir(url, { method: "GET", headers: opciones?.headers }, opciones?.timeout);
+  get(url: string, opciones?: { timeout?: number; headers?: Record<string, string>; maxBytes?: number }) {
+    return this.pedir(url, { method: "GET", headers: opciones?.headers }, opciones?.timeout, opciones?.maxBytes);
   }
   post(url: string, cuerpo?: unknown, opciones?: { timeout?: number }) {
     return this.pedir(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo ?? {}) }, opciones?.timeout);
   }
+}
+
+/** Lee solo el principio de la respuesta (y cancela el resto): un feed de podcast puede pesar megas y solo hacen falta los primeros episodios. */
+async function leerInicio(r: Response, maxBytes: number): Promise<string> {
+  if (!r.body) return (await r.text()).slice(0, maxBytes);
+  const lector = r.body.getReader();
+  const trozos: Uint8Array[] = [];
+  let total = 0;
+  while (total < maxBytes) {
+    const { done, value } = await lector.read();
+    if (done || !value) break;
+    trozos.push(value); total += value.byteLength;
+  }
+  await lector.cancel().catch(() => undefined);
+  const todo = new Uint8Array(total);
+  let pos = 0;
+  for (const t of trozos) { todo.set(t, pos); pos += t.byteLength; }
+  return new TextDecoder().decode(todo);
 }

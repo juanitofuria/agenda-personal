@@ -30,7 +30,8 @@ export const cabecera = (emoji: string, titulo: string, subtitulo?: string) =>
 export const bloque = (emoji: string, titulo: string, ...lineas: string[]) => `${emoji} <b>${titulo}</b>${lineas.length ? `\n${lineas.join("\n")}` : ""}`;
 
 export interface HttpGet {
-  get(url: string, opciones?: { timeout?: number; headers?: Record<string, string> }): Promise<{ data: unknown }>;
+  /** `maxBytes`: basta con el principio de la respuesta (un feed enorme no hace falta entero); se puede ignorar. */
+  get(url: string, opciones?: { timeout?: number; headers?: Record<string, string>; maxBytes?: number }): Promise<{ data: unknown }>;
 }
 
 /** Ejecuta [fn] y guarda el resultado en caché (la misma consulta para muchos usuarios se hace una sola vez). */

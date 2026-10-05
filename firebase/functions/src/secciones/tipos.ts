@@ -9,6 +9,10 @@ export interface Contexto {
   usuario: Usuario; http: HttpGet; almacen: Almacen; ahora: Date;
   /** Dónde pedir el horóscopo si todavía no está guardado (la tarea diaria puede no haberlo traído). */
   horoscopoCfg?: Config;
+  /** Feed RSS del podcast con un episodio por signo y día (para el botón «Escuchar»). */
+  podcastFeed?: string;
+  /** Reescribe un texto con palabras sencillas (null si no puede). Solo si la plataforma tiene IA. */
+  simplificar?: (texto: string) => Promise<string | null>;
 }
 
 /** Mensaje listo para enviar. */

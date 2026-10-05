@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { idProgramacion } from "./almacen";
 import { Banco, crearBanco, geocodingFalso, previsionFalsa, rssFalso } from "./arnes";
 import { contenidoDeSeccion, manejarEntrada } from "./bot/bot";
+import { episodioDeSigno, fechaDeTitulo } from "./podcast";
+import { SIGNOS } from "./horoscopo";
+import { validarSencillo } from "./simplificar";
 import { localAUtc, partesEnZona } from "./fechas";
 
 const MAD = "Europe/Madrid";
@@ -522,4 +525,67 @@ test("leerEpisodios: toma los primeros episodios del feed con título, notas (la
   assert.equal(a.audioUrl, "https://dts.podtrac.com/a.mp3?x=1&y=2"); assert.equal(a.audioBytes, 2621440); assert.equal(a.audioTipo, "audio/mpeg");
   assert.equal(b.titulo, "Otro"); assert.equal(b.audioUrl, ""); assert.equal(leerEpisodios("<rss></rss>").length, 0);
   assert.equal(leerEpisodios(xml).length, 1); // por defecto, solo el más reciente
+});
+
+// ---------- Texto sencillo y podcast en el horóscopo ----------
+const ORIGINAL = "Hoy, de forma especial, debes tener cuidado de no dejarte llevar por la agresividad o la impaciencia, cosa que podría ocurrir, sobre todo, en la primera mitad del día. Afortunadamente, luego todo se va a suavizar.";
+const SENCILLO = "Hoy cuida tu carácter: por la mañana puedes enfadarte o impacientarte con facilidad. No te preocupes, porque por la tarde todo se calma y el día mejora.";
+const FEED = "https://feeds.test/podcast";
+const feedPodcast = (dias: string[]) => `<rss><channel>${dias.flatMap((d, k) => SIGNOS.map((s) =>
+  `<item><title>HORÓSCOPO DIARIO DE ${s.nombre.toUpperCase()} (${d})</title><link>https://podcasts.test/ep/${s.id}/${k}</link><description>x</description><enclosure url="https://cdn.test/${s.id}${k}.mp3" length="0" type="audio/mpeg"/></item>`)).join("")}</channel></rss>`;
+
+test("validarSencillo: acepta un texto distinto de longitud parecida y rechaza vacíos, copias, resúmenes mínimos, exageraciones e inglés", () => {
+  assert.equal(validarSencillo(ORIGINAL, `  «${SENCILLO}»  `), SENCILLO);
+  for (const mala of [undefined, "", "Hoy mal.", ORIGINAL, "x ".repeat(ORIGINAL.length), "Today you should be careful and not get angry because your day will change and you will feel better soon, maybe."]) assert.equal(validarSencillo(ORIGINAL, mala), null);
+});
+
+test("podcast: la fecha sale del título y se elige el episodio del signo de hoy o, si no está, el último de ese signo", async () => {
+  assert.equal(fechaDeTitulo("HORÓSCOPO DIARIO DE PISCIS (Lunes 5 de Octubre de 2026)"), "2026-10-05"); assert.equal(fechaDeTitulo("sin fecha"), null);
+  const feed = feedPodcast(["Lunes 5 de Octubre de 2026", "Domingo 4 de Octubre de 2026"]);
+  const llamadas: { url: string; maxBytes?: number }[] = [];
+  const http = { get: async (url: string, o?: { maxBytes?: number }) => { llamadas.push({ url, maxBytes: o?.maxBytes }); return { data: feed }; } };
+  const hoy = await episodioDeSigno(http, FEED, SIGNOS[2], "2026-10-05"); // Géminis (con tilde en el título)
+  assert.deepEqual(hoy, { titulo: "HORÓSCOPO DIARIO DE GÉMINIS (Lunes 5 de Octubre de 2026)", fecha: "2026-10-05", url: "https://podcasts.test/ep/geminis/0" });
+  assert.ok(llamadas[0].maxBytes! > 0 && llamadas[0].maxBytes! <= 200_000); // solo el principio del feed
+  assert.equal((await episodioDeSigno(http, FEED, SIGNOS[0], "2026-10-06"))!.fecha, "2026-10-05"); // aún no está el de mañana: el más reciente
+  assert.equal(await episodioDeSigno({ get: async () => ({ data: feedPodcast(["Lunes 5 de Octubre de 2026"]).replace(/<link>[^<]*<\/link>/g, "") }) }, FEED, SIGNOS[0], "2026-10-05").then((e) => e!.url), "https://cdn.test/aries0.mp3"); // sin página: el audio
+  assert.equal(await episodioDeSigno({ get: async () => ({ data: "<rss></rss>" }) }, FEED, SIGNOS[0], "2026-10-05"), null);
+});
+
+test("horóscopo: texto sencillo (se guarda y no se repite), la fuente se sigue indicando y hay botón al podcast", async () => {
+  const b = await usuarioListo();
+  const u = (await b.almacen.getUsuario(U))!; u.nacimiento = "1990-04-05"; await b.almacen.guardarUsuario(u);
+  await b.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
+  b.http.añadir("feeds.test", feedPodcast(["Domingo 4 de Octubre de 2026"]));
+  let usos = 0;
+  b.deps.podcastFeed = FEED; b.deps.simplificar = async () => { usos++; return SENCILLO; };
+  b.canal.limpiar();
+  await b.pulsar(U, "sec:horoscopo");
+  let t = textoUltimo(b);
+  assert.match(t, /Hoy cuida tu carácter/); assert.doesNotMatch(t, /agresividad/); // el texto sencillo, no el original
+  assert.match(t, /Basado en el horóscopo de <a href="https:\/\/www\.20minutos\.es\/horoscopo\/aries\/">20minutos\.es<\/a>, explicado con palabras sencillas/); // la fuente NO se oculta
+  const boton = b.canal.botones(U).find((x) => /podcast/.test(x.texto))!;
+  assert.equal(boton.url, "https://podcasts.test/ep/aries/0"); assert.match(boton.texto, /Escuchar el podcast de hoy/);
+  assert.equal((await b.almacen.getHoroscopo("aries"))!.sencillo, SENCILLO); assert.equal(usos, 1);
+  await b.pulsar(U, "sec:horoscopo"); assert.equal(usos, 1); // ya guardado: no se vuelve a pedir a la IA
+  // si la IA falla o devuelve algo inservible: se muestra el original con su fuente de siempre
+  const b2 = await usuarioListo(); const u2 = (await b2.almacen.getUsuario(U))!; u2.nacimiento = "1990-04-05"; await b2.almacen.guardarUsuario(u2);
+  await b2.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
+  b2.deps.simplificar = async () => { throw new Error("sin cuota"); };
+  await b2.pulsar(U, "sec:horoscopo"); t = textoUltimo(b2);
+  assert.match(t, /agresividad/); assert.match(t, /Fuente:<\/i> <a href/); assert.ok(!b2.canal.botones(U).some((x) => /podcast/.test(x.texto))); // sin feed configurado: sin botón
+  b2.deps.simplificar = async () => "Hoy mal."; b2.canal.limpiar(); await b2.pulsar(U, "sec:horoscopo"); assert.match(textoUltimo(b2), /agresividad/);
+});
+
+test("horóscopo: sin episodio de hoy el botón es del último, y si el feed falla no hay botón ni error", async () => {
+  const b = await usuarioListo(); const u = (await b.almacen.getUsuario(U))!; u.nacimiento = "1990-04-05"; await b.almacen.guardarUsuario(u);
+  await b.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
+  b.deps.podcastFeed = FEED; b.http.añadir("feeds.test", feedPodcast(["Viernes 2 de Octubre de 2026"]));
+  await b.pulsar(U, "sec:horoscopo");
+  assert.match(b.canal.botones(U).find((x) => /podcast/.test(x.texto))!.texto, /Escuchar el último podcast \(02\/10\)/);
+  const b2 = await usuarioListo(); const u2 = (await b2.almacen.getUsuario(U))!; u2.nacimiento = "1990-04-05"; await b2.almacen.guardarUsuario(u2);
+  await b2.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
+  b2.deps.podcastFeed = FEED; b2.http.añadir("feeds.test", new Error("caído"));
+  await b2.pulsar(U, "sec:horoscopo");
+  assert.match(textoUltimo(b2), /agresividad/); assert.ok(!b2.canal.botones(U).some((x) => /podcast/.test(x.texto)));
 });

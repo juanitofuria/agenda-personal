@@ -66,6 +66,8 @@ export interface Programacion {
 
 export interface HoroscopoDoc {
   signo: string; fecha: string; prediccion: string; idioma?: string; fuente?: string; fuenteUrl?: string;
+  /** El mismo texto explicado con palabras sencillas (lo genera la plataforma si dispone de IA); `prediccion` conserva el original. */
+  sencillo?: string;
 }
 
 /** Hora a la que se avisa de un evento (evento - antelación). */

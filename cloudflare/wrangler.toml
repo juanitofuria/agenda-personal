@@ -13,6 +13,10 @@ crons = ["* * * * *", "*/10 4-10 * * *"]
 binding = "SELF"
 service = "agenda-personal"
 
+# IA de Cloudflare (Workers AI): reescribe el horóscopo con palabras sencillas. Si falla o no hay cuota, se muestra el texto original.
+[ai]
+binding = "AI"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "agenda-personal"
