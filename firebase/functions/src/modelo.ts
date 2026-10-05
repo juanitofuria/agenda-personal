@@ -23,9 +23,15 @@ export interface Ciudad { nombre: string; provincia: string; lat: number; lon: n
 /** Paso de una conversación en curso (el bot espera un texto del usuario). */
 export interface Estado { flujo: string; paso: string; datos: Record<string, unknown> }
 
+/** Aspecto del bot: el estilo (informal o formal) y el modo (claro u oscuro) que usa en Telegram, para elegir las cabeceras y los colores. */
+export type Estilo = "informal" | "formal";
+export type Modo = "claro" | "oscuro";
+
 export interface Usuario {
   id: string;                 // id del chat
   nombre: string;
+  estilo: Estilo;
+  modo: Modo;
   nacimiento: string | null;  // yyyy-MM-dd
   zona: string;               // zona horaria IANA
   ciudad: Ciudad | null;
@@ -86,7 +92,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, nacimiento: null, zona: "Europe/Madrid", ciudad: null, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }

@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { idProgramacion } from "./almacen";
 import { Banco, crearBanco, geocodingFalso, previsionFalsa, rssFalso } from "./arnes";
 import { contenidoDeSeccion, manejarEntrada } from "./bot/bot";
+import { menuPrincipal } from "./bot/vistas";
+import { usuarioNuevo } from "./modelo";
 import { episodioDeSigno, fechaDeTitulo } from "./podcast";
 import { SIGNOS } from "./horoscopo";
 import { localAUtc, partesEnZona } from "./fechas";
@@ -39,6 +41,10 @@ test("asistente completo: intereses, aficiones, nombre, nacimiento y ciudad → 
   b.http.añadir("geocoding-api", geocodingFalso("Montoro"));
   await b.escribir(U, "/start");
   await b.pulsarTexto(U, "Empezar");
+  assert.match(textoUltimo(b), /¿Qué estilo prefieres\?/); assert.ok(hayBoton(b, "Informal") && hayBoton(b, "Formal"));
+  await b.pulsar(U, "o:est:formal");
+  assert.match(textoUltimo(b), /¿Claro u oscuro\?/);
+  await b.pulsar(U, "o:modo:oscuro");
   assert.match(textoUltimo(b), /¿Qué quieres recibir\?/);
   assert.ok(hayBoton(b, "✅ 📰 Noticias") && hayBoton(b, "▫️ 🔮 Horóscopo"));
   await b.pulsar(U, "o:s:horoscopo"); // activa el horóscopo
@@ -65,9 +71,10 @@ test("asistente completo: intereses, aficiones, nombre, nacimiento y ciudad → 
   assert.match(textoUltimo(b), /¡Todo listo!/); assert.match(textoUltimo(b), /Horóscopo de ♈ Aries/); assert.match(textoUltimo(b), /Montoro/);
   assert.match(textoUltimo(b), /Ajedrez, Pesca deportiva|Motociclismo, Ajedrez, Pesca deportiva/);
   await b.pulsar(U, "o:fin");
-  assert.match(textoUltimo(b), /Agenda Personal/); assert.match(textoUltimo(b), /Hola, Ana/);
+  assert.match(textoUltimo(b), /AGENDA PERSONAL/); assert.match(textoUltimo(b), /Hola, Ana/); // estilo formal elegido
 
   const u = (await b.almacen.getUsuario(U))!;
+  assert.equal(u.estilo, "formal"); assert.equal(u.modo, "oscuro");
   assert.equal(u.onboardingHecho, true); assert.equal(u.estado, null); assert.equal(u.nombre, "Ana"); assert.equal(u.nacimiento, "1984-04-05");
   assert.deepEqual(u.ciudad, { nombre: "Montoro", provincia: "Córdoba", lat: 38.02409, lon: -4.38 }); assert.equal(u.zona, "Europe/Madrid");
   assert.deepEqual(Object.entries(u.secciones).filter(([, c]) => c.activa).map(([k]) => k).sort(), ["agenda", "horoscopo", "noticias", "tiempo"]);
@@ -95,7 +102,7 @@ test("omitir todo: entra en el menú con noticias, agenda y mercados (tiempo y h
 test("omitir a mitad conserva lo ya escrito y deja las secciones por defecto", async () => {
   const b = crearBanco(AHORA);
   await b.escribir(U, "/start"); await b.pulsar(U, "o:sig");
-  await b.pulsar(U, "o:sig"); await b.pulsar(U, "o:sig"); await b.pulsar(U, "o:sig"); // hasta «nombre»
+  for (let i = 0; i < 5; i++) await b.pulsar(U, "o:sig"); // hasta «nombre» (estilo, modo, secciones, temas y extra)
   await b.escribir(U, "Luis");
   await b.pulsar(U, "o:omitir");
   const u = (await b.almacen.getUsuario(U))!;
@@ -108,7 +115,7 @@ test("omitir a mitad conserva lo ya escrito y deja las secciones por defecto", a
 test("el asistente tolera una ciudad que no existe, un fallo de red y 'ninguna'", async () => {
   const b = crearBanco(AHORA);
   await b.escribir(U, "/start");
-  for (let i = 0; i < 6; i++) await b.pulsar(U, "o:sig"); // hasta «ciudad»
+  for (let i = 0; i < 8; i++) await b.pulsar(U, "o:sig"); // hasta «ciudad»
   assert.match(textoUltimo(b), /municipio/);
   b.http.añadir("geocoding-api", { results: [] });
   await b.escribir(U, "Zzzz"); assert.match(textoUltimo(b), /No encuentro ese municipio/);
@@ -135,10 +142,10 @@ test("cualquier mensaje de un usuario nuevo inicia el asistente; un botón antig
 test("menú principal, ayuda, comandos y texto suelto", async () => {
   const b = await usuarioListo();
   await b.escribir(U, "/menu");
-  assert.deepEqual(b.canal.botones(U).map((x) => x.datos), ["m:hoy", "n:menu", "e:lista", "s:lista", "p:ver", "m:ayuda"]);
+  assert.deepEqual(b.canal.botones(U).map((x) => x.datos).sort(), ["e:lista", "m:ayuda", "m:hoy", "n:menu", "p:ver", "s:lista"]); // los mismos botones, repartidos en cuadrícula
   await b.escribir(U, "/ayuda"); assert.match(textoUltimo(b), /Comandos/);
   await b.escribir(U, "/hoy"); assert.match(textoUltimo(b), /Resumen de hoy/);
-  await b.escribir(U, "blablabla"); assert.match(textoUltimo(b), /Usa el menú/);
+  await b.escribir(U, "blablabla"); assert.ok(b.canal.textos(U).slice(-2).some((x) => /Usa el menú/.test(x))); assert.match(textoUltimo(b), /Agenda Personal/); // y se muestra el menú
   await b.escribir(U, "/nueva"); assert.match(textoUltimo(b), /¿Qué quieres crear\?/);
   await b.escribir(U, "/eventos"); assert.match(textoUltimo(b), /Mis eventos/);
   await b.escribir(U, "/secciones"); assert.match(textoUltimo(b), /Mis secciones/);
@@ -248,9 +255,9 @@ test("cancelar durante la creación no guarda nada; un botón de una creación t
   const b = await usuarioListo();
   await b.pulsar(U, "n:tipo:alarma"); await b.escribir(U, "Algo");
   await b.pulsar(U, "x:cancelar");
-  assert.match(textoUltimo(b), /Cancelado/); assert.equal((await evs(b)).length, 0); assert.equal((await b.almacen.getUsuario(U))!.estado, null);
+  assert.ok(b.canal.textos(U).slice(-2).some((x) => /Cancelado/.test(x))); assert.match(textoUltimo(b), /Agenda Personal/); /* y vuelve el menú */ assert.equal((await evs(b)).length, 0); assert.equal((await b.almacen.getUsuario(U))!.estado, null);
   await b.pulsar(U, "n:rep:diaria"); assert.match(textoUltimo(b), /¿Qué quieres crear\?/);
-  await b.pulsar(U, "n:tipo:alarma"); await b.escribir(U, "/cancelar"); assert.match(textoUltimo(b), /Cancelado/);
+  await b.pulsar(U, "n:tipo:alarma"); await b.escribir(U, "/cancelar"); assert.ok(b.canal.textos(U).slice(-2).some((x) => /Cancelado/.test(x)));
 });
 
 // =============== Ver, editar y eliminar ===============
@@ -577,4 +584,78 @@ test("horóscopo: sin episodio de hoy el botón es del último, y si el feed fal
   b2.deps.podcastFeed = FEED; b2.http.añadir("feeds.test", new Error("caído"));
   await b2.pulsar(U, "sec:horoscopo");
   assert.match(textoUltimo(b2), /agresividad/); assert.ok(!b2.canal.botones(U).some((x) => /Horóscopo Ampliado/.test(x.texto)));
+});
+
+// ---------- Aspecto: estilo, modo y cabecera del menú ----------
+const BASE = "https://agenda.test";
+const fotos = (bn: Banco) => bn.canal.mensajes.filter((m) => m.foto);
+
+test("menú principal: informal = pictogramas, formal = cuadrados de color; la cuadrícula cambia con el modo; el administrador ve «Acceso»", () => {
+  const u = usuarioNuevo("1", "Ana", new Date()); u.nombre = "Ana";
+  for (const s of ["tiempo", "noticias", "agenda"] as const) u.secciones[s].activa = true;
+  const claves = (m: ReturnType<typeof menuPrincipal>) => m.teclado.map((f) => f.map((x) => x.datos));
+  const inf = menuPrincipal(u, false);
+  assert.match(inf.html, /Agenda Personal/); assert.match(inf.html, /¡Hola, Ana! 👋/); assert.match(inf.html, /📋 <b>Resumen de hoy<\/b>/); assert.match(inf.html, /3 secciones activas/);
+  assert.deepEqual(claves(inf), [["m:hoy", "e:lista"], ["n:menu", "s:lista"], ["p:ver"], ["m:ayuda"]]); // «claro»: el reparto del diseño claro
+  assert.equal(inf.teclado[0][0].texto, "📋 Resumen de hoy"); assert.equal(inf.foto, undefined); // sin dirección pública: solo texto
+  const oscuro = menuPrincipal({ ...u, modo: "oscuro" }, false);
+  assert.deepEqual(claves(oscuro), [["m:hoy"], ["n:menu", "e:lista"], ["s:lista", "p:ver"], ["m:ayuda"]]); // «oscuro»: el reparto del diseño oscuro
+  const formal = menuPrincipal({ ...u, estilo: "formal" }, false, BASE + "/");
+  assert.match(formal.html, /<b>AGENDA PERSONAL<\/b>/); assert.match(formal.html, /Hola, Ana/); assert.match(formal.html, /🟦 <b>Resumen de hoy<\/b>/); assert.match(formal.html, /Seleccione una opción/);
+  assert.deepEqual(claves(formal), [["m:hoy", "e:lista"], ["n:menu", "s:lista"], ["p:ver", "m:ayuda"]]);
+  assert.equal(formal.teclado[0][0].texto, "🟦 Resumen de hoy"); assert.equal(formal.foto, `${BASE}/menu-formal-claro.png`);
+  assert.equal(menuPrincipal({ ...u, estilo: "formal", modo: "oscuro" }, false, BASE).foto, `${BASE}/menu-formal-oscuro.png`);
+  assert.equal(menuPrincipal(u, false, BASE).foto, `${BASE}/menu-informal-claro.png`);
+  // colores de los botones (si la app los admite) y botón de acceso solo para el administrador
+  assert.deepEqual(inf.teclado.flat().filter((x) => x.color).map((x) => `${x.datos}:${x.color}`), ["m:hoy:primary", "s:lista:success", "p:ver:primary", "m:ayuda:danger"]);
+  const admin = menuPrincipal(u, true); assert.ok(admin.teclado.flat().some((x) => x.datos === "acc:menu")); assert.ok(!inf.teclado.flat().some((x) => x.datos === "acc:menu"));
+  assert.deepEqual(claves(admin).at(-1), ["m:ayuda"]); // la ayuda sigue al final
+  // el pie de una foto admite 1024 caracteres: el menú cabe también con muchos temas y nombre largo
+  for (const est of ["informal", "formal"] as const) assert.ok(menuPrincipal({ ...u, estilo: est, nombre: "N".repeat(40) }, true, BASE).html.length < 900);
+});
+
+test("el menú sale con la cabecera (foto) del estilo y modo del usuario; desde un botón sustituye al mensaje anterior", async () => {
+  const b = await usuarioListo(); b.deps.urlBase = BASE;
+  const u = (await b.almacen.getUsuario(U))!; u.estilo = "formal"; u.modo = "oscuro"; await b.almacen.guardarUsuario(u);
+  b.canal.limpiar();
+  await b.escribir(U, "/menu");
+  assert.equal(fotos(b).length, 1); assert.equal(fotos(b)[0].foto, `${BASE}/menu-formal-oscuro.png`); assert.match(fotos(b)[0].html, /AGENDA PERSONAL/);
+  assert.ok(hayBoton(b, "🟦 Resumen de hoy"));
+  b.canal.limpiar();
+  await b.pulsar(U, "m:ayuda"); await b.pulsar(U, "m:menu"); // un botón «Menú» sobre un mensaje de texto
+  assert.ok(b.canal.borrados.length >= 1 && fotos(b).length === 1); // se borra el mensaje y llega el menú nuevo con su cabecera
+  assert.equal(b.canal.borrados.at(-1)!.chatId, U);
+  assert.equal(b.canal.violaciones.length, 0);
+  // sin foto en el canal o sin dirección pública: texto de siempre
+  const b2 = await usuarioListo(); b2.canal.limpiar(); await b2.escribir(U, "/menu"); assert.equal(fotos(b2).length, 0); assert.match(textoUltimo(b2), /Agenda Personal/);
+});
+
+test("apariencia: se cambia en el perfil, se marca la opción elegida y el menú la aplica", async () => {
+  const b = await usuarioListo(); b.deps.urlBase = BASE;
+  await b.pulsar(U, "p:ver"); assert.match(textoUltimo(b), /Apariencia[\s\S]*Informal · claro/); assert.ok(hayBoton(b, "Apariencia"));
+  await b.pulsar(U, "p:apar"); assert.match(textoUltimo(b), /Cómo se ve el menú/); assert.ok(hayBoton(b, "✅ 😊 Informal") && hayBoton(b, "✅ ☀️ Claro"));
+  await b.pulsar(U, "p:est:formal"); await b.pulsar(U, "p:modo:oscuro");
+  assert.ok(hayBoton(b, "✅ 👔 Formal") && hayBoton(b, "✅ 🌙 Oscuro") && !hayBoton(b, "✅ 😊 Informal"));
+  const u = (await b.almacen.getUsuario(U))!; assert.deepEqual([u.estilo, u.modo], ["formal", "oscuro"]);
+  b.canal.limpiar(); await b.escribir(U, "/menu"); assert.equal(fotos(b)[0].foto, `${BASE}/menu-formal-oscuro.png`);
+  await b.pulsar(U, "p:est:raro"); assert.equal((await b.almacen.getUsuario(U))!.estilo, "informal"); // un valor raro cae en el de por defecto
+});
+
+test("asistente: pregunta estilo y modo con ejemplos (si hay imágenes); omitir deja informal y claro", async () => {
+  const b = crearBanco(AHORA); b.deps.urlBase = BASE;
+  await b.escribir(U, "/start");
+  assert.equal(fotos(b).length, 0); // la bienvenida no lleva imágenes
+  await b.pulsarTexto(U, "Empezar");
+  assert.deepEqual(fotos(b).map((m) => m.foto), [`${BASE}/menu-informal-claro.png`, `${BASE}/menu-formal-claro.png`]); // un ejemplo de cada estilo
+  assert.match(textoUltimo(b), /¿Qué estilo prefieres\?/); assert.match(textoUltimo(b), /Paso 1 de 8/);
+  b.canal.limpiar(); await b.pulsar(U, "o:est:formal");
+  assert.deepEqual(fotos(b).map((m) => m.foto), [`${BASE}/menu-formal-claro.png`, `${BASE}/menu-formal-oscuro.png`]); // y de cada modo, en el estilo elegido
+  assert.match(textoUltimo(b), /¿Claro u oscuro\?/); assert.match(textoUltimo(b), /Paso 2 de 8/);
+  await b.pulsar(U, "o:modo:claro");
+  assert.match(textoUltimo(b), /¿Qué quieres recibir\?/);
+  assert.deepEqual([(await b.almacen.getUsuario(U))!.estilo, (await b.almacen.getUsuario(U))!.modo], ["formal", "claro"]);
+  const b2 = crearBanco(AHORA); await b2.escribir("8", "/start"); await b2.pulsar("8", "o:omitir");
+  const u2 = (await b2.almacen.getUsuario("8"))!; assert.deepEqual([u2.estilo, u2.modo, u2.onboardingHecho], ["informal", "claro", true]);
+  const b3 = crearBanco(AHORA); await b3.escribir("9", "/start"); await b3.pulsar("9", "o:sig"); await b3.pulsar("9", "o:sig"); await b3.pulsar("9", "o:sig"); // saltar estilo y modo
+  assert.match(b3.canal.ultimo("9").html, /¿Qué quieres recibir\?/); assert.equal((await b3.almacen.getUsuario("9"))!.estilo, "informal");
 });

@@ -10,9 +10,10 @@ import { diagnostico } from "./diagnostico";
 import { Ctx, Deps, BTN_MENU } from "./ctx";
 import * as eventos from "./eventos";
 import * as onboarding from "./onboarding";
-import { seccionesActivas, tecladoHoy, tecladoMenuPara, textoAyuda, textoMenu } from "./vistas";
+import { mostrarMenu } from "./menu";
+import { seccionesActivas, tecladoHoy, textoAyuda } from "./vistas";
 
-async function menu(c: Ctx): Promise<void> { await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin)); }
+const menu = mostrarMenu;
 
 /** Envía una sección. `editar`: sustituye el mensaje del botón (navegación dentro de una misma sección). */
 async function mostrarSeccion(c: Ctx, ref: string, editar = false): Promise<void> {
@@ -58,15 +59,15 @@ async function cancelar(c: Ctx): Promise<void> {
   const habia = !!c.u.estado;
   await c.terminarFlujo();
   if (habia && !c.u.onboardingHecho) { await onboarding.terminar(c, true); return; }
-  await c.nuevo(habia ? "Cancelado." : "No había nada que cancelar.", tecladoMenuPara(c.esAdmin));
+  await c.nuevo(habia ? "Cancelado." : "No había nada que cancelar."); await mostrarMenu(c);
 }
 
 async function comando(c: Ctx, texto: string): Promise<boolean> {
   const cmd = texto.split(/[\s@]/)[0].toLowerCase();
   if (await acceso.comando(c, cmd)) return true;
   switch (cmd) {
-    case "/start": if (c.u.onboardingHecho) { await c.terminarFlujo(); await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin)); } else await onboarding.iniciar(c); return true;
-    case "/menu": await c.terminarFlujo(); await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin)); return true;
+    case "/start": if (c.u.onboardingHecho) { await c.terminarFlujo(); await mostrarMenu(c); } else await onboarding.iniciar(c); return true;
+    case "/menu": await c.terminarFlujo(); await mostrarMenu(c); return true;
     case "/hoy": await c.terminarFlujo(); await c.nuevo("📋 <b>Resumen de hoy</b>\n¿Qué quieres ver?", tecladoHoy(c.u)); return true;
     case "/nueva": await c.terminarFlujo(); await eventos.menuNueva(c); return true;
     case "/eventos": await c.terminarFlujo(); await eventos.lista(c); return true;
@@ -115,7 +116,7 @@ async function atenderTexto(c: Ctx): Promise<void> {
   if (t.startsWith("/") && (await comando(c, t))) return;
   if (!c.u.onboardingHecho && !c.u.estado) { await onboarding.iniciar(c); return; }
   if (c.u.estado && ((await onboarding.texto(c)) || (await eventos.texto(c)) || (await ajustes.texto(c)))) return;
-  await c.nuevo("Usa el menú para moverte por la agenda 👇", tecladoMenuPara(c.esAdmin));
+  await c.nuevo("Usa el menú para moverte por la agenda 👇"); await mostrarMenu(c);
 }
 
 /** Punto de entrada de cada mensaje o botón que llega del canal. */

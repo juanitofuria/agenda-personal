@@ -6,7 +6,7 @@ import { Boton, Canal, Entrada, Teclado } from "./canal";
 import { ErrorTelegram } from "./telegram";
 import { HttpGet } from "./util";
 
-export interface Enviado { chatId: string; html: string; teclado?: Teclado; editado?: number; id: number }
+export interface Enviado { chatId: string; html: string; teclado?: Teclado; editado?: number; id: number; foto?: string }
 
 /** Límites de Telegram para botones inline: callback_data de 1 a 64 bytes, como mucho 100 botones y texto no vacío. */
 export function validarTeclado(t?: Teclado): string[] {
@@ -26,6 +26,14 @@ export class CanalFalso implements Canal {
   violaciones: string[] = [];
   callbacks: string[] = [];
   nombreUsuario = async () => "agenda_test_bot";
+  borrados: { chatId: string; mensajeId: number }[] = [];
+  async enviarFoto(chatId: string, urlFoto: string, html: string, teclado?: Teclado) {
+    this.violaciones.push(...validarTeclado(teclado));
+    if (html.length > 1000) this.violaciones.push(`pie de foto de ${html.length} caracteres (máx. 1024)`);
+    const e = this.falla?.(chatId); if (e) throw e;
+    this.mensajes.push({ chatId, html, teclado, foto: urlFoto, id: ++this.n });
+  }
+  async borrar(chatId: string, mensajeId: number) { this.borrados.push({ chatId, mensajeId }); }
   falla?: (chatId: string) => Error | undefined;
   private n = 100;
   async enviar(chatId: string, html: string, teclado?: Teclado) {

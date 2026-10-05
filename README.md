@@ -95,6 +95,22 @@ Los secretos del bot (token de Telegram y secreto del webhook) siguen guardados 
 > **Para desarrolladores:** `cd cloudflare && npm install` solo hace falta para ejecutar los tests o cambiar el código. Tras cambiar algo en
 > `src/` (o en `../firebase/functions/src`), ejecuta `npm run empaquetar` y sube también `dist/worker.js`; CI lo comprueba.
 
+## Aspecto: estilo, modo y cabeceras del menú
+
+En el asistente inicial se pregunta el **estilo** (😊 informal o 👔 formal) y el **modo** (☀️ claro o 🌙 oscuro), con una imagen de ejemplo de cada opción. Se cambia
+cuando quieras en *Mi perfil → 🎨 Apariencia*; si se omite, queda informal y claro. El menú principal sale con una **cabecera (imagen)** de ese estilo y modo, y los
+botones repartidos en cuadrícula como en los diseños (el reparto del modo claro y el del oscuro son distintos). Informal usa pictogramas (📋 ⏰ 📅 🧩 👤 ❓); formal usa
+un cuadrado de color como acento (🟦 🟪 🟧 🟩 🟥), como el filo de color de las tarjetas formales.
+
+**Lo que Telegram no permite** y por tanto no se puede copiar exactamente de los diseños: la tipografía, los iconos dibujados y los colores de los botones los decide la app
+de cada persona; un bot solo puede mandar texto, emojis e imágenes. Por eso la parte «de diseño» (icono, tipografía, ilustración, letra manuscrita) va **dentro de la imagen
+de cabecera**, y los botones usan emojis. Los botones llevan además un color (azul, verde o rojo) que solo se ve si la versión de Telegram lo admite; si la API lo rechaza, el
+bot lo detecta y sigue sin colores. Un bot tampoco puede saber si la persona usa tema claro u oscuro: de ahí la pregunta.
+
+Las cuatro cabeceras son PNG en `cloudflare/publico/` (se sirven desde la propia dirección del Worker; Telegram las descarga de ahí). Se regeneran con
+`cd tools/banners && npm install && npm run generar` (necesita Chromium; la ilustración y las tipografías están en `tools/banners/generar.mjs`).
+Sin dirección pública (versión de Firebase) el menú es solo texto.
+
 ## Bot privado: invitaciones y solicitudes de acceso
 
 Telegram no tiene «bots privados»: cualquiera que encuentre el nombre del bot puede escribirle. Por eso el control se hace dentro del bot, y se activa
@@ -140,6 +156,8 @@ El esquema está en `cloudflare/schema.sql`. No hay API pública de la base de d
 | `cloudflare/src/almacenD1.ts` | Persistencia en D1 (implementa la interfaz `Almacen`) |
 | `cloudflare/src/http.ts` | Cliente HTTP sobre `fetch` con presupuesto de peticiones y concurrencia limitada |
 | `cloudflare/wrangler.toml` | Configuración: cron, base de datos, variables |
+| `cloudflare/publico/` | Las 4 cabeceras PNG del menú (informal/formal × claro/oscuro), que sirve el propio Worker |
+| `tools/banners/` | Generador de esas cabeceras (HTML + Chromium); solo para desarrollo |
 | `cloudflare/dist/worker.js` | El Worker ya empaquetado (con sus librerías dentro): es lo que se despliega |
 | `firebase/functions/src/bot/` | El bot: rutas, asistente inicial, eventos, ajustes, vistas y catálogo de temas |
 | `firebase/functions/src/scheduler.ts` | Envía lo vencido: reclamo atómico, reintentos, repeticiones, posponer, retrasos, bloqueos |

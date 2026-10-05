@@ -8,7 +8,7 @@ const aFecha = (v: unknown): Date | null => (v instanceof Timestamp ? v.toDate()
 /** Convierte un documento de Firestore en un Usuario (con valores por defecto para campos ausentes). */
 export function usuarioDesdeDoc(id: string, d: Record<string, any>): Usuario {
   return {
-    id, nombre: d.nombre ?? "", nacimiento: d.nacimiento ?? null, zona: d.zona ?? "Europe/Madrid", ciudad: d.ciudad ?? null,
+    id, nombre: d.nombre ?? "", estilo: d.estilo === "formal" ? "formal" : "informal", modo: d.modo === "oscuro" ? "oscuro" : "claro", nacimiento: d.nacimiento ?? null, zona: d.zona ?? "Europe/Madrid", ciudad: d.ciudad ?? null,
     secciones: d.secciones ?? {}, temas: d.temas ?? [], estado: d.estado ?? null, onboardingHecho: !!d.onboardingHecho,
     activo: d.activo !== false, ultimoUpdate: d.ultimoUpdate ?? 0, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
   };

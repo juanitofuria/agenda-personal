@@ -1,0 +1,12 @@
+{
+  "name": "banners-agenda-personal",
+  "private": true,
+  "description": "Genera las cabeceras (PNG) del menú del bot: 2 estilos (informal, formal) x 2 temas (claro, oscuro). Solo para desarrollo: los PNG ya generados están en cloudflare/publico.",
+  "scripts": { "generar": "node generar.mjs" },
+  "devDependencies": {
+    "@fontsource/caveat": "^5.1.0",
+    "@fontsource/nunito": "^5.1.0",
+    "@fontsource/playfair-display": "^5.1.0",
+    "playwright-core": "^1.48.0"
+  }
+}

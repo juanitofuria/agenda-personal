@@ -934,6 +934,8 @@ function usuarioDesdeJson(id, d) {
   return {
     id,
     nombre: d.nombre ?? "",
+    estilo: d.estilo === "formal" ? "formal" : "informal",
+    modo: d.modo === "oscuro" ? "oscuro" : "claro",
     nacimiento: d.nacimiento ?? null,
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
@@ -1250,6 +1252,8 @@ function usuarioNuevo(id, nombre, ahora) {
   return {
     id,
     nombre,
+    estilo: "informal",
+    modo: "claro",
     nacimiento: null,
     zona: "Europe/Madrid",
     ciudad: null,
@@ -2859,28 +2863,30 @@ __name(separarIntereses, "separarIntereses");
 var slug = /* @__PURE__ */ __name((t) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tema", "slug");
 
 // ../firebase/functions/src/bot/vistas.ts
-function textoMenu(u) {
+var ICONOS = {
+  informal: { resumen: "\u{1F4CB}", nueva: "\u23F0", eventos: "\u{1F4C5}", secciones: "\u{1F9E9}", perfil: "\u{1F464}", ayuda: "\u2753", ajustes: "\u2699\uFE0F", acceso: "\u{1F510}" },
+  formal: { resumen: "\u{1F7E6}", nueva: "\u{1F7EA}", eventos: "\u{1F7E7}", secciones: "\u{1F7E9}", perfil: "\u{1F7E6}", ayuda: "\u{1F7E5}", ajustes: "\u{1F7E9}", acceso: "\u{1F7EB}" }
+};
+function menuPrincipal(u, admin, urlBase) {
+  const ic = ICONOS[u.estilo];
   const activas = seccionesActivas(u).length;
-  return [
-    cabecera("\u{1F5D3}", "Agenda Personal", u.nombre ? `Hola, ${esc(u.nombre)} \u{1F44B}` : "\xBFQu\xE9 quieres hacer?"),
-    "",
-    bloque("\u{1F4CB}", "Resumen de hoy", "Lo que tienes activado, al momento"),
-    "",
-    bloque("\u23F0", "Alarmas, citas y tareas", "Crearlas, verlas y modificarlas"),
-    "",
-    bloque("\u2699\uFE0F", "Ajustes", activas ? `${activas} ${activas === 1 ? "secci\xF3n" : "secciones"} activa${activas === 1 ? "" : "s"} \xB7 tu perfil` : "Activa tus secciones y completa tu perfil"),
-    "",
-    "<i>Elige una opci\xF3n \u{1F447}</i>"
-  ].join("\n");
+  const ajustes = activas ? `${activas} ${activas === 1 ? "secci\xF3n" : "secciones"} activa${activas === 1 ? "" : "s"} \xB7 tu perfil` : "Activa tus secciones y completa tu perfil";
+  const filas = [
+    bloque(ic.resumen, "Resumen de hoy", "Lo que tienes activado, al momento"),
+    bloque(ic.nueva, "Alarmas, citas y tareas", "Crearlas, verlas y modificarlas"),
+    bloque(ic.ajustes, "Ajustes", ajustes)
+  ];
+  const cabecera_ = u.estilo === "formal" ? [`<b>AGENDA PERSONAL</b>`, `<i>${u.nombre ? `Hola, ${esc(u.nombre)}` : "Bienvenido"} \xB7 Tu tiempo, tus planes</i>`, "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"] : [cabecera("\u{1F5D3}", "Agenda Personal", u.nombre ? `\xA1Hola, ${esc(u.nombre)}! \u{1F44B}` : "\xBFQu\xE9 quieres hacer?")];
+  const html = [...cabecera_, "", filas.join("\n\n"), "", u.estilo === "formal" ? "<i>Seleccione una opci\xF3n \u{1F447}</i>" : "<i>Elige una opci\xF3n \u{1F447}</i>"].join("\n");
+  const b = /* @__PURE__ */ __name((icono, texto4, datos2, color) => ({ texto: `${icono} ${texto4}`, datos: datos2, ...color ? { color } : {} }), "b");
+  const resumen = b(ic.resumen, "Resumen de hoy", "m:hoy", "primary"), nueva = b(ic.nueva, "Nueva alarma, cita o tarea", "n:menu");
+  const eventos = b(ic.eventos, "Mis eventos", "e:lista"), secciones = b(ic.secciones, "Mis secciones", "s:lista", "success");
+  const perfil = b(ic.perfil, "Mi perfil", "p:ver", "primary"), ayuda = b(ic.ayuda, "Ayuda", "m:ayuda", "danger");
+  const teclado = u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]] : u.modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]] : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
+  if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
+  return { html, teclado, ...urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${u.modo}.png` } : {} };
 }
-__name(textoMenu, "textoMenu");
-var tecladoMenu = [
-  [{ texto: "\u{1F4CB} Resumen de hoy", datos: "m:hoy" }],
-  [{ texto: "\u2795 Nueva alarma, cita o tarea", datos: "n:menu" }, { texto: "\u{1F4C5} Mis eventos", datos: "e:lista" }],
-  [{ texto: "\u{1F9E9} Mis secciones", datos: "s:lista" }, { texto: "\u{1F464} Mi perfil", datos: "p:ver" }],
-  [{ texto: "\u2753 Ayuda", datos: "m:ayuda" }]
-];
-var tecladoMenuPara = /* @__PURE__ */ __name((admin) => admin ? [...tecladoMenu.slice(0, 3), [{ texto: "\u{1F510} Acceso", datos: "acc:menu" }], tecladoMenu[3]] : tecladoMenu, "tecladoMenuPara");
+__name(menuPrincipal, "menuPrincipal");
 var textoAyuda = [
   cabecera("\u2753", "Ayuda", "C\xF3mo funciona tu agenda"),
   "",
@@ -2932,13 +2938,16 @@ function textoPerfil(u) {
     "",
     bloque("\u{1F550}", "Zona horaria", esc(u.zona)),
     "",
+    bloque("\u{1F3A8}", "Apariencia", `${u.estilo === "formal" ? "Formal" : "Informal"} \xB7 ${u.modo === "oscuro" ? "oscuro" : "claro"}`),
+    "",
     "<i>Solo guardo esto para prepararte los res\xFAmenes. Puedes borrarlo cuando quieras con /borrar.</i>"
   ].join("\n");
 }
 __name(textoPerfil, "textoPerfil");
 var tecladoPerfil = [
   [{ texto: "\u270F\uFE0F Nombre", datos: "p:nombre" }, { texto: "\u{1F382} Nacimiento", datos: "p:nacimiento" }],
-  [{ texto: "\u{1F4CD} Ciudad", datos: "p:ciudad" }, { texto: "\u{1F5D1} Borrar mis datos", datos: "p:borrar" }],
+  [{ texto: "\u{1F4CD} Ciudad", datos: "p:ciudad" }, { texto: "\u{1F3A8} Apariencia", datos: "p:apar" }],
+  [{ texto: "\u{1F5D1} Borrar mis datos", datos: "p:borrar" }],
   [BTN_MENU]
 ];
 
@@ -3099,6 +3108,19 @@ async function callback2(c, p) {
       }
       return true;
     }
+    case "apar":
+      await apariencia(c);
+      return true;
+    case "est":
+      c.u.estilo = p[2] === "formal" ? "formal" : "informal";
+      await c.guardar();
+      await apariencia(c);
+      return true;
+    case "modo":
+      c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro";
+      await c.guardar();
+      await apariencia(c);
+      return true;
     case "borrar":
       await c.responder([cabecera("\u26A0\uFE0F", "\xBFBorrar todos tus datos?", "No se puede deshacer"), "", bloque("\u{1F5D1}", "Se eliminar\xE1", "\u2022 tu perfil", "\u2022 tus secciones y temas", "\u2022 tus alarmas, citas y tareas"), "", "<i>Y dejar\xE9 de enviarte mensajes.</i>"].join("\n"), [[{ texto: "\u{1F5D1} S\xED, borrar todo", datos: "p:borrarok" }, { texto: "Cancelar", datos: "p:ver" }]]);
       return true;
@@ -3111,6 +3133,24 @@ async function callback2(c, p) {
   }
 }
 __name(callback2, "callback");
+async function apariencia(c) {
+  const { estilo, modo } = c.u;
+  const marca = /* @__PURE__ */ __name((on2) => on2 ? "\u2705 " : "", "marca");
+  await c.responder([
+    cabecera("\u{1F3A8}", "Apariencia", "C\xF3mo se ve el men\xFA"),
+    "",
+    bloque("\u{1F60A}", "Estilo", estilo === "formal" ? "Formal \xB7 sobrio y profesional" : "Informal \xB7 cercano y colorido"),
+    "",
+    bloque("\u{1F317}", "Modo", modo === "oscuro" ? "Oscuro" : "Claro"),
+    "",
+    "<i>Elige tu estilo y el modo que usas en Telegram. Se aplica al men\xFA principal \u{1F447}</i>"
+  ].join("\n"), [
+    [{ texto: `${marca(estilo === "informal")}\u{1F60A} Informal`, datos: "p:est:informal" }, { texto: `${marca(estilo === "formal")}\u{1F454} Formal`, datos: "p:est:formal" }],
+    [{ texto: `${marca(modo === "claro")}\u2600\uFE0F Claro`, datos: "p:modo:claro" }, { texto: `${marca(modo === "oscuro")}\u{1F319} Oscuro`, datos: "p:modo:oscuro" }],
+    [{ texto: "\u{1F464} Mi perfil", datos: "p:ver" }, BTN_MENU]
+  ]);
+}
+__name(apariencia, "apariencia");
 async function crearTema(c, consulta) {
   const titulo = String(c.estado?.datos.titulo ?? "").trim();
   if (!titulo) return true;
@@ -3578,6 +3618,20 @@ function mensajeAviso(e, zona, ahora, retrasado = false) {
 }
 __name(mensajeAviso, "mensajeAviso");
 
+// ../firebase/functions/src/bot/menu.ts
+async function mostrarMenu(c) {
+  const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase);
+  const cb = c.entrada.callback;
+  if (m.foto && c.deps.canal.enviarFoto) {
+    if (cb) await c.deps.canal.borrar?.(c.u.id, cb.mensajeId);
+    await c.deps.canal.enviarFoto(c.u.id, m.foto, m.html, m.teclado);
+    return;
+  }
+  if (cb) await c.responder(m.html, m.teclado);
+  else await c.nuevo(m.html, m.teclado);
+}
+__name(mostrarMenu, "mostrarMenu");
+
 // ../firebase/functions/src/bot/onboarding.ts
 var FLUJO = "onb";
 var datos = /* @__PURE__ */ __name((c) => c.estado?.flujo === FLUJO ? c.estado.datos : {}, "datos");
@@ -3614,14 +3668,29 @@ function tecladoTemas(d) {
   return [...filas, [SIGUIENTE("Siguiente \u27A1\uFE0F", "o:sig")], [OMITIR_TODO]];
 }
 __name(tecladoTemas, "tecladoTemas");
-var TEXTO_SECCIONES = [cabecera("\u{1F4CB}", "\xBFQu\xE9 quieres recibir?", "Paso 1 de 6"), "", "Un resumen cada d\xEDa, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
-var TEXTO_TEMAS = [cabecera("\u2B50", "\xBFQu\xE9 te interesa?", "Paso 2 de 6"), "", "Crear\xE9 una secci\xF3n de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
-var PASOS = ["inicio", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"];
+var TEXTO_ESTILO = [cabecera("\u{1F3A8}", "\xBFQu\xE9 estilo prefieres?", "Paso 1 de 8"), "", bloque("\u{1F60A}", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("\u{1F454}", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
+var TEXTO_MODO = [cabecera("\u{1F317}", "\xBFClaro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
+async function vistaPrevia(c, opciones) {
+  if (!c.deps.urlBase || !c.deps.canal.enviarFoto) return;
+  for (const o of opciones) await c.deps.canal.enviarFoto(c.u.id, `${c.deps.urlBase.replace(/\/+$/, "")}/menu-${o.archivo}.png`, o.pie).catch(() => void 0);
+}
+__name(vistaPrevia, "vistaPrevia");
+var TEXTO_SECCIONES = [cabecera("\u{1F4CB}", "\xBFQu\xE9 quieres recibir?", "Paso 3 de 8"), "", "Un resumen cada d\xEDa, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
+var TEXTO_TEMAS = [cabecera("\u2B50", "\xBFQu\xE9 te interesa?", "Paso 4 de 8"), "", "Crear\xE9 una secci\xF3n de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
+var PASOS = ["inicio", "estilo", "modo", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"];
 async function mostrarPaso(c, paso) {
   const d = datos(c);
   c.u.estado = { flujo: FLUJO, paso, datos: d };
   await c.guardar();
   switch (paso) {
+    case "estilo":
+      await vistaPrevia(c, [{ archivo: "informal-claro", pie: "\u{1F60A} <b>Informal</b>" }, { archivo: "formal-claro", pie: "\u{1F454} <b>Formal</b>" }]);
+      await c.nuevo(TEXTO_ESTILO, [[{ texto: "\u{1F60A} Informal", datos: "o:est:informal" }, { texto: "\u{1F454} Formal", datos: "o:est:formal" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      break;
+    case "modo":
+      await vistaPrevia(c, [{ archivo: `${c.u.estilo}-claro`, pie: "\u2600\uFE0F <b>Claro</b>" }, { archivo: `${c.u.estilo}-oscuro`, pie: "\u{1F319} <b>Oscuro</b>" }]);
+      await c.nuevo(TEXTO_MODO, [[{ texto: "\u2600\uFE0F Claro", datos: "o:modo:claro" }, { texto: "\u{1F319} Oscuro", datos: "o:modo:oscuro" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      break;
     case "secciones":
       d.tocoIntereses = true;
       await c.responder(TEXTO_SECCIONES, tecladoIntereses(d));
@@ -3630,16 +3699,16 @@ async function mostrarPaso(c, paso) {
       await c.responder(TEXTO_TEMAS, tecladoTemas(d));
       break;
     case "extra":
-      await c.responder([cabecera("\u270D\uFE0F", "\xBFAlg\xFAn otro inter\xE9s?", "Paso 3 de 6"), "", "Escr\xEDbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u270D\uFE0F", "\xBFAlg\xFAn otro inter\xE9s?", "Paso 5 de 8"), "", "Escr\xEDbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "nombre":
-      await c.responder([cabecera("\u{1F464}", "\xBFC\xF3mo te llamo?", "Paso 4 de 6"), "", "<i>Escribe tu nombre \u{1F447}</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u{1F464}", "\xBFC\xF3mo te llamo?", "Paso 6 de 8"), "", "<i>Escribe tu nombre \u{1F447}</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "nacimiento":
-      await c.responder([cabecera("\u{1F382}", "Tu fecha de nacimiento", "Paso 5 de 6"), "", bloque("\u{1F52E}", "Para qu\xE9", "Tu signo y tu hor\xF3scopo diario"), "", "Escr\xEDbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aqu\xED y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u{1F382}", "Tu fecha de nacimiento", "Paso 7 de 8"), "", bloque("\u{1F52E}", "Para qu\xE9", "Tu signo y tu hor\xF3scopo diario"), "", "Escr\xEDbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aqu\xED y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "ciudad":
-      await c.responder([cabecera("\u{1F4CD}", "\xBFD\xF3nde vives?", "Paso 6 de 6"), "", bloque("\u26C5", "Para qu\xE9", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u{1F4CD}", "\xBFD\xF3nde vives?", "Paso 8 de 8"), "", bloque("\u26C5", "Para qu\xE9", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "fin":
       await resumenFinal(c);
@@ -3688,7 +3757,7 @@ async function terminar(c, omitido) {
   c.u.estado = null;
   await c.guardar();
   await sincronizarSecciones(c.almacen, c.u, ahora);
-  await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
+  await mostrarMenu(c);
 }
 __name(terminar, "terminar");
 async function callback4(c, p) {
@@ -3731,6 +3800,16 @@ async function callback4(c, p) {
       await c.guardar();
     }
     await mostrarPaso(c, "fin");
+    return true;
+  }
+  if (p[1] === "est") {
+    c.u.estilo = p[2] === "formal" ? "formal" : "informal";
+    await mostrarPaso(c, "modo");
+    return true;
+  }
+  if (p[1] === "modo") {
+    c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro";
+    await mostrarPaso(c, "secciones");
     return true;
   }
   if (p[1] === "sig") {
@@ -3788,10 +3867,7 @@ async function texto3(c) {
 __name(texto3, "texto");
 
 // ../firebase/functions/src/bot/bot.ts
-async function menu(c) {
-  await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
-}
-__name(menu, "menu");
+var menu = mostrarMenu;
 async function mostrarSeccion(c, ref2, editar = false) {
   await entregarSeccion(c, ref2, construirSeccion(c, ref2), editar);
 }
@@ -3839,7 +3915,8 @@ async function cancelar(c) {
     await terminar(c, true);
     return;
   }
-  await c.nuevo(habia ? "Cancelado." : "No hab\xEDa nada que cancelar.", tecladoMenuPara(c.esAdmin));
+  await c.nuevo(habia ? "Cancelado." : "No hab\xEDa nada que cancelar.");
+  await mostrarMenu(c);
 }
 __name(cancelar, "cancelar");
 async function comando2(c, texto4) {
@@ -3849,12 +3926,12 @@ async function comando2(c, texto4) {
     case "/start":
       if (c.u.onboardingHecho) {
         await c.terminarFlujo();
-        await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
+        await mostrarMenu(c);
       } else await iniciar(c);
       return true;
     case "/menu":
       await c.terminarFlujo();
-      await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
+      await mostrarMenu(c);
       return true;
     case "/hoy":
       await c.terminarFlujo();
@@ -3963,7 +4040,8 @@ async function atenderTexto(c) {
     return;
   }
   if (c.u.estado && (await texto3(c) || await texto2(c) || await texto(c))) return;
-  await c.nuevo("Usa el men\xFA para moverte por la agenda \u{1F447}", tecladoMenuPara(c.esAdmin));
+  await c.nuevo("Usa el men\xFA para moverte por la agenda \u{1F447}");
+  await mostrarMenu(c);
 }
 __name(atenderTexto, "atenderTexto");
 async function manejarEntrada(deps, entrada) {
@@ -4020,13 +4098,17 @@ var ErrorTelegram = class extends Error {
     return this.codigo === 403 && /blocked|deactivated|kicked|initiate|not a member|chat not found/i.test(this.message);
   }
 };
-function aMarkup(teclado) {
+function aMarkup(teclado, colores = true) {
   if (!teclado || teclado.length === 0) return void 0;
   return {
-    inline_keyboard: teclado.map((fila) => fila.map((b) => b.url ? { text: b.texto, url: b.url } : { text: b.texto, callback_data: b.datos ?? "noop" }))
+    inline_keyboard: teclado.map((fila) => fila.map((b) => {
+      const color = colores && b.color ? { style: b.color } : {};
+      return b.url ? { text: b.texto, url: b.url, ...color } : { text: b.texto, callback_data: b.datos ?? "noop", ...color };
+    }))
   };
 }
 __name(aMarkup, "aMarkup");
+var tieneColores = /* @__PURE__ */ __name((t) => !!t?.some((f) => f.some((b) => b.color)), "tieneColores");
 var CanalTelegram = class {
   constructor(token, http) {
     this.token = token;
@@ -4046,32 +4128,63 @@ var CanalTelegram = class {
       throw new ErrorTelegram(resp?.data?.description ?? e.message, resp?.status);
     }
   }
+  /** Botones de colores: si la API los rechaza (versión que no los admite), se reintenta sin colores y no se vuelve a intentar. */
+  sinColores = false;
+  async conColores(teclado, f) {
+    if (!tieneColores(teclado) || this.sinColores) return f(aMarkup(teclado, false));
+    try {
+      return await f(aMarkup(teclado, true));
+    } catch (e) {
+      if (e instanceof ErrorTelegram && e.codigo === 400) {
+        this.sinColores = true;
+        return f(aMarkup(teclado, false));
+      }
+      throw e;
+    }
+  }
   async enviar(chatId, html, teclado) {
     const partes = trocear(html);
     for (let i = 0; i < partes.length; i++) {
-      await this.llamar("sendMessage", {
+      const ultimo = i === partes.length - 1;
+      await this.conColores(ultimo ? teclado : void 0, (markup) => this.llamar("sendMessage", {
         chat_id: chatId,
         text: partes[i],
         parse_mode: "HTML",
         disable_web_page_preview: true,
-        reply_markup: i === partes.length - 1 ? aMarkup(teclado) : void 0
-      });
+        reply_markup: ultimo ? markup : void 0
+      }));
+    }
+  }
+  async enviarFoto(chatId, urlFoto, html, teclado) {
+    if (html.length > 1e3) return this.enviar(chatId, html, teclado);
+    try {
+      await this.conColores(teclado, (markup) => this.llamar("sendPhoto", { chat_id: chatId, photo: urlFoto, caption: html, parse_mode: "HTML", reply_markup: markup }));
+    } catch (e) {
+      if (e instanceof ErrorTelegram && e.bloqueado) throw e;
+      await this.enviar(chatId, html, teclado);
+    }
+  }
+  async borrar(chatId, mensajeId) {
+    try {
+      await this.llamar("deleteMessage", { chat_id: chatId, message_id: mensajeId });
+    } catch {
     }
   }
   async editar(chatId, mensajeId, html, teclado) {
     if (html.length > 3900) return this.enviar(chatId, html, teclado);
     try {
-      await this.llamar("editMessageText", {
+      await this.conColores(teclado, (markup) => this.llamar("editMessageText", {
         chat_id: chatId,
         message_id: mensajeId,
         text: html,
         parse_mode: "HTML",
         disable_web_page_preview: true,
-        reply_markup: aMarkup(teclado) ?? { inline_keyboard: [] }
-      });
+        reply_markup: markup ?? { inline_keyboard: [] }
+      }));
     } catch (e) {
       if (e instanceof ErrorTelegram && /not modified/i.test(e.message)) return;
       if (e instanceof ErrorTelegram && e.bloqueado) throw e;
+      if (e instanceof ErrorTelegram && /no text in the message to edit/i.test(e.message)) await this.borrar(chatId, mensajeId);
       await this.enviar(chatId, html, teclado);
     }
   }
@@ -4300,7 +4413,7 @@ async function llamarInterno(env2, ruta, cuerpo) {
 }
 __name(llamarInterno, "llamarInterno");
 var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es", directo: true }), "horoscopoCfg");
-function dependencias(env2, s, remoto) {
+function dependencias(env2, s, remoto, urlBase) {
   return {
     almacen: new AlmacenD1(env2.DB),
     canal: s.canal,
@@ -4309,6 +4422,7 @@ function dependencias(env2, s, remoto) {
     horoscopoCfg: horoscopoCfg(env2),
     podcastFeed: env2.PODCAST_FEED ?? FEED_PODCAST,
     adminId: env2.ADMIN_CHAT_ID?.trim() || void 0,
+    urlBase,
     construirRemoto: remoto && env2.SELF ? async (p) => {
       const r = await llamarInterno(env2, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");
@@ -4352,7 +4466,7 @@ async function manejarFetch(req, env2, ctx, fabrica = fabricaReal) {
   const cuerpo = await req.json().catch(() => null);
   const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? void 0;
   const valido = req.method === "POST" && iguales(cabeceraSecreta ?? "", env2.TELEGRAM_WEBHOOK_SECRET);
-  const trabajo = procesarWebhook(dependencias(env2, fabrica(env2), true), env2.TELEGRAM_WEBHOOK_SECRET, { metodo: req.method, cabeceraSecreta, cuerpo }, (m) => console.error(m));
+  const trabajo = procesarWebhook(dependencias(env2, fabrica(env2), true, url.origin), env2.TELEGRAM_WEBHOOK_SECRET, { metodo: req.method, cabeceraSecreta, cuerpo }, (m) => console.error(m));
   if (valido && ctx) {
     ctx.waitUntil(trabajo.catch((e) => console.error(`webhook: ${e.message}`)));
     return new Response("ok", { status: 200 });

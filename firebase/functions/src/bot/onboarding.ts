@@ -9,7 +9,7 @@ import { signoDe } from "../signos";
 import { SECCIONES_BASICAS, TEMAS, separarIntereses, slug } from "./catalogo";
 import { bloque, cabecera } from "../util";
 import { Ctx } from "./ctx";
-import { textoMenu, tecladoMenuPara } from "./vistas";
+import { mostrarMenu } from "./menu";
 
 const FLUJO = "onb";
 
@@ -52,29 +52,44 @@ function tecladoTemas(d: Datos): Teclado {
   return [...filas, [SIGUIENTE("Siguiente ➡️", "o:sig")], [OMITIR_TODO]];
 }
 
-const TEXTO_SECCIONES = [cabecera("📋", "¿Qué quieres recibir?", "Paso 1 de 6"), "", "Un resumen cada día, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
-const TEXTO_TEMAS = [cabecera("⭐", "¿Qué te interesa?", "Paso 2 de 6"), "", "Crearé una sección de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+const TEXTO_ESTILO = [cabecera("🎨", "¿Qué estilo prefieres?", "Paso 1 de 8"), "", bloque("😊", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("👔", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
+const TEXTO_MODO = [cabecera("🌗", "¿Claro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
 
-const PASOS = ["inicio", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"] as const;
+/** Cabeceras de ejemplo (si el bot sabe su dirección pública): una por opción, para que se vea qué se elige. */
+async function vistaPrevia(c: Ctx, opciones: { archivo: string; pie: string }[]): Promise<void> {
+  if (!c.deps.urlBase || !c.deps.canal.enviarFoto) return;
+  for (const o of opciones) await c.deps.canal.enviarFoto(c.u.id, `${c.deps.urlBase.replace(/\/+$/, "")}/menu-${o.archivo}.png`, o.pie).catch(() => undefined);
+}
+
+const TEXTO_SECCIONES = [cabecera("📋", "¿Qué quieres recibir?", "Paso 3 de 8"), "", "Un resumen cada día, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+const TEXTO_TEMAS = [cabecera("⭐", "¿Qué te interesa?", "Paso 4 de 8"), "", "Crearé una sección de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+
+const PASOS = ["inicio", "estilo", "modo", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"] as const;
 
 async function mostrarPaso(c: Ctx, paso: (typeof PASOS)[number]): Promise<void> {
   const d = datos(c);
   c.u.estado = { flujo: FLUJO, paso, datos: d as Record<string, unknown> };
   await c.guardar();
   switch (paso) {
+    case "estilo":
+      await vistaPrevia(c, [{ archivo: "informal-claro", pie: "😊 <b>Informal</b>" }, { archivo: "formal-claro", pie: "👔 <b>Formal</b>" }]);
+      await c.nuevo(TEXTO_ESTILO, [[{ texto: "😊 Informal", datos: "o:est:informal" }, { texto: "👔 Formal", datos: "o:est:formal" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+    case "modo":
+      await vistaPrevia(c, [{ archivo: `${c.u.estilo}-claro`, pie: "☀️ <b>Claro</b>" }, { archivo: `${c.u.estilo}-oscuro`, pie: "🌙 <b>Oscuro</b>" }]);
+      await c.nuevo(TEXTO_MODO, [[{ texto: "☀️ Claro", datos: "o:modo:claro" }, { texto: "🌙 Oscuro", datos: "o:modo:oscuro" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "secciones":
       d.tocoIntereses = true;
       await c.responder(TEXTO_SECCIONES, tecladoIntereses(d)); break;
     case "temas":
       await c.responder(TEXTO_TEMAS, tecladoTemas(d)); break;
     case "extra":
-      await c.responder([cabecera("✍️", "¿Algún otro interés?", "Paso 3 de 6"), "", "Escríbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("✍️", "¿Algún otro interés?", "Paso 5 de 8"), "", "Escríbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "nombre":
-      await c.responder([cabecera("👤", "¿Cómo te llamo?", "Paso 4 de 6"), "", "<i>Escribe tu nombre 👇</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("👤", "¿Cómo te llamo?", "Paso 6 de 8"), "", "<i>Escribe tu nombre 👇</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "nacimiento":
-      await c.responder([cabecera("🎂", "Tu fecha de nacimiento", "Paso 5 de 6"), "", bloque("🔮", "Para qué", "Tu signo y tu horóscopo diario"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aquí y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("🎂", "Tu fecha de nacimiento", "Paso 7 de 8"), "", bloque("🔮", "Para qué", "Tu signo y tu horóscopo diario"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aquí y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "ciudad":
-      await c.responder([cabecera("📍", "¿Dónde vives?", "Paso 6 de 6"), "", bloque("⛅", "Para qué", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("📍", "¿Dónde vives?", "Paso 8 de 8"), "", bloque("⛅", "Para qué", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "fin": await resumenFinal(c); break;
     default: break;
   }
@@ -118,7 +133,7 @@ export async function terminar(c: Ctx, omitido: boolean): Promise<void> {
   c.u.estado = null;
   await c.guardar();
   await sincronizarSecciones(c.almacen, c.u, ahora);
-  await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
+  await mostrarMenu(c);
 }
 
 /** Pulsaciones de botones del asistente ("o:..."). */
@@ -145,6 +160,8 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     if (l) { c.u.ciudad = { nombre: l.nombre, provincia: l.provincia, lat: l.lat, lon: l.lon }; c.u.zona = l.zona; await c.guardar(); }
     await mostrarPaso(c, "fin"); return true;
   }
+  if (p[1] === "est") { c.u.estilo = p[2] === "formal" ? "formal" : "informal"; await mostrarPaso(c, "modo"); return true; }
+  if (p[1] === "modo") { c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro"; await mostrarPaso(c, "secciones"); return true; }
   if (p[1] === "sig") {
     const i = PASOS.indexOf((c.estado!.paso as (typeof PASOS)[number]));
     await mostrarPaso(c, PASOS[Math.min(i + 1, PASOS.length - 1)]);

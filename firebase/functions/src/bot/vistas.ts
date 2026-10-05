@@ -6,30 +6,43 @@ import { signoDe } from "../signos";
 import { bloque, cabecera } from "../util";
 import { BTN_MENU } from "./ctx";
 
-export function textoMenu(u: Usuario): string {
+/** Menú principal listo para enviar: texto, botones y, si hay dirección pública, la cabecera (imagen) del estilo y modo elegidos. */
+export interface MenuPrincipal { html: string; teclado: Teclado; foto?: string }
+
+/**
+ * Iconos del menú. Informal: pictogramas. Formal: un cuadrado de color como acento (el «filo» de color de las tarjetas del diseño formal).
+ * Telegram no permite cambiar la tipografía ni dibujar iconos en los botones: solo texto y emojis.
+ */
+const ICONOS = {
+  informal: { resumen: "📋", nueva: "⏰", eventos: "📅", secciones: "🧩", perfil: "👤", ayuda: "❓", ajustes: "⚙️", acceso: "🔐" },
+  formal: { resumen: "🟦", nueva: "🟪", eventos: "🟧", secciones: "🟩", perfil: "🟦", ayuda: "🟥", ajustes: "🟩", acceso: "🟫" },
+} as const;
+
+export function menuPrincipal(u: Usuario, admin: boolean, urlBase?: string): MenuPrincipal {
+  const ic = ICONOS[u.estilo];
   const activas = seccionesActivas(u).length;
-  return [
-    cabecera("🗓", "Agenda Personal", u.nombre ? `Hola, ${esc(u.nombre)} 👋` : "¿Qué quieres hacer?"),
-    "",
-    bloque("📋", "Resumen de hoy", "Lo que tienes activado, al momento"),
-    "",
-    bloque("⏰", "Alarmas, citas y tareas", "Crearlas, verlas y modificarlas"),
-    "",
-    bloque("⚙️", "Ajustes", activas ? `${activas} ${activas === 1 ? "sección" : "secciones"} activa${activas === 1 ? "" : "s"} · tu perfil` : "Activa tus secciones y completa tu perfil"),
-    "",
-    "<i>Elige una opción 👇</i>",
-  ].join("\n");
+  const ajustes = activas ? `${activas} ${activas === 1 ? "sección" : "secciones"} activa${activas === 1 ? "" : "s"} · tu perfil` : "Activa tus secciones y completa tu perfil";
+  const filas = [
+    bloque(ic.resumen, "Resumen de hoy", "Lo que tienes activado, al momento"),
+    bloque(ic.nueva, "Alarmas, citas y tareas", "Crearlas, verlas y modificarlas"),
+    bloque(ic.ajustes, "Ajustes", ajustes),
+  ];
+  const cabecera_ = u.estilo === "formal"
+    ? [`<b>AGENDA PERSONAL</b>`, `<i>${u.nombre ? `Hola, ${esc(u.nombre)}` : "Bienvenido"} · Tu tiempo, tus planes</i>`, "──────────────"]
+    : [cabecera("🗓", "Agenda Personal", u.nombre ? `¡Hola, ${esc(u.nombre)}! 👋` : "¿Qué quieres hacer?")];
+  const html = [...cabecera_, "", filas.join("\n\n"), "", u.estilo === "formal" ? "<i>Seleccione una opción 👇</i>" : "<i>Elige una opción 👇</i>"].join("\n");
+
+  const b = (icono: string, texto: string, datos: string, color?: "primary" | "success" | "danger") => ({ texto: `${icono} ${texto}`, datos, ...(color ? { color } : {}) });
+  const resumen = b(ic.resumen, "Resumen de hoy", "m:hoy", "primary"), nueva = b(ic.nueva, "Nueva alarma, cita o tarea", "n:menu");
+  const eventos = b(ic.eventos, "Mis eventos", "e:lista"), secciones = b(ic.secciones, "Mis secciones", "s:lista", "success");
+  const perfil = b(ic.perfil, "Mi perfil", "p:ver", "primary"), ayuda = b(ic.ayuda, "Ayuda", "m:ayuda", "danger");
+  const teclado: Teclado =
+    u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]]
+      : u.modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]]
+        : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
+  if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
+  return { html, teclado, ...(urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${u.modo}.png` } : {}) };
 }
-
-export const tecladoMenu: Teclado = [
-  [{ texto: "📋 Resumen de hoy", datos: "m:hoy" }],
-  [{ texto: "➕ Nueva alarma, cita o tarea", datos: "n:menu" }, { texto: "📅 Mis eventos", datos: "e:lista" }],
-  [{ texto: "🧩 Mis secciones", datos: "s:lista" }, { texto: "👤 Mi perfil", datos: "p:ver" }],
-  [{ texto: "❓ Ayuda", datos: "m:ayuda" }],
-];
-
-/** El menú de siempre; el administrador tiene además el botón «Acceso» (invitaciones, solicitudes y usuarios). */
-export const tecladoMenuPara = (admin: boolean): Teclado => (admin ? [...tecladoMenu.slice(0, 3), [{ texto: "🔐 Acceso", datos: "acc:menu" }], tecladoMenu[3]] : tecladoMenu);
 
 export const textoAyuda = [
   cabecera("❓", "Ayuda", "Cómo funciona tu agenda"),
@@ -79,13 +92,16 @@ export function textoPerfil(u: Usuario): string {
     "",
     bloque("🕐", "Zona horaria", esc(u.zona)),
     "",
+    bloque("🎨", "Apariencia", `${u.estilo === "formal" ? "Formal" : "Informal"} · ${u.modo === "oscuro" ? "oscuro" : "claro"}`),
+    "",
     "<i>Solo guardo esto para prepararte los resúmenes. Puedes borrarlo cuando quieras con /borrar.</i>",
   ].join("\n");
 }
 
 export const tecladoPerfil: Teclado = [
   [{ texto: "✏️ Nombre", datos: "p:nombre" }, { texto: "🎂 Nacimiento", datos: "p:nacimiento" }],
-  [{ texto: "📍 Ciudad", datos: "p:ciudad" }, { texto: "🗑 Borrar mis datos", datos: "p:borrar" }],
+  [{ texto: "📍 Ciudad", datos: "p:ciudad" }, { texto: "🎨 Apariencia", datos: "p:apar" }],
+  [{ texto: "🗑 Borrar mis datos", datos: "p:borrar" }],
   [BTN_MENU],
 ];
 

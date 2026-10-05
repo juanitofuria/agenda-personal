@@ -18,6 +18,8 @@ export interface Deps {
    * Si no está definido, cualquiera puede usarlo (comportamiento abierto).
    */
   adminId?: string;
+  /** Dirección pública del bot (p. ej. https://agenda.workers.dev): de ahí se bajan las cabeceras del menú. Sin ella, el menú es solo texto. */
+  urlBase?: string;
   /** Dónde pedir el horóscopo si falta el de hoy. */
   horoscopoCfg?: Config;
   podcastFeed?: string;

@@ -299,3 +299,26 @@ test("con ADMIN_CHAT_ID el Worker es privado: solo entran el administrador y qui
     assert.ok(await almacen.getUsuario("42")); assert.equal((await almacen.getAcceso("42"))?.rol, privado ? "admin" : undefined);
   }
 });
+
+test("las cuatro cabeceras del menú existen como imágenes PNG válidas y de un tamaño que Telegram admite", () => {
+  for (const estilo of ["informal", "formal"]) for (const modo of ["claro", "oscuro"]) {
+    const f = readFileSync(join(__dirname, "..", "..", "..", "publico", `menu-${estilo}-${modo}.png`));
+    assert.deepEqual([...f.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], `${estilo}-${modo}: firma PNG`);
+    const ancho = f.readUInt32BE(16), alto = f.readUInt32BE(20);
+    assert.ok(ancho >= 800 && alto >= 200 && ancho / alto <= 20 && ancho + alto <= 10_000, `${estilo}-${modo}: ${ancho}x${alto}`);
+    assert.ok(f.length > 20_000 && f.length < 5_000_000, `${estilo}-${modo}: ${f.length} bytes (Telegram admite hasta 5 MB por URL)`);
+  }
+});
+
+test("el webhook usa su propia dirección para la cabecera del menú, según el estilo y modo del usuario", async () => {
+  const e = entorno();
+  const almacen = new AlmacenD1(e.env.DB);
+  await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
+  const u = (await almacen.getUsuario("42"))!; await almacen.guardarUsuario({ ...u, estilo: "formal", modo: "oscuro" });
+  assert.deepEqual([(await almacen.getUsuario("42"))!.estilo, (await almacen.getUsuario("42"))!.modo], ["formal", "oscuro"]); // se guardan en D1
+  e.canal.limpiar();
+  await e.escribir("/menu"); await e.esperar();
+  const foto = e.canal.mensajes.find((m) => m.foto)!;
+  assert.equal(foto.foto, "https://x.workers.dev/menu-formal-oscuro.png"); // el origen de la petición
+  assert.match(foto.html, /AGENDA PERSONAL/);
+});

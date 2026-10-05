@@ -143,3 +143,51 @@ test("un 403 solo cuenta como «usuario bloqueado» si Telegram lo dice; el de u
   assert.equal(new ErrorTelegram("Bad Request: chat not found", 400).bloqueado, false);
   assert.equal(new ErrorTelegram("Too Many Requests", 429).bloqueado, false);
 });
+
+// ---------- Foto, borrado y botones de colores ----------
+const FOTO = "https://agenda.test/menu-informal-claro.png";
+
+test("CanalTelegram.enviarFoto: sendPhoto con la URL, el pie en HTML y los botones (con su color); si Telegram no puede con la imagen, llega el texto", async () => {
+  const teclado = [[{ texto: "📋 Resumen", datos: "m:hoy", color: "primary" as const }, { texto: "Web", url: "https://x.es" }]];
+  const a = httpTelegram();
+  await new CanalTelegram("T", a.http).enviarFoto("42", FOTO, "<b>Hola</b>", teclado);
+  assert.equal(a.llamadas.length, 1); assert.ok(a.llamadas[0].url.endsWith("/sendPhoto"));
+  assert.equal(a.llamadas[0].cuerpo.photo, FOTO); assert.equal(a.llamadas[0].cuerpo.caption, "<b>Hola</b>"); assert.equal(a.llamadas[0].cuerpo.parse_mode, "HTML");
+  assert.deepEqual(a.llamadas[0].cuerpo.reply_markup.inline_keyboard[0], [{ text: "📋 Resumen", callback_data: "m:hoy", style: "primary" }, { text: "Web", url: "https://x.es" }]);
+  const b = httpTelegram((url) => (url.endsWith("sendPhoto") ? errTg(400, "Bad Request: wrong file identifier/HTTP URL specified") : { ok: true }));
+  await new CanalTelegram("T", b.http).enviarFoto("42", FOTO, "<b>Hola</b>", [[{ texto: "A", datos: "a:1" }]]);
+  assert.deepEqual(b.llamadas.map((l) => l.url.split("/").pop()), ["sendPhoto", "sendMessage"]); // sin imagen, al menos el texto y los botones
+  const c = httpTelegram(() => errTg(403, "Forbidden: bot was blocked by the user"));
+  await assert.rejects(new CanalTelegram("T", c.http).enviarFoto("42", FOTO, "x"), (e: ErrorTelegram) => e.bloqueado); // un bloqueo no se disimula
+  const d = httpTelegram(); // pie demasiado largo para una foto (máx. 1024): se envía como texto
+  await new CanalTelegram("T", d.http).enviarFoto("42", FOTO, "x".repeat(1100)); assert.ok(d.llamadas[0].url.endsWith("/sendMessage"));
+});
+
+test("CanalTelegram.borrar y editar: un mensaje que es una foto se borra y se sustituye por uno nuevo (no se puede convertir en texto)", async () => {
+  const a = httpTelegram(); await new CanalTelegram("T", a.http).borrar("42", 7);
+  assert.ok(a.llamadas[0].url.endsWith("/deleteMessage")); assert.deepEqual(a.llamadas[0].cuerpo, { chat_id: "42", message_id: 7 });
+  await new CanalTelegram("T", httpTelegram(() => errTg(400, "message can't be deleted")).http).borrar("42", 7); // sin error
+  const b = httpTelegram((url) => (url.endsWith("editMessageText") ? errTg(400, "Bad Request: there is no text in the message to edit") : { ok: true }));
+  await new CanalTelegram("T", b.http).editar("42", 9, "Nuevo", [[{ texto: "A", datos: "a:1" }]]);
+  assert.deepEqual(b.llamadas.map((l) => l.url.split("/").pop()), ["editMessageText", "deleteMessage", "sendMessage"]);
+  assert.equal(b.llamadas[1].cuerpo.message_id, 9);
+});
+
+test("botones de colores: si Telegram los rechaza se reintenta sin color y ya no se vuelven a enviar; sin colores no se manda `style`", async () => {
+  const tecladoColor = [[{ texto: "A", datos: "a:1", color: "success" as const }]];
+  const a = httpTelegram((_u, cuerpo) => (JSON.stringify(cuerpo).includes('"style"') ? errTg(400, "Bad Request: unsupported button field") : { ok: true }));
+  const canal = new CanalTelegram("T", a.http);
+  await canal.enviar("42", "hola", tecladoColor);
+  assert.equal(a.llamadas.length, 2); assert.ok(a.llamadas[0].cuerpo.reply_markup.inline_keyboard[0][0].style); assert.equal(a.llamadas[1].cuerpo.reply_markup.inline_keyboard[0][0].style, undefined);
+  await canal.enviar("42", "otra vez", tecladoColor); assert.equal(a.llamadas.length, 3); // recuerda que no los admite: ni lo intenta
+  const b = httpTelegram(); await new CanalTelegram("T", b.http).enviar("42", "x", [[{ texto: "A", datos: "a:1" }]]);
+  assert.equal(JSON.stringify(b.llamadas[0].cuerpo).includes("style"), false);
+  const c = httpTelegram(() => errTg(429, "Too Many Requests")); // otros errores no se confunden con «no admite colores»
+  await assert.rejects(new CanalTelegram("T", c.http).enviar("42", "x", tecladoColor)); assert.equal(c.llamadas.length, 1);
+});
+
+test("usuarioDesdeDoc: estilo y modo por defecto (informal, claro) y se respetan los guardados", () => {
+  assert.deepEqual([usuarioDesdeDoc("1", {}).estilo, usuarioDesdeDoc("1", {}).modo], ["informal", "claro"]);
+  assert.deepEqual([usuarioDesdeDoc("1", { estilo: "formal", modo: "oscuro" }).estilo, usuarioDesdeDoc("1", { estilo: "formal", modo: "oscuro" }).modo], ["formal", "oscuro"]);
+  assert.deepEqual([usuarioDesdeDoc("1", { estilo: "raro", modo: "?" }).estilo, usuarioDesdeDoc("1", { estilo: "raro", modo: "?" }).modo], ["informal", "claro"]);
+});

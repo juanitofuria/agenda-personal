@@ -115,10 +115,32 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
       }
       return true;
     }
+    case "apar": await apariencia(c); return true;
+    case "est": c.u.estilo = p[2] === "formal" ? "formal" : "informal"; await c.guardar(); await apariencia(c); return true;
+    case "modo": c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro"; await c.guardar(); await apariencia(c); return true;
     case "borrar": await c.responder([cabecera("⚠️", "¿Borrar todos tus datos?", "No se puede deshacer"), "", bloque("🗑", "Se eliminará", "• tu perfil", "• tus secciones y temas", "• tus alarmas, citas y tareas"), "", "<i>Y dejaré de enviarte mensajes.</i>"].join("\n"), [[{ texto: "🗑 Sí, borrar todo", datos: "p:borrarok" }, { texto: "Cancelar", datos: "p:ver" }]]); return true;
     case "borrarok": await c.almacen.borrarUsuario(c.u.id); await c.responder([cabecera("🗑", "Datos borrados"), "", "No te enviaré más mensajes.", "", "<i>Si quieres volver, escribe /start.</i>"].join("\n")); return true;
     default: return true;
   }
+}
+
+/** Cambiar el estilo (informal/formal) y el modo (claro/oscuro) del menú. */
+async function apariencia(c: Ctx): Promise<void> {
+  const { estilo, modo } = c.u;
+  const marca = (on: boolean) => (on ? "✅ " : "");
+  await c.responder([
+    cabecera("🎨", "Apariencia", "Cómo se ve el menú"),
+    "",
+    bloque("😊", "Estilo", estilo === "formal" ? "Formal · sobrio y profesional" : "Informal · cercano y colorido"),
+    "",
+    bloque("🌗", "Modo", modo === "oscuro" ? "Oscuro" : "Claro"),
+    "",
+    "<i>Elige tu estilo y el modo que usas en Telegram. Se aplica al menú principal 👇</i>",
+  ].join("\n"), [
+    [{ texto: `${marca(estilo === "informal")}😊 Informal`, datos: "p:est:informal" }, { texto: `${marca(estilo === "formal")}👔 Formal`, datos: "p:est:formal" }],
+    [{ texto: `${marca(modo === "claro")}☀️ Claro`, datos: "p:modo:claro" }, { texto: `${marca(modo === "oscuro")}🌙 Oscuro`, datos: "p:modo:oscuro" }],
+    [{ texto: "👤 Mi perfil", datos: "p:ver" }, BTN_MENU],
+  ]);
 }
 
 async function crearTema(c: Ctx, consulta: string | undefined): Promise<boolean> {

@@ -3,6 +3,10 @@ main = "dist/worker.js"   # Worker ya empaquetado (se genera con `npm run empaqu
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]   # necesario para `node:crypto` y `Buffer` (comparación segura del secreto)
 
+# Cabeceras del menú (PNG): se sirven desde la propia dirección del Worker y Telegram las descarga de ahí. Se generan con tools/banners.
+[assets]
+directory = "./publico"
+
 [triggers]
 # Hora UTC. El primero es el planificador (cada minuto); el segundo descarga el horóscopo (ver CRON_HOROSCOPO en worker.ts).
 crons = ["* * * * *", "*/10 4-10 * * *"]

@@ -69,10 +69,10 @@ async function llamarInterno<T>(env: Env, ruta: string, cuerpo: unknown): Promis
 const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es", directo: true });
 
 /** `remoto`: las secciones se construyen en otra ejecución (la principal solo las envía). */
-function dependencias(env: Env, s: Servicios, remoto: boolean): Deps & { almacen: AlmacenD1 } {
+function dependencias(env: Env, s: Servicios, remoto: boolean, urlBase?: string): Deps & { almacen: AlmacenD1 } {
   return {
     almacen: new AlmacenD1(env.DB), canal: s.canal, http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
-    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined,
+    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined, urlBase,
     construirRemoto: remoto && env.SELF ? async (p) => {
       const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecución interna");
@@ -120,7 +120,7 @@ export async function manejarFetch(req: Request, env: Env, ctx?: Ctx, fabrica: F
   const cuerpo = await req.json().catch(() => null);
   const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? undefined;
   const valido = req.method === "POST" && iguales(cabeceraSecreta ?? "", env.TELEGRAM_WEBHOOK_SECRET);
-  const trabajo = procesarWebhook(dependencias(env, fabrica(env), true), env.TELEGRAM_WEBHOOK_SECRET, { metodo: req.method, cabeceraSecreta, cuerpo }, (m) => console.error(m));
+  const trabajo = procesarWebhook(dependencias(env, fabrica(env), true, url.origin), env.TELEGRAM_WEBHOOK_SECRET, { metodo: req.method, cabeceraSecreta, cuerpo }, (m) => console.error(m));
   if (valido && ctx) {
     // Se responde 200 a Telegram al instante y el trabajo sigue en segundo plano (hasta 30 s): así no depende de que Telegram espere.
     ctx.waitUntil(trabajo.catch((e) => console.error(`webhook: ${(e as Error).message}`)));

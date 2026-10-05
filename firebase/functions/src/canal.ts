@@ -1,5 +1,6 @@
 /** Canal de mensajería (Telegram hoy; WhatsApp u otro mañana): lo único que el bot necesita de él. */
-export interface Boton { texto: string; datos?: string; url?: string }
+/** `color`: color del botón en Telegram (azul, verde o rojo) si la versión de la app lo admite; si no, se ignora. */
+export interface Boton { texto: string; datos?: string; url?: string; color?: "primary" | "success" | "danger" }
 export type Teclado = Boton[][];
 
 export interface Entrada {
@@ -20,6 +21,10 @@ export interface Canal {
   /** Edita un mensaje anterior (si no se puede, envía uno nuevo). */
   editar(chatId: string, mensajeId: number, html: string, teclado?: Teclado): Promise<void>;
   responderCallback(callbackId: string, texto?: string): Promise<void>;
+  /** Envía una imagen (por URL pública) con un texto y botones debajo. Si no se puede, envía solo el texto. */
+  enviarFoto?(chatId: string, urlFoto: string, html: string, teclado?: Teclado): Promise<void>;
+  /** Borra un mensaje (si no se puede, no pasa nada). */
+  borrar?(chatId: string, mensajeId: number): Promise<void>;
   /** Nombre de usuario del propio bot (para construir enlaces de invitación). */
   nombreUsuario?(): Promise<string | undefined>;
 }

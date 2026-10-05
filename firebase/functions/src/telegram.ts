@@ -14,12 +14,16 @@ export class ErrorTelegram extends Error {
   get bloqueado() { return this.codigo === 403 && /blocked|deactivated|kicked|initiate|not a member|chat not found/i.test(this.message); }
 }
 
-function aMarkup(teclado?: Teclado) {
+function aMarkup(teclado?: Teclado, colores = true) {
   if (!teclado || teclado.length === 0) return undefined;
   return {
-    inline_keyboard: teclado.map((fila) => fila.map((b: Boton) => (b.url ? { text: b.texto, url: b.url } : { text: b.texto, callback_data: b.datos ?? "noop" }))),
+    inline_keyboard: teclado.map((fila) => fila.map((b: Boton) => {
+      const color = colores && b.color ? { style: b.color } : {};
+      return b.url ? { text: b.texto, url: b.url, ...color } : { text: b.texto, callback_data: b.datos ?? "noop", ...color };
+    })),
   };
 }
+const tieneColores = (t?: Teclado) => !!t?.some((f) => f.some((b) => b.color));
 
 export class CanalTelegram implements Canal {
   constructor(private token: string, private http: HttpPost) {}
@@ -34,25 +38,52 @@ export class CanalTelegram implements Canal {
     }
   }
 
+  /** Botones de colores: si la API los rechaza (versión que no los admite), se reintenta sin colores y no se vuelve a intentar. */
+  private sinColores = false;
+  private async conColores(teclado: Teclado | undefined, f: (markup: ReturnType<typeof aMarkup>) => Promise<any>): Promise<any> {
+    if (!tieneColores(teclado) || this.sinColores) return f(aMarkup(teclado, false));
+    try { return await f(aMarkup(teclado, true)); }
+    catch (e) {
+      if (e instanceof ErrorTelegram && e.codigo === 400) { this.sinColores = true; return f(aMarkup(teclado, false)); }
+      throw e;
+    }
+  }
+
   async enviar(chatId: string, html: string, teclado?: Teclado) {
     const partes = trocear(html);
     for (let i = 0; i < partes.length; i++) {
-      await this.llamar("sendMessage", {
-        chat_id: chatId, text: partes[i], parse_mode: "HTML", disable_web_page_preview: true,
-        reply_markup: i === partes.length - 1 ? aMarkup(teclado) : undefined,
-      });
+      const ultimo = i === partes.length - 1;
+      await this.conColores(ultimo ? teclado : undefined, (markup) => this.llamar("sendMessage", {
+        chat_id: chatId, text: partes[i], parse_mode: "HTML", disable_web_page_preview: true, reply_markup: ultimo ? markup : undefined,
+      }));
     }
+  }
+
+  async enviarFoto(chatId: string, urlFoto: string, html: string, teclado?: Teclado) {
+    if (html.length > 1000) return this.enviar(chatId, html, teclado); // el pie de una foto admite 1024 caracteres
+    try {
+      await this.conColores(teclado, (markup) => this.llamar("sendPhoto", { chat_id: chatId, photo: urlFoto, caption: html, parse_mode: "HTML", reply_markup: markup }));
+    } catch (e) {
+      if (e instanceof ErrorTelegram && e.bloqueado) throw e;
+      await this.enviar(chatId, html, teclado); // Telegram no ha podido bajar la imagen: al menos llega el texto
+    }
+  }
+
+  async borrar(chatId: string, mensajeId: number) {
+    try { await this.llamar("deleteMessage", { chat_id: chatId, message_id: mensajeId }); } catch { /* no es crítico */ }
   }
 
   async editar(chatId: string, mensajeId: number, html: string, teclado?: Teclado) {
     if (html.length > 3900) return this.enviar(chatId, html, teclado);
     try {
-      await this.llamar("editMessageText", {
-        chat_id: chatId, message_id: mensajeId, text: html, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: aMarkup(teclado) ?? { inline_keyboard: [] },
-      });
+      await this.conColores(teclado, (markup) => this.llamar("editMessageText", {
+        chat_id: chatId, message_id: mensajeId, text: html, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: markup ?? { inline_keyboard: [] },
+      }));
     } catch (e) {
       if (e instanceof ErrorTelegram && /not modified/i.test(e.message)) return; // nada que cambiar
       if (e instanceof ErrorTelegram && e.bloqueado) throw e;
+      // Si el mensaje es una foto (el menú con cabecera) no se puede convertir en texto: se borra y se envía uno nuevo.
+      if (e instanceof ErrorTelegram && /no text in the message to edit/i.test(e.message)) await this.borrar(chatId, mensajeId);
       await this.enviar(chatId, html, teclado); // el mensaje original ya no se puede editar
     }
   }
