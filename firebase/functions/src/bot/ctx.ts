@@ -1,6 +1,7 @@
 import { Almacen } from "../almacen";
 import { Canal, Entrada, Teclado } from "../canal";
 import { Estado, Usuario } from "../modelo";
+import { Config } from "../horoscopo";
 import { Contenido } from "../secciones/tipos";
 import { HttpGet } from "../util";
 
@@ -13,7 +14,7 @@ export interface Deps {
    */
   construirRemoto?: (p: { uid: string; ref: string }) => Promise<Contenido>;
   /** Dónde pedir el horóscopo si falta el de hoy. */
-  horoscopoCfg?: { baseUrl: string; idioma: string };
+  horoscopoCfg?: Config;
 }
 
 /** Contexto de una interacción: quién escribe, qué ha pulsado/escrito y cómo responderle. */

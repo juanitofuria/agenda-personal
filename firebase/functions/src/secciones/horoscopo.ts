@@ -1,6 +1,6 @@
 import { esc, escAttr } from "../canal";
 import { fechaIso } from "../fechas";
-import { construirDoc, obtenerSigno, urlSegura } from "../horoscopo";
+import { construirDoc, obtenerHoroscopo, urlSegura } from "../horoscopo";
 import { signoDe } from "../signos";
 import { cabecera } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
@@ -17,7 +17,7 @@ export async function contenidoHoroscopo(ctx: Contexto): Promise<Contenido> {
   const hoyFecha = fechaIso(ctx.ahora, ctx.usuario.zona);
   if ((!doc || doc.fecha !== hoyFecha) && ctx.horoscopoCfg) {
     try {
-      const resp = await obtenerSigno(ctx.http, ctx.horoscopoCfg, signo, hoyFecha, 2, 300);
+      const resp = await obtenerHoroscopo(ctx.http, ctx.horoscopoCfg, signo, hoyFecha, 2, 300);
       const nuevo = construirDoc(signo, hoyFecha, resp, ctx.horoscopoCfg, ctx.ahora);
       if (nuevo && (!doc || nuevo.fecha >= doc.fecha)) { doc = nuevo; await ctx.almacen.guardarHoroscopo(signo.id, nuevo).catch(() => undefined); }
     } catch { /* se usa lo que haya guardado */ }

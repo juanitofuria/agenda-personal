@@ -53,17 +53,30 @@ export function leerRss(xml: string): Noticia[] {
     const it = xml.slice(ini, fin);
     let titulo = etiqueta(it, "title");
     if (!titulo) continue;
-    let fuente = etiqueta(it, "source");
+    let fuente = etiqueta(it, "source") || etiqueta(it, "News:Source"); // Google: <source>; Bing: <News:Source>
     const i = titulo.lastIndexOf(" - ");
     if (i > 0 && (!fuente || titulo.endsWith(` - ${fuente}`))) { if (!fuente) fuente = titulo.slice(i + 3); titulo = titulo.slice(0, i); }
     const fecha = Date.parse(etiqueta(it, "pubDate"));
-    noticias.push({ titulo, fuente, enlace: etiqueta(it, "link"), fecha: Number.isNaN(fecha) ? 0 : fecha });
+    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha });
   }
   return noticias;
 }
 
+/** Los enlaces de Bing News pasan por un redirector (bing.com/news/apiclick…?url=<la noticia>): se enlaza la noticia directamente. */
+function enlaceReal(enlace: string): string {
+  try {
+    const u = new URL(enlace);
+    if (/(^|\.)bing\.com$/.test(u.hostname)) { const destino = u.searchParams.get("url"); if (destino) return destino; }
+  } catch { /* se deja tal cual */ }
+  return enlace;
+}
+
 export const urlGoogleNews = (consulta: string, idioma = "es", pais = "ES") =>
   `https://news.google.com/rss/search?q=${encodeURIComponent(consulta)}&hl=${idioma}&gl=${pais}&ceid=${pais}:${idioma}`;
+
+/** Bing News en RSS. Bing no entiende operadores de Google como `when:1d`, así que se quitan. */
+export const urlBingNews = (consulta: string) =>
+  `https://www.bing.com/news/search?q=${encodeURIComponent(consulta.replace(/\bwhen:\S+/g, "").replace(/\s+/g, " ").trim())}&format=rss&setlang=es-ES&cc=ES`;
 
 /** Solo se enlazan URLs http(s). */
 export function enlaceSeguro(url: string): string {

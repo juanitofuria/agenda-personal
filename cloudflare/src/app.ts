@@ -57,7 +57,8 @@ async function llamarInterno<T>(env: Env, ruta: string, cuerpo: unknown): Promis
   } catch { return null; }
 }
 
-const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es" });
+/** `directo`: el horóscopo se pide primero a 20minutos.es y horoscopefree queda de respaldo (su servicio público falla a veces). */
+const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es", directo: true });
 
 /** `remoto`: las secciones se construyen en otra ejecución (la principal solo las envía). */
 function dependencias(env: Env, s: Servicios, remoto: boolean): Deps & { almacen: AlmacenD1 } {

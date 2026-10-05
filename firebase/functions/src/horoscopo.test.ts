@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { leerPagina20min, obtenerSigno20min, urlSigno20min } from "./horoscopo20min";
 import {
-  SIGNOS, actualizarTodos, comoErrorApi, construirDoc, ErrorApi, fechaEnZona, nombreFuente, obtenerSigno,
+  obtenerHoroscopo, SIGNOS, actualizarTodos, comoErrorApi, construirDoc, ErrorApi, fechaEnZona, nombreFuente, obtenerSigno,
   reintentar, urlHoroscopo, urlSegura, Config, Http, HoroscopoDoc, RespuestaApi,
 } from "./horoscopo";
 
@@ -180,4 +181,68 @@ test("maxPedidos limita los signos pedidos por ejecución y el resto queda para 
   const r3 = await actualizarTodos(dep);
   assert.equal(r3.actualizados.length, 2); assert.equal(guardados.size, 12);
   assert.equal(llamadas.length, 12);
+});
+
+// ---------- 20minutos.es directo ----------
+// Página de ejemplo con la misma estructura que la real (texto inventado): un primer bloque `.prediction` de descripción
+// y un segundo con el archivo fechado: <p class="date"><a>7  abril de 2026</a></p> + <div>texto</div>.
+const TEXTO_HOY = "Hoy conviene que te tomes las cosas con calma, sobre todo en lo que se refiere al trabajo. Por la tarde mejorará el ánimo.";
+const TEXTO_AYER = "Comienza una semana intensa en la que tendrás que organizarte bien para llegar a todo lo que te has propuesto hacer.";
+const pagina20min = (hoy = "7  abril de 2026") => `<html><body>
+<div class="prediction aries"><h2>Aries</h2><p>Descripción general del signo, que no es una predicción del día.</p></div>
+<div class="prediction" style="margin-top: 10px;"><h2>Últimas predicciones</h2>
+<p class="date" style="margin-bottom: 4px;"><a href="https://www.20minutos.es/x/07/04/2026/">${hoy}</a></p>
+<div style="padding-bottom: 1em;">${TEXTO_HOY}</div><p class="date" style="margin-bottom: 4px;"><a href="https://www.20minutos.es/x/06/04/2026/">6  abril de 2026</a></p>
+<div style="padding-bottom: 1em;">${TEXTO_AYER} &amp; más</div><p class="date"><a>5  abril de 2026</a></p><div>corto</div></div></body></html>`;
+const aries = SIGNOS[0];
+
+test("20minutos: lee las entradas fechadas, ignora el bloque de descripción y los textos demasiado cortos", () => {
+  const e = leerPagina20min(pagina20min());
+  assert.deepEqual(e.map((x) => x.fecha), ["2026-04-07", "2026-04-06"]); // la de «corto» se descarta
+  assert.equal(e[0].texto, TEXTO_HOY); assert.match(e[1].texto, /& más$/); // entidades decodificadas
+  assert.deepEqual(leerPagina20min("<html>nada</html>"), []);
+  assert.deepEqual(leerPagina20min('<div class="prediction">solo uno</div>'), []);
+});
+
+test("20minutos: pide la página del signo, elige la fecha pedida o, si aún no está, la más reciente con su fecha", async () => {
+  const urls: string[] = [];
+  const http: Http = { get: async (u: string, o) => { urls.push(`${u}|${o?.headers?.["User-Agent"] ? "UA" : "sin UA"}`); return { data: pagina20min() }; } };
+  const r = await obtenerSigno20min(http, SIGNOS[2], "2026-04-06");
+  assert.equal(urls[0], "https://www.20minutos.es/horoscopo/geminis/|UA"); assert.equal(urlSigno20min(aries), "https://www.20minutos.es/horoscopo/aries/");
+  assert.equal(r.date, "2026-04-06"); assert.match(r.text!, /semana intensa/); assert.equal(r.source, "https://www.20minutos.es/horoscopo/geminis/"); assert.equal(r.language, "es");
+  const sinHoy = await obtenerSigno20min(http, aries, "2026-04-08"); // el de hoy aún no está publicado
+  assert.equal(sinHoy.date, "2026-04-07"); assert.equal(sinHoy.text, TEXTO_HOY);
+  for (const [datos, patron] of [[123, /no válida/], ["<html>vacía</html>", /no he encontrado/]] as const)
+    await assert.rejects(obtenerSigno20min({ get: async () => ({ data: datos }) }, aries, "2026-04-07"), patron);
+  await assert.rejects(obtenerSigno20min({ get: async () => { throw errHttp(403, "x"); } }, aries, "2026-04-07"), /HTTP 403/);
+});
+
+test("obtenerHoroscopo: con `directo` va a 20minutos y solo usa horoscopefree si falla; sin `directo` o en otro idioma, solo horoscopefree", async () => {
+  const llamadas: string[] = [];
+  const mixto = (fallaDirecto: boolean, fallaApi = false): Http => ({ get: async (u: string) => {
+    llamadas.push(u.includes("20minutos") ? "20min" : "api");
+    if (u.includes("20minutos")) { if (fallaDirecto) throw errHttp(503, "x"); return { data: pagina20min() }; }
+    if (fallaApi) throw errHttp(525, "x");
+    return { data: ok("2026-04-07", { text: "Texto del servicio horoscopefree, suficientemente largo para valer como predicción del día." }) };
+  } });
+  const cfgDirecto: Config = { ...cfg, directo: true };
+  assert.match((await obtenerHoroscopo(mixto(false), cfgDirecto, aries, "2026-04-07", 1, 0)).text!, /conviene que te tomes/); assert.deepEqual(llamadas, ["20min"]);
+  llamadas.length = 0;
+  assert.match((await obtenerHoroscopo(mixto(true), cfgDirecto, aries, "2026-04-07", 1, 0)).text!, /horoscopefree/); assert.deepEqual(llamadas, ["20min", "api"]);
+  llamadas.length = 0;
+  await assert.rejects(obtenerHoroscopo(mixto(true, true), cfgDirecto, aries, "2026-04-07", 1, 0), /20minutos: HTTP 503; horoscopefree: HTTP 525/);
+  llamadas.length = 0;
+  await obtenerHoroscopo(mixto(false), cfg, aries, "2026-04-07", 1, 0); assert.deepEqual(llamadas, ["api"]); // sin `directo`
+  llamadas.length = 0;
+  await obtenerHoroscopo(mixto(false), { ...cfgDirecto, idioma: "en" }, aries, "2026-04-07", 1, 0); assert.deepEqual(llamadas, ["api"]); // 20minutos solo en español
+});
+
+test("actualizarTodos con `directo` guarda lo de 20minutos y no depende de horoscopefree", async () => {
+  const guardados = new Map<string, HoroscopoDoc>(); const urls: string[] = [];
+  const http: Http = { get: async (u: string) => { urls.push(u); if (!u.includes("20minutos")) throw errHttp(525, "caído"); return { data: pagina20min() }; } };
+  const r = await actualizarTodos({ http, config: { ...cfg, directo: true }, zona: "UTC", ahora: new Date("2026-04-07T08:00:00Z"), esperaMs: 0, intentos: 1,
+    guardar: async (id, doc) => { guardados.set(id, doc); }, fechaGuardada: async (id) => guardados.get(id)?.fecha });
+  assert.equal(r.actualizados.length, 12); assert.equal(r.fallidos.length, 0);
+  assert.ok(urls.every((u) => u.includes("20minutos.es/horoscopo/")));
+  assert.equal(guardados.get("aries")!.fecha, "2026-04-07"); assert.equal(guardados.get("aries")!.fuente, "20minutos.es");
 });

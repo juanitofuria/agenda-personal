@@ -1531,6 +1531,60 @@ async function contenidoAgenda(ctx) {
 }
 __name(contenidoAgenda, "contenidoAgenda");
 
+// ../firebase/functions/src/horoscopo20min.ts
+var MESES2 = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+var MIN_TEXTO = 50;
+var urlSigno20min = /* @__PURE__ */ __name((signo) => `https://www.20minutos.es/horoscopo/${signo.id}/`, "urlSigno20min");
+var ENTIDADES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+function limpiar(html) {
+  return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+    if (e[0] === "#") {
+      try {
+        return String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+      } catch {
+        return m;
+      }
+    }
+    return ENTIDADES[e.toLowerCase()] ?? m;
+  }).replace(/[ \t ]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
+}
+__name(limpiar, "limpiar");
+function leerPagina20min(html) {
+  const bloques = [...html.matchAll(/class="[^"]*\bprediction\b[^"]*"/g)];
+  if (bloques.length < 2) return [];
+  const resto = html.slice(bloques[1].index);
+  const entradas = [];
+  for (const m of resto.matchAll(/<p[^>]*class="[^"]*\bdate\b[^"]*"[^>]*>([\s\S]*?)<\/p>\s*<div[^>]*>([\s\S]*?)<\/div>/g)) {
+    const f = /(\d{1,2})\s+([a-záéíóú]+)\s+de\s+(\d{4})/i.exec(limpiar(m[1]));
+    const mes = f ? MESES2.indexOf(f[2].toLowerCase()) : -1;
+    if (!f || mes < 0) continue;
+    const texto4 = limpiar(m[2]);
+    if (texto4.length < MIN_TEXTO) continue;
+    entradas.push({ fecha: `${f[3]}-${String(mes + 1).padStart(2, "0")}-${f[1].padStart(2, "0")}`, texto: texto4 });
+  }
+  return entradas;
+}
+__name(leerPagina20min, "leerPagina20min");
+async function obtenerSigno20min(http, signo, fecha) {
+  const url = urlSigno20min(signo);
+  let html;
+  try {
+    html = (await http.get(url, {
+      timeout: 8e3,
+      headers: { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9", Accept: "text/html" }
+    })).data;
+  } catch (e) {
+    const estado = e.response?.status;
+    throw new ErrorApi(estado ? `20minutos: HTTP ${estado}` : `20minutos: ${e.message}`, estado);
+  }
+  if (typeof html !== "string") throw new ErrorApi("20minutos: respuesta no v\xE1lida", 502, "PARSE");
+  const entradas = leerPagina20min(html);
+  if (entradas.length === 0) throw new ErrorApi("20minutos: no he encontrado el hor\xF3scopo en la p\xE1gina", 502, "PARSE");
+  const elegida = entradas.find((e) => e.fecha === fecha) ?? entradas.reduce((a, b) => b.fecha > a.fecha ? b : a);
+  return { sign: signo.ingles, date: elegida.fecha, language: "es", text: elegida.texto, source: url, cached: false };
+}
+__name(obtenerSigno20min, "obtenerSigno20min");
+
 // ../firebase/functions/src/horoscopo.ts
 var SIGNOS = [
   { id: "aries", ingles: "aries", nombre: "Aries" },
@@ -1624,6 +1678,19 @@ async function obtenerSigno(http, cfg, signo, fecha, intentos = 3, esperaMs = 2e
   return d;
 }
 __name(obtenerSigno, "obtenerSigno");
+async function obtenerHoroscopo(http, cfg, signo, fecha, intentos = 3, esperaMs = 2e3) {
+  if (!cfg.directo || cfg.idioma !== "es") return obtenerSigno(http, cfg, signo, fecha, intentos, esperaMs);
+  try {
+    return await obtenerSigno20min(http, signo, fecha);
+  } catch (e1) {
+    try {
+      return await obtenerSigno(http, cfg, signo, fecha, Math.min(intentos, 2), esperaMs);
+    } catch (e2) {
+      throw new ErrorApi(`${comoErrorApi(e1).message}; horoscopefree: ${comoErrorApi(e2).message}`, comoErrorApi(e1).estado);
+    }
+  }
+}
+__name(obtenerHoroscopo, "obtenerHoroscopo");
 function construirDoc(signo, fechaPedida, d, cfg, ahora = /* @__PURE__ */ new Date()) {
   const texto4 = (d.text ?? "").trim();
   if (!texto4) return null;
@@ -1654,7 +1721,7 @@ async function actualizarTodos(dep) {
       }
       if (dep.maxPedidos !== void 0 && pedidos >= dep.maxPedidos) continue;
       pedidos++;
-      const respuesta = await obtenerSigno(dep.http, dep.config, signo, hoy, dep.intentos ?? 3, dep.esperaMs ?? 2e3);
+      const respuesta = await obtenerHoroscopo(dep.http, dep.config, signo, hoy, dep.intentos ?? 3, dep.esperaMs ?? 2e3);
       const doc = construirDoc(signo, hoy, respuesta, dep.config, dep.ahora);
       if (!doc) {
         res.fallidos.push(signo.id);
@@ -1712,7 +1779,7 @@ async function contenidoHoroscopo(ctx) {
   const hoyFecha = fechaIso(ctx.ahora, ctx.usuario.zona);
   if ((!doc || doc.fecha !== hoyFecha) && ctx.horoscopoCfg) {
     try {
-      const resp = await obtenerSigno(ctx.http, ctx.horoscopoCfg, signo, hoyFecha, 2, 300);
+      const resp = await obtenerHoroscopo(ctx.http, ctx.horoscopoCfg, signo, hoyFecha, 2, 300);
       const nuevo = construirDoc(signo, hoyFecha, resp, ctx.horoscopoCfg, ctx.ahora);
       if (nuevo && (!doc || nuevo.fecha >= doc.fecha)) {
         doc = nuevo;
@@ -1741,7 +1808,7 @@ Todav\xEDa no hay hor\xF3scopo publicado para hoy. Lo intentar\xE9 de nuevo m\xE
 __name(contenidoHoroscopo, "contenidoHoroscopo");
 
 // ../firebase/functions/src/rss.ts
-var ENTIDADES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\xA0" };
+var ENTIDADES2 = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\xA0" };
 function decodificar(s) {
   return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
     if (e[0] === "#") {
@@ -1752,7 +1819,7 @@ function decodificar(s) {
         return m;
       }
     }
-    return ENTIDADES[e.toLowerCase()] ?? m;
+    return ENTIDADES2[e.toLowerCase()] ?? m;
   });
 }
 __name(decodificar, "decodificar");
@@ -1794,19 +1861,32 @@ function leerRss(xml) {
     const it = xml.slice(ini, fin);
     let titulo = etiqueta(it, "title");
     if (!titulo) continue;
-    let fuente = etiqueta(it, "source");
+    let fuente = etiqueta(it, "source") || etiqueta(it, "News:Source");
     const i = titulo.lastIndexOf(" - ");
     if (i > 0 && (!fuente || titulo.endsWith(` - ${fuente}`))) {
       if (!fuente) fuente = titulo.slice(i + 3);
       titulo = titulo.slice(0, i);
     }
     const fecha = Date.parse(etiqueta(it, "pubDate"));
-    noticias.push({ titulo, fuente, enlace: etiqueta(it, "link"), fecha: Number.isNaN(fecha) ? 0 : fecha });
+    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha });
   }
   return noticias;
 }
 __name(leerRss, "leerRss");
+function enlaceReal(enlace) {
+  try {
+    const u = new URL(enlace);
+    if (/(^|\.)bing\.com$/.test(u.hostname)) {
+      const destino = u.searchParams.get("url");
+      if (destino) return destino;
+    }
+  } catch {
+  }
+  return enlace;
+}
+__name(enlaceReal, "enlaceReal");
 var urlGoogleNews = /* @__PURE__ */ __name((consulta, idioma = "es", pais = "ES") => `https://news.google.com/rss/search?q=${encodeURIComponent(consulta)}&hl=${idioma}&gl=${pais}&ceid=${pais}:${idioma}`, "urlGoogleNews");
+var urlBingNews = /* @__PURE__ */ __name((consulta) => `https://www.bing.com/news/search?q=${encodeURIComponent(consulta.replace(/\bwhen:\S+/g, "").replace(/\s+/g, " ").trim())}&format=rss&setlang=es-ES&cc=ES`, "urlBingNews");
 function enlaceSeguro(url) {
   try {
     const u = new URL(url);
@@ -1824,10 +1904,23 @@ function lineaNoticia(n) {
 __name(lineaNoticia, "lineaNoticia");
 
 // ../firebase/functions/src/secciones/noticias.ts
+var CABECERAS = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9", Accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8" };
+async function pedirRss(ctx, url) {
+  const r = await conReintentos(() => ctx.http.get(url, { timeout: 6e3, headers: CABECERAS }), 2, 300);
+  const noticias = leerRss(String(r.data));
+  if (noticias.length === 0) throw new Error("sin noticias en la respuesta");
+  return noticias;
+}
+__name(pedirRss, "pedirRss");
 async function noticiasDe(ctx, consulta) {
   return cacheado(ctx.almacen, `rss:${consulta}`, 30 * 6e4, ctx.ahora, async () => {
-    const r = await conReintentos(() => ctx.http.get(urlGoogleNews(consulta), { timeout: 8e3 }), 2, 400);
-    return leerRss(String(r.data)).sort((a, b) => b.fecha - a.fecha).slice(0, 12);
+    try {
+      const lista2 = await Promise.any([pedirRss(ctx, urlGoogleNews(consulta)), pedirRss(ctx, urlBingNews(consulta))]);
+      return lista2.sort((a, b) => b.fecha - a.fecha).slice(0, 12);
+    } catch (e) {
+      const motivos = e.errors?.map((x) => x.message).join(" \xB7 ") ?? e.message;
+      throw new Error(`Google y Bing sin respuesta (${motivos})`.slice(0, 160));
+    }
   });
 }
 __name(noticiasDe, "noticiasDe");
@@ -1835,10 +1928,12 @@ async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
   const vistas = /* @__PURE__ */ new Set();
   const bloques = [];
   let ok = 0;
+  let motivo = "";
   const respuestas = await Promise.allSettled(secciones.map((s) => noticiasDe(ctx, s.consulta)));
   secciones.forEach((s, i) => {
     const r = respuestas[i];
     if (r.status === "rejected") {
+      motivo ||= String(r.reason?.message ?? r.reason);
       bloques.push(`${s.titulo}
 \u26A0\uFE0F <i>No disponible ahora.</i>`);
       return;
@@ -1854,7 +1949,7 @@ async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
 ` : "";
     bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
   });
-  if (ok === 0) throw new Error("no se pudo obtener ninguna noticia");
+  if (ok === 0) throw new Error(motivo || "no se pudo obtener ninguna noticia");
   return [cabecera2, ...bloques].join("\n\n");
 }
 __name(resumenNoticias, "resumenNoticias");
@@ -2724,6 +2819,7 @@ async function texto(c) {
 __name(texto, "texto");
 
 // ../firebase/functions/src/bot/diagnostico.ts
+var CABECERAS2 = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9" };
 async function probar(nombre, f) {
   const t0 = Date.now();
   try {
@@ -2743,13 +2839,18 @@ async function diagnostico(c) {
     probar("Open-Meteo (tiempo)", async () => {
       await http.get("https://api.open-meteo.com/v1/forecast?latitude=38&longitude=-4&current=temperature_2m", { timeout: 8e3 });
     }),
-    probar("Google News (noticias)", async () => `${leerRss(String((await http.get(urlGoogleNews("econom\xEDa Espa\xF1a when:1d"), { timeout: 8e3 })).data)).length} noticias`),
+    probar("Google News (noticias)", async () => `${leerRss(String((await http.get(urlGoogleNews("econom\xEDa Espa\xF1a when:1d"), { timeout: 8e3, headers: CABECERAS2 })).data)).length} noticias`),
+    probar("Bing News (noticias)", async () => `${leerRss(String((await http.get(urlBingNews("econom\xEDa Espa\xF1a"), { timeout: 8e3, headers: CABECERAS2 })).data)).length} noticias`),
     probar("Yahoo Finance (mercados)", async () => {
       await http.get("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d", { timeout: 8e3, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } });
     }),
-    cfg ? probar("horoscopefree (hor\xF3scopo)", async () => {
+    probar("20minutos (hor\xF3scopo directo)", async () => {
+      const e = leerPagina20min(String((await http.get(urlSigno20min(SIGNOS[0]), { timeout: 8e3, headers: CABECERAS2 })).data));
+      return e.length ? `\xFAltima fecha ${e[0].fecha}` : "p\xE1gina sin hor\xF3scopo";
+    }),
+    cfg ? probar("horoscopefree (respaldo)", async () => {
       await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8e3 });
-    }) : Promise.resolve({ nombre: "horoscopefree (hor\xF3scopo)", ok: false, detalle: "sin configurar", ms: 0 })
+    }) : Promise.resolve({ nombre: "horoscopefree (respaldo)", ok: false, detalle: "sin configurar", ms: 0 })
   ]);
   const guardados = (await Promise.all(SIGNOS.map((s) => c.almacen.getHoroscopo(s.id).catch(() => null)))).filter((d) => d?.fecha === hoy).length;
   const lineas = resultados.map((r) => `${r.ok ? "\u2705" : "\u274C"} <b>${esc(r.nombre)}</b>
@@ -3792,7 +3893,7 @@ async function llamarInterno(env2, ruta, cuerpo) {
   }
 }
 __name(llamarInterno, "llamarInterno");
-var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es" }), "horoscopoCfg");
+var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es", directo: true }), "horoscopoCfg");
 function dependencias(env2, s, remoto) {
   return {
     almacen: new AlmacenD1(env2.DB),

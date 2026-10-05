@@ -10,6 +10,7 @@
  *
  * Condición de uso de la API: mostrar la URL `source` junto al texto y respetar los términos del editor original.
  */
+import { obtenerSigno20min } from "./horoscopo20min"; // (referencia circular segura: solo se usa dentro de funciones)
 
 export interface Signo {
   id: string;     // identificador del documento en Firestore (español, sin tildes)
@@ -56,10 +57,12 @@ export interface HoroscopoDoc {
 export interface Config {
   baseUrl: string; // https://horoscopefree.fly.dev, o tu propia instancia
   idioma: string;  // "es"
+  /** Pedir primero el horóscopo directamente a 20minutos.es (solo en español) y usar horoscopefree como respaldo. */
+  directo?: boolean;
 }
 
 export interface Http {
-  get(url: string, opciones?: { timeout?: number }): Promise<{ data: unknown }>;
+  get(url: string, opciones?: { timeout?: number; headers?: Record<string, string> }): Promise<{ data: unknown }>;
 }
 
 /** Error de la API con el código HTTP y el código `error` de horoscopefree (si lo hay). */
@@ -124,6 +127,20 @@ export async function obtenerSigno(http: Http, cfg: Config, signo: Signo, fecha:
   return d;
 }
 
+/**
+ * Pide el horóscopo con la mejor fuente disponible: directamente a 20minutos.es (si `directo` y el idioma es español) y, si eso falla,
+ * al servicio horoscopefree. Si fallan las dos se lanza el error de la primera con el motivo de la segunda.
+ */
+export async function obtenerHoroscopo(http: Http, cfg: Config, signo: Signo, fecha: string, intentos = 3, esperaMs = 2000): Promise<RespuestaApi> {
+  if (!cfg.directo || cfg.idioma !== "es") return obtenerSigno(http, cfg, signo, fecha, intentos, esperaMs);
+  try {
+    return await obtenerSigno20min(http, signo, fecha);
+  } catch (e1) {
+    try { return await obtenerSigno(http, cfg, signo, fecha, Math.min(intentos, 2), esperaMs); }
+    catch (e2) { throw new ErrorApi(`${comoErrorApi(e1).message}; horoscopefree: ${comoErrorApi(e2).message}`, comoErrorApi(e1).estado); }
+  }
+}
+
 export function construirDoc(signo: Signo, fechaPedida: string, d: RespuestaApi, cfg: Config, ahora: Date = new Date()): HoroscopoDoc | null {
   const texto = (d.text ?? "").trim();
   if (!texto) return null; // nunca se guarda un documento vacío: pisaría el último bueno
@@ -173,7 +190,7 @@ export async function actualizarTodos(dep: Dependencias): Promise<Resultado> {
       if (previa === hoy) { res.alDia.push(signo.id); continue; }
       if (dep.maxPedidos !== undefined && pedidos >= dep.maxPedidos) continue;
       pedidos++;
-      const respuesta = await obtenerSigno(dep.http, dep.config, signo, hoy, dep.intentos ?? 3, dep.esperaMs ?? 2000);
+      const respuesta = await obtenerHoroscopo(dep.http, dep.config, signo, hoy, dep.intentos ?? 3, dep.esperaMs ?? 2000);
       const doc = construirDoc(signo, hoy, respuesta, dep.config, dep.ahora);
       if (!doc) { res.fallidos.push(signo.id); log(`✗ ${signo.id}: la API no devolvió texto`); continue; }
       if (previa && previa > doc.fecha) { res.omitidos.push(signo.id); log(`= ${signo.id}: ya hay uno más reciente (${previa})`); continue; }

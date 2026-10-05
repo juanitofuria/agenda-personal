@@ -1,9 +1,12 @@
 import { esc } from "../canal";
 import { fechaIso } from "../fechas";
 import { SIGNOS, urlHoroscopo } from "../horoscopo";
-import { leerRss, urlGoogleNews } from "../rss";
+import { leerPagina20min, urlSigno20min } from "../horoscopo20min";
+import { leerRss, urlBingNews, urlGoogleNews } from "../rss";
 import { cabecera, conPlazo } from "../util";
 import { BTN_MENU, Ctx } from "./ctx";
+
+const CABECERAS = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9" };
 
 interface Resultado { nombre: string; ok: boolean; detalle: string; ms: number }
 
@@ -27,9 +30,11 @@ export async function diagnostico(c: Ctx): Promise<void> {
   const hoy = fechaIso(c.ahora, c.u.zona);
   const resultados = await Promise.all([
     probar("Open-Meteo (tiempo)", async () => { await http.get("https://api.open-meteo.com/v1/forecast?latitude=38&longitude=-4&current=temperature_2m", { timeout: 8000 }); }),
-    probar("Google News (noticias)", async () => `${leerRss(String((await http.get(urlGoogleNews("economía España when:1d"), { timeout: 8000 })).data)).length} noticias`),
+    probar("Google News (noticias)", async () => `${leerRss(String((await http.get(urlGoogleNews("economía España when:1d"), { timeout: 8000, headers: CABECERAS })).data)).length} noticias`),
+    probar("Bing News (noticias)", async () => `${leerRss(String((await http.get(urlBingNews("economía España"), { timeout: 8000, headers: CABECERAS })).data)).length} noticias`),
     probar("Yahoo Finance (mercados)", async () => { await http.get("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d", { timeout: 8000, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } }); }),
-    cfg ? probar("horoscopefree (horóscopo)", async () => { await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8000 }); }) : Promise.resolve<Resultado>({ nombre: "horoscopefree (horóscopo)", ok: false, detalle: "sin configurar", ms: 0 }),
+    probar("20minutos (horóscopo directo)", async () => { const e = leerPagina20min(String((await http.get(urlSigno20min(SIGNOS[0]), { timeout: 8000, headers: CABECERAS })).data)); return e.length ? `última fecha ${e[0].fecha}` : "página sin horóscopo"; }),
+    cfg ? probar("horoscopefree (respaldo)", async () => { await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8000 }); }) : Promise.resolve<Resultado>({ nombre: "horoscopefree (respaldo)", ok: false, detalle: "sin configurar", ms: 0 }),
   ]);
   const guardados = (await Promise.all(SIGNOS.map((s) => c.almacen.getHoroscopo(s.id).catch(() => null)))).filter((d) => d?.fecha === hoy).length;
   const lineas = resultados.map((r) => `${r.ok ? "✅" : "❌"} <b>${esc(r.nombre)}</b>\n     ${r.ok ? `responde en ${seg(r.ms)}${r.detalle ? ` · ${esc(r.detalle)}` : ""}` : `${esc(r.detalle)} · ${seg(r.ms)}`}`);

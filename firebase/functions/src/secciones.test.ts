@@ -4,7 +4,7 @@ import { crearBanco, geocodingFalso, graficoFalso, historicoFalso, previsionFals
 import { fechaIso, localAUtc, partesEnZona } from "./fechas";
 import { faseDelDia, iluminacion, proximoDia, proximoEvento } from "./luna";
 import { usuarioNuevo } from "./modelo";
-import { leerRss, lineaNoticia } from "./rss";
+import { leerRss, lineaNoticia, urlBingNews } from "./rss";
 import { construirContenido } from "./secciones";
 import { descTiempo, emojiTiempo, nivelUv, parsearPrevision, renderHoraAHora, renderLuna, tramosLluvia } from "./secciones/tiempo";
 import { cotizacionActual, parsearGrafico, ultimaSesion } from "./secciones/mercados";
@@ -142,7 +142,7 @@ test("noticias: economía, política y las de la zona sin repetir; tolera una co
 test("noticias: si no se obtiene ninguna consulta, falla", async () => {
   const b = crearBanco(AHORA); b.http.añadir("news.google.com", new Error("caído"));
   const u = usuarioNuevo("1", "Ana", AHORA);
-  await assert.rejects(construirContenido("noticias", { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA }), /ninguna noticia/);
+  await assert.rejects(construirContenido("noticias", { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA }), /Google y Bing sin respuesta[\s\S]*caído/);
 });
 
 test("tema personalizado", async () => {
@@ -251,4 +251,35 @@ test("noticias y tiempo piden sus datos a la vez, no uno detrás de otro", async
   const c = await construirContenido("tiempo", { usuario: u, http, almacen: b.almacen, ahora: AHORA });
   assert.equal(maximo, 2, "previsión e histórico a la vez");
   assert.match(c.html, /Acumulado 2026/);
+});
+
+// ---------- Bing News ----------
+const BING = (n: number) => `<?xml version="1.0" encoding="utf-8" ?><rss version="2.0" xmlns:News="https://www.bing.com/news/search?q=x&amp;format=rss"><channel><title>x</title>` +
+  Array.from({ length: n }, (_, i) => `<item><title>Titular de Bing ${i + 1}</title><link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;tid=ABC${i}&amp;url=https%3a%2f%2fwww.diario.es%2fnoticia%2f${i}&amp;c=123&amp;mkt=es-es</link><description>Resumen</description><pubDate>Mon, 05 Oct 2026 1${i}:00:00 GMT</pubDate><News:Source>Diario ${i + 1}</News:Source><News:Image>https://x/i.jpg</News:Image></item>`).join("") + `</channel></rss>`;
+
+test("Bing News: se lee <News:Source> y el enlace se saca del redirector; la URL no lleva operadores de Google", () => {
+  const n = leerRss(BING(2));
+  assert.equal(n.length, 2); assert.equal(n[0].titulo, "Titular de Bing 1"); assert.equal(n[0].fuente, "Diario 1"); assert.equal(n[0].enlace, "https://www.diario.es/noticia/0");
+  assert.match(lineaNoticia(n[0]), /<a href="https:\/\/www\.diario\.es\/noticia\/0">Titular de Bing 1<\/a> <i>\(Diario 1\)<\/i>/);
+  assert.equal(urlBingNews('"Ayuntamiento de Montoro" España when:7d'), "https://www.bing.com/news/search?q=%22Ayuntamiento%20de%20Montoro%22%20Espa%C3%B1a&format=rss&setlang=es-ES&cc=ES");
+});
+
+test("noticias: Google y Bing se piden a la vez y basta con que responda una; si ninguna, el error dice por qué", async () => {
+  const u = usuarioNuevo("1", "Ana", AHORA);
+  const probar = async (reglas: (b: ReturnType<typeof crearBanco>) => void) => {
+    const b = crearBanco(AHORA); reglas(b);
+    return construirContenido("noticias", { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA }).then((c) => ({ c, b }));
+  };
+  // Google caído (como pasa desde Cloudflare): salva Bing
+  const { c, b } = await probar((b) => { b.http.añadir("news.google.com", new Error("The operation was aborted due to timeout")); b.http.añadir("bing.com/news", BING(5)); });
+  assert.match(c.html, /Noticias del día/); assert.match(c.html, /Titular de Bing/);
+  assert.ok(b.http.llamadas.some((x) => x.includes("news.google.com")) && b.http.llamadas.some((x) => x.includes("bing.com/news"))); // se pidieron las dos
+  // Bing caído: salva Google
+  const r2 = await probar((b) => { b.http.añadir("news.google.com", rssFalso("Economía", 4)); b.http.añadir("bing.com/news", new Error("HTTP 403")); });
+  assert.match(r2.c.html, /Economía noticia/);
+  // las dos caídas: el motivo de cada una
+  await assert.rejects(probar((b) => { b.http.añadir("news.google.com", new Error("timeout")); b.http.añadir("bing.com/news", Object.assign(new Error("x"), { response: { status: 403 } })); }), /Google y Bing sin respuesta[\s\S]*timeout/);
+  // una respuesta sin noticias (p. ej. una página de bloqueo) no cuenta como respuesta
+  const r3 = await probar((b) => { b.http.añadir("news.google.com", "<html>consentimiento</html>"); b.http.añadir("bing.com/news", BING(3)); });
+  assert.match(r3.c.html, /Titular de Bing/);
 });

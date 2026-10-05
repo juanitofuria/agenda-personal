@@ -7,8 +7,8 @@ Corre en **Cloudflare Workers** con **D1**, en el **plan gratuito y sin tarjeta*
  Usuario ◀─▶ Telegram ◀─▶ Worker  /telegram ──▶ bot (menús, asistente, eventos, ajustes) ──▶ D1 (SQLite)
                               │                                                              ▲
                               ├─ Cron cada minuto ──── resúmenes y avisos vencidos ──────────┤
-                              └─ Cron cada 10 min (04–10 UTC) ─ horóscopo ◀── horoscopefree ─┘
-        Datos externos: Open-Meteo (tiempo y ciudades) · Google News RSS · Yahoo Finance · horoscopefree
+                              └─ Cron cada 10 min (04–10 UTC) ─ horóscopo ◀── 20minutos.es ─┘
+        Datos externos: Open-Meteo (tiempo y ciudades) · Google News y Bing News (RSS) · Yahoo Finance · 20minutos.es (horóscopo; horoscopefree de respaldo)
 ```
 
 ## Qué hace el bot
@@ -29,8 +29,8 @@ Corre en **Cloudflare Workers** con **D1**, en el **plan gratuito y sin tarjeta*
 * **Privacidad**: `/borrar` elimina todos tus datos y deja de enviarte mensajes.
 
 Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/cancelar` `/borrar`.
-Hay además `/diagnostico` (no sale en el menú): comprueba desde el servidor si llegan Open-Meteo, Google News, Yahoo Finance y horoscopefree, y
-cuántos horóscopos hay guardados hoy. Sirve para saber por qué falla una sección.
+Hay además `/diagnostico` (no sale en el menú): comprueba desde el servidor si llegan Open-Meteo, Google News, Bing News, Yahoo Finance, 20minutos y
+horoscopefree, y cuántos horóscopos hay guardados hoy. Sirve para saber por qué falla una sección.
 
 ## Puesta en marcha
 
@@ -169,12 +169,14 @@ Para probar el Worker en local (workerd): `npx wrangler dev --test-scheduled`, c
 * **No comprobado en el entorno de desarrollo** (sin red hacia estos servicios): la API real de Telegram, las respuestas reales
   de Open-Meteo, Google News, Yahoo Finance y horoscopefree, y el despliegue en tu cuenta. Las pruebas usan dobles.
 * **Yahoo Finance** no es una API oficial y puede bloquear o limitar IPs de Cloudflare; si falla, la sección de mercados avisa y
-  el resto funciona. **Google News RSS** tampoco es una API garantizada.
-* **Horóscopo**: [horoscopefree](https://github.com/vitorebatista/horoscopefree) (MIT) extrae el texto en español de
-  **20minutos.es**; no hay afiliación con el editor. El bot muestra siempre la fuente con enlace (condición de uso de esa API).
-  Para uso personal es razonable; **antes de abrir el bot a otras personas** conviene pedir permiso al editor o usar una fuente
-  con licencia. La instancia pública no tiene garantía de disponibilidad: puedes alojar la tuya y cambiar `HOROSCOPO_BASE_URL`
-  en `wrangler.toml`.
+  el resto funciona. **Noticias**: se piden a la vez a Google News y a Bing News (RSS) y vale la primera que responda, porque desde algunos
+  servidores una de las dos se cuelga. Ninguna es una API garantizada.
+* **Horóscopo**: el texto es el que publica **20minutos.es** en la página de cada signo. El bot lo lee **directamente** (una petición por signo
+  y día; no hay afiliación con el editor) y, si eso falla, pide a [horoscopefree](https://github.com/vitorebatista/horoscopefree) (MIT), un
+  servicio público que hace lo mismo y que a veces está caído. Si falta el de hoy se pide en el momento y se guarda. El bot muestra siempre
+  la fuente con enlace. Para uso personal es razonable; **antes de abrir el bot a otras personas** conviene pedir permiso al editor o usar
+  una fuente con licencia. Si 20minutos cambia el diseño de su página, el lector (`firebase/functions/src/horoscopo20min.ts`) dejará de
+  encontrar el texto y el bot usará el respaldo.
 * **Datos personales**: se guarda el id del chat, el nombre que escribe el usuario, la fecha de nacimiento y la ciudad. Si el bot
   lo van a usar otras personas, habrá que informarles (política de privacidad) y atender sus peticiones; `/borrar` ya elimina todo.
   Open-Meteo es gratuito para uso no comercial con límites diarios: la caché evita repetir consultas iguales.
