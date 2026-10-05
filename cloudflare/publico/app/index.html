@@ -506,9 +506,10 @@ async function refrescarDispositivos() { const aqui = await suscritoAqui(); S.aq
 function hojaEnlace(enlace) {
   const texto = "🔗 Enlace para abrir mi agenda (vale una vez y caduca en 10 minutos):\n" + enlace;
   const h = document.createElement("div"); h.className = "hoja";
-  h.innerHTML = `<div><h3>Enlace de acceso</h3><p class="nota">Ábrelo en el dispositivo donde quieras la app. <b>Vale una sola vez y caduca en 10 minutos.</b> No lo compartas con nadie más.</p>
+  h.innerHTML = `<div><h3>Enlace de acceso</h3><p class="nota">Para usar la app <b>en este mismo dispositivo</b>, ábrelo ahora en el navegador. Para <b>otro dispositivo</b>, cópialo o envíatelo. <b>Vale una sola vez y caduca en 10 minutos.</b> No lo compartas con nadie más.</p>
     <div class="doc" style="white-space:normal;font-size:12.5px;word-break:break-all">${esc(enlace)}</div>
-    <button class="btn ancho" data-e="copiar">📋 Copiar el enlace</button>
+    <button class="btn ancho" data-e="abrir">🌐 Abrir ahora en el navegador</button>
+    <button class="btn sec ancho" data-e="copiar">📋 Copiar el enlace</button>
     <button class="btn sec ancho" data-e="wa">💬 Enviármelo por WhatsApp</button>
     <button class="btn sec ancho" data-e="mail">✉️ Enviármelo por correo</button>
     <button class="btn sec ancho" data-e="no">Cerrar</button></div>`;
@@ -516,6 +517,10 @@ function hojaEnlace(enlace) {
   h.addEventListener("click", async (e) => {
     const c = e.target.closest("[data-e]")?.dataset.e;
     if (e.target === h || c === "no") return h.remove();
+    if (c === "abrir") { // fuera del navegador interno de Telegram: la app se instala y las notificaciones se activan desde el navegador del dispositivo
+      if (TG && TG.openLink) TG.openLink(enlace, { try_instant_view: false }); else window.open(enlace, "_blank");
+      return h.remove();
+    }
     if (c === "copiar") aviso((await copiar(enlace)) ? "📋 Copiado" : "No he podido copiar");
     if (c === "wa") abrirEnlace("https://wa.me/?text=" + encodeURIComponent(texto));
     if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Enlace de acceso a mi agenda") + "&body=" + encodeURIComponent(texto));
