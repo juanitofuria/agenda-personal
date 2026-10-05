@@ -384,22 +384,43 @@ function hojaNuevo() {
     <button class="btn ancho" id="f-ok">Guardar</button><button class="btn sec ancho" id="f-no">Cancelar</button></div>`;
   document.body.appendChild(h);
   let tipo = "alarma";
+  const soportaContactos = "contacts" in navigator && "ContactsManager" in window;
+  const wa = { modo: soportaContactos ? "contactos" : "manual", para: "", tel: "", texto: "", rep: "ninguna", opcionesTel: [] };
+  const bloqueWa = () => `<label>Para quién</label>
+    <div class="seg" id="wa-modo"><button class="${wa.modo === "contactos" ? "on" : ""}" data-wm="contactos">📇 Contactos</button><button class="${wa.modo === "manual" ? "on" : ""}" data-wm="manual">✍️ A mano</button><button class="${wa.modo === "elegir" ? "on" : ""}" data-wm="elegir">📲 Al enviar</button></div>
+    ${wa.modo === "contactos" ? (soportaContactos
+        ? `<button class="btn sec ancho" data-wa-elegir="1" style="margin-top:8px">📇 ${wa.para ? "Cambiar de contacto" : "Elegir de mis contactos"}</button>
+           ${wa.opcionesTel.length > 1 ? `<p class="nota">${esc(wa.para)} tiene varios números, elige uno:</p>${wa.opcionesTel.map((t, i) => `<button class="btn sec ancho" style="margin-top:6px" data-wa-tel="${i}">${esc(t)}</button>`).join("")}` : ""}
+           ${wa.para && wa.tel ? `<div class="aviso-ok" style="margin-top:8px">✅ ${esc(wa.para)} · ${esc(wa.tel)}</div>` : ""}`
+        : `<p class="nota">Tu navegador no permite elegir contactos desde la app (solo Chrome en Android). Escríbelo «a mano» o elige «Al enviar».</p>`)
+      : wa.modo === "manual" ? `<input type="text" id="f-para" maxlength="40" placeholder="Nombre (por ejemplo: Mamá)" value="${esc(wa.para)}" style="margin-top:8px"><input type="tel" id="f-tel" maxlength="20" placeholder="Teléfono: +34 600 000 000" autocomplete="off" value="${esc(wa.tel)}" style="margin-top:8px">`
+      : `<input type="text" id="f-para" maxlength="40" placeholder="Nombre, para reconocerlo (opcional)" value="${esc(wa.para)}" style="margin-top:8px"><p class="nota">Cuando llegue el aviso, WhatsApp te dejará elegir a quién enviarlo: no hace falta número.</p>`}
+    <label>Mensaje</label><textarea id="f-texto" maxlength="1000" rows="4" placeholder="Lo que quieres enviar">${esc(wa.texto)}</textarea>
+    <label>Repetir</label><select id="f-rep">${[["ninguna", "Solo una vez"], ["anual", "Cada año (cumpleaños…)"], ["semanal", "Cada semana"], ["diaria", "Cada día"]].map(([v, t]) => `<option value="${v}" ${wa.rep === v ? "selected" : ""}>${t}</option>`).join("")}</select>
+    <p class="nota">A la hora indicada te avisaré con un botón: lo pulsas, se abre WhatsApp con el mensaje ya escrito y solo tienes que enviarlo.</p>`;
+  const volcar = () => { wa.para = $("#f-para", h)?.value ?? wa.para; wa.tel = $("#f-tel", h)?.value ?? wa.tel; wa.texto = $("#f-texto", h)?.value ?? wa.texto; wa.rep = $("#f-rep", h)?.value ?? wa.rep; };
   const extra = () => {
     $("#f-extra", h).innerHTML = (tipo === "cita" ? `<label>Lugar</label><input type="text" id="f-lugar" maxlength="80" placeholder="Opcional"><label>Avisarme</label><select id="f-ant"><option value="30">30 min antes</option><option value="60" selected>1 hora antes</option><option value="180">3 horas antes</option><option value="1440">1 día antes</option><option value="0">A la hora</option></select>` : "")
       + (tipo === "alarma" ? `<label>Repetir</label><select id="f-rep"><option value="ninguna">Solo una vez</option><option value="diaria">Cada día</option><option value="laborables">Lunes a viernes</option><option value="semanal">Cada semana</option><option value="anual">Cada año</option></select>` : "")
-      + (tipo === "mensaje" ? `<label>Para quién</label><input type="text" id="f-para" maxlength="40" placeholder="Por ejemplo: Mamá">
-        <label>Teléfono (opcional)</label><input type="tel" id="f-tel" maxlength="20" placeholder="+34 600 000 000" autocomplete="off">
-        <label>Mensaje</label><textarea id="f-texto" maxlength="1000" rows="4" placeholder="Lo que quieres enviar"></textarea>
-        <label>Repetir</label><select id="f-rep"><option value="ninguna">Solo una vez</option><option value="anual">Cada año (cumpleaños…)</option><option value="semanal">Cada semana</option><option value="diaria">Cada día</option></select>
-        <p class="nota">A la hora indicada te avisaré con un botón: lo pulsas, se abre WhatsApp con el mensaje ya escrito y solo tienes que enviarlo. Sin teléfono, eliges el contacto en WhatsApp.</p>` : "")
+      + (tipo === "mensaje" ? bloqueWa() : "")
       + (tipo === "tarea" ? `<p class="nota">Las tareas pueden no tener fecha: deja el campo vacío.</p>` : "");
   };
   extra();
   h.addEventListener("click", async (e) => {
+    if (tipo === "mensaje") volcar(); // no perder lo escrito al cambiar de modo
     const t = e.target.closest("[data-t]"); if (t) { tipo = t.dataset.t; h.querySelectorAll("#tipo button").forEach((b) => b.classList.toggle("on", b === t)); $("#f-nombre", h).style.display = tipo === "mensaje" ? "none" : ""; extra(); }
+    const wm = e.target.closest("[data-wm]");
+    if (wm) { wa.modo = wm.dataset.wm; if (wa.modo === "elegir") wa.tel = ""; wa.opcionesTel = []; extra(); }
+    if (e.target.closest("[data-wa-elegir]")) {
+      try {
+        const [c] = await navigator.contacts.select(["name", "tel"], { multiple: false });
+        if (c) { wa.para = (c.name && c.name[0]) || ""; wa.opcionesTel = [...new Set((c.tel || []).map((t) => t.trim()))]; wa.tel = wa.opcionesTel.length === 1 ? wa.opcionesTel[0] : ""; if (!wa.opcionesTel.length) aviso("Ese contacto no tiene teléfono"); extra(); }
+      } catch (err) { /* cancelado o sin permiso */ }
+    }
+    const wt = e.target.closest("[data-wa-tel]"); if (wt) { wa.tel = wa.opcionesTel[+wt.dataset.waTel]; wa.opcionesTel = []; extra(); }
     if (e.target.id === "f-no" || e.target === h) h.remove();
     if (e.target.id === "f-ok") {
-      const cuerpo = { tipo, titulo: $("#f-titulo", h).value, cuando: $("#f-cuando", h).value || null, lugar: $("#f-lugar", h)?.value, para: $("#f-para", h)?.value, telefono: $("#f-tel", h)?.value, texto: $("#f-texto", h)?.value, antelacionMin: $("#f-ant", h)?.value, repeticion: $("#f-rep", h)?.value };
+      const cuerpo = tipo === "mensaje" ? { tipo, cuando: $("#f-cuando", h).value || null, para: wa.para, telefono: wa.modo === "elegir" ? "" : wa.tel, texto: wa.texto, repeticion: wa.rep } : { tipo, titulo: $("#f-titulo", h).value, cuando: $("#f-cuando", h).value || null, lugar: $("#f-lugar", h)?.value, para: $("#f-para", h)?.value, telefono: $("#f-tel", h)?.value, texto: $("#f-texto", h)?.value, antelacionMin: $("#f-ant", h)?.value, repeticion: $("#f-rep", h)?.value };
       await hacer(() => api("/api/evento", cuerpo), "✅ Guardado"); if (!document.querySelector(".aviso")?.textContent.startsWith("✅")) return; h.remove();
     }
   });
