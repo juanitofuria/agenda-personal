@@ -2826,7 +2826,52 @@ async function texto(c) {
 }
 __name(texto, "texto");
 
+// ../firebase/functions/src/podcast.ts
+var ENTIDADES3 = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+var decodificar2 = /* @__PURE__ */ __name((s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+  if (e[0] === "#") {
+    try {
+      return String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+    } catch {
+      return m;
+    }
+  }
+  return ENTIDADES3[e.toLowerCase()] ?? m;
+}), "decodificar");
+var sinHtml = /* @__PURE__ */ __name((s) => decodificar2(s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), "sinHtml");
+function etiqueta2(bloque2, nombre) {
+  const m = new RegExp(`<${nombre}(?:\\s[^>]*)?>([\\s\\S]*?)</${nombre}>`, "i").exec(bloque2);
+  return m ? m[1] : "";
+}
+__name(etiqueta2, "etiqueta");
+function leerEpisodios(xml, max = 1) {
+  const res = [];
+  let pos = 0;
+  while (res.length < max) {
+    const ini = xml.indexOf("<item", pos);
+    if (ini < 0) break;
+    const fin = xml.indexOf("</item>", ini);
+    if (fin < 0) break;
+    pos = fin + 7;
+    const it = xml.slice(ini, fin);
+    const enc = /<enclosure\b([^>]*)>/i.exec(it)?.[1] ?? "";
+    const atributo = /* @__PURE__ */ __name((n) => new RegExp(`${n}="([^"]*)"`, "i").exec(enc)?.[1] ?? "", "atributo");
+    const notas = ["content:encoded", "itunes:summary", "description"].map((n) => sinHtml(etiqueta2(it, n))).sort((a, b) => b.length - a.length)[0] ?? "";
+    res.push({
+      titulo: sinHtml(etiqueta2(it, "title")),
+      fecha: sinHtml(etiqueta2(it, "pubDate")),
+      notas,
+      audioUrl: decodificar2(atributo("url")),
+      audioBytes: Number(atributo("length")) || 0,
+      audioTipo: atributo("type")
+    });
+  }
+  return res;
+}
+__name(leerEpisodios, "leerEpisodios");
+
 // ../firebase/functions/src/bot/diagnostico.ts
+var FEED_PODCAST = "https://feeds.megaphone.fm/ASAHO6840420465";
 var CABECERAS2 = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9" };
 async function probar(nombre, f) {
   const t0 = Date.now();
@@ -2855,6 +2900,10 @@ async function diagnostico(c) {
     probar("20minutos (hor\xF3scopo directo)", async () => {
       const e = leerPagina20min(String((await http.get(urlSigno20min(SIGNOS[0]), { timeout: 8e3, headers: CABECERAS2 })).data));
       return e.length ? `\xFAltima fecha ${e[0].fecha}` : "p\xE1gina sin hor\xF3scopo";
+    }),
+    probar("Podcast El Hor\xF3scopo Diario (RSS)", async () => {
+      const [e] = leerEpisodios(String((await http.get(FEED_PODCAST, { timeout: 8e3, headers: CABECERAS2 })).data));
+      return e ? `\xAB${e.titulo.slice(0, 55)}\xBB \xB7 notas de ${e.notas.length} caracteres \xB7 audio ${e.audioTipo || "?"} ${(e.audioBytes / 1048576).toFixed(1).replace(".", ",")} MB` : "sin episodios";
     }),
     cfg ? probar("horoscopefree (respaldo)", async () => {
       await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8e3 });

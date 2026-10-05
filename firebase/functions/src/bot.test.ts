@@ -510,3 +510,16 @@ test("/diagnostico comprueba cada fuente y dice cuáles responden y cuáles no",
   assert.match(t, /✅ <b>Open-Meteo/); assert.match(t, /✅ <b>Google News[\s\S]*7 noticias/); assert.match(t, /❌ <b>Yahoo Finance[\s\S]*HTTP 429/); assert.match(t, /✅ <b>horoscopefree/);
   assert.match(t, /0 de 12/);
 });
+
+test("leerEpisodios: toma los primeros episodios del feed con título, notas (la más larga), audio y tamaño", async () => {
+  const { leerEpisodios } = await import("./podcast");
+  const xml = `<rss><channel><title>Show</title><item><title>HORÓSCOPO DIARIO DE PISCIS (Lunes 5 de Octubre de 2026)</title><pubDate>Mon, 05 Oct 2026 05:00:00 GMT</pubDate>
+    <description><![CDATA[<p>Resumen corto &amp; breve</p>]]></description><itunes:summary>Texto largo con la lectura de amor, dinero, salud y trabajo del día para Piscis, mucho más largo que la descripción corta.</itunes:summary>
+    <enclosure url="https://dts.podtrac.com/a.mp3?x=1&amp;y=2" length="2621440" type="audio/mpeg"/></item>
+    <item><title>Otro</title><description>x</description></item></channel></rss>`;
+  const [a, b] = leerEpisodios(xml, 2);
+  assert.equal(a.titulo, "HORÓSCOPO DIARIO DE PISCIS (Lunes 5 de Octubre de 2026)"); assert.match(a.notas, /^Texto largo con la lectura de amor/);
+  assert.equal(a.audioUrl, "https://dts.podtrac.com/a.mp3?x=1&y=2"); assert.equal(a.audioBytes, 2621440); assert.equal(a.audioTipo, "audio/mpeg");
+  assert.equal(b.titulo, "Otro"); assert.equal(b.audioUrl, ""); assert.equal(leerEpisodios("<rss></rss>").length, 0);
+  assert.equal(leerEpisodios(xml).length, 1); // por defecto, solo el más reciente
+});
