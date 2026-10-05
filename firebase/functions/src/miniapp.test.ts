@@ -213,3 +213,38 @@ test("mini app: notificaciones (dispositivos, canal y prueba)", async () => {
   await api("/api/push/suscribir", { suscripcion }); await api("/api/push/quitar", { id: suscripcion.endpoint.slice(-24) });
   assert.equal(((await api("/api/estado")).cuerpo as any).notificaciones.dispositivos.length, 0);
 });
+
+test("WhatsApp en un toque: teléfonos, enlace y repetición anual", async () => {
+  const { normalizarTelefono, enlaceWhatsApp } = await import("./whatsapp");
+  assert.equal(normalizarTelefono("600 11 22 33"), "34600112233"); assert.equal(normalizarTelefono("+34 600-11-22-33"), "34600112233");
+  assert.equal(normalizarTelefono("0034600112233"), "34600112233"); assert.equal(normalizarTelefono("+44 7700 900123"), "447700900123");
+  for (const mal of ["", "abc", "12", "+1234567890123456", "123"]) assert.equal(normalizarTelefono(mal), null, mal);
+  assert.equal(enlaceWhatsApp({ telefono: "34600112233", texto: "¡Feliz cumple! 🎂 & besos" }), "https://wa.me/34600112233?text=%C2%A1Feliz%20cumple!%20%F0%9F%8E%82%20%26%20besos");
+  assert.equal(enlaceWhatsApp({ telefono: "", texto: "Hola" }), "https://wa.me/?text=Hola");
+  const { siguienteRepeticion } = await import("./fechas");
+  const f = (s: string) => new Date(s);
+  assert.equal(siguienteRepeticion(f("2026-10-14T07:00:00Z"), "anual", "Europe/Madrid")!.toISOString(), "2027-10-14T07:00:00.000Z"); // misma hora local
+  assert.equal(siguienteRepeticion(f("2028-02-29T09:00:00Z"), "anual", "Europe/Madrid")!.toISOString(), "2029-02-28T09:00:00.000Z"); // 29-feb → 28-feb
+  assert.equal(siguienteRepeticion(f("2026-01-15T09:00:00Z"), "anual", "Europe/Madrid")!.toISOString(), "2027-01-15T09:00:00.000Z"); // invierno
+});
+
+test("mini app: mensaje de WhatsApp programado (crear, validar y avisar con el botón de envío)", async () => {
+  const { b, api } = await banco();
+  assert.equal((await api("/api/evento", { tipo: "mensaje", para: "Mamá", cuando: "2026-10-14T09:00" })).estado, 400); // sin texto
+  assert.equal((await api("/api/evento", { tipo: "mensaje", para: "Mamá", texto: "Hola", telefono: "abc", cuando: "2026-10-14T09:00" })).estado, 400); // teléfono mal
+  assert.equal((await api("/api/evento", { tipo: "mensaje", para: "Mamá", texto: "Hola" })).estado, 400); // sin fecha
+  const r = await api("/api/evento", { tipo: "mensaje", para: "Mamá", telefono: "600 11 22 33", texto: "¡Feliz cumpleaños! 🎂", cuando: "2026-10-14T09:00", repeticion: "anual" });
+  assert.equal(r.estado, 200); const ev = (r.cuerpo as any).evento;
+  assert.equal(ev.titulo, "Mensaje a Mamá"); assert.deepEqual(ev.mensaje, { para: "Mamá", telefono: "34600112233", texto: "¡Feliz cumpleaños! 🎂" }); assert.match(ev.enlaceWa, /^https:\/\/wa\.me\/34600112233\?text=/);
+  assert.equal((await b.almacen.getEvento("1", ev.id))!.repeticion, "anual"); assert.ok([...b.almacen.programaciones.values()].some((p) => p.ref === ev.id));
+  // llega la hora: aviso por Telegram con el botón de WhatsApp y por la app con la acción de un toque
+  const u = (await b.almacen.getUsuario("1"))!; u.notificaciones = { canal: "ambos", suscripciones: [{ endpoint: "https://push.example/x", p256dh: "p", auth: "a", dispositivo: "móvil", desde: "2026-10-01" }] }; await b.almacen.guardarUsuario(u);
+  const { tick } = await import("./scheduler"); const avisos: any[] = [];
+  const ahora = new Date("2026-10-14T07:00:30Z"); // 09:00 en Madrid
+  await tick({ almacen: b.almacen, canal: b.canal, http: b.http, ahora: () => ahora, push: async (_s, a) => { avisos.push(a); return "ok"; } });
+  assert.equal(avisos.length, 1); assert.equal(avisos[0].titulo, "💬 Enviar a Mamá"); assert.equal(avisos[0].url, `/app/?wa=${ev.id}`); assert.equal(avisos[0].enlace.url, ev.enlaceWa);
+  const boton = b.canal.botones("1").find((x) => x.url); assert.equal(boton!.url, ev.enlaceWa); assert.match(boton!.texto, /WhatsApp/);
+  assert.match(b.canal.textos("1").at(-1)!, /Feliz cumpleaños/); assert.deepEqual(b.canal.violaciones, []);
+  // repetición anual: se reprograma para el año que viene
+  assert.equal((await b.almacen.getEvento("1", ev.id))!.fechaHora!.toISOString(), "2027-10-14T07:00:00.000Z");
+});

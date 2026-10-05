@@ -7,6 +7,7 @@ import { Aviso, EmisorPush } from "./webpush";
 import { Teclado } from "./canal";
 import { EMOJI_TIPO } from "./secciones/agenda";
 import { formatearFechaHora } from "./fechas";
+import { enlaceWhatsApp } from "./whatsapp";
 import { construirContenido } from "./secciones";
 import { ErrorTelegram } from "./telegram";
 import { HttpGet } from "./util";
@@ -99,7 +100,10 @@ async function enviarEvento(dep: DepsTick, u: Usuario, p: Programacion, ahora: D
   if (retraso > MAX_EVENTO_RETRASO) { r.omitidos++; } else {
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 60_000);
-      await entregar(dep, u, { html, teclado }, { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` });
+      const aviso: Aviso = ev.mensaje
+        ? { titulo: `💬 Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "…" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "💬 Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } }
+        : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` };
+      await entregar(dep, u, { html, teclado }, aviso);
       r.enviados++;
     } catch (e) {
       if (e instanceof ErrorTelegram && e.bloqueado) { await bloquear(dep, u); r.fallidos++; return; }

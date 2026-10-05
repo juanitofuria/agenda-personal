@@ -22,6 +22,7 @@ export function eventoDesdeDoc(uid: string, id: string, d: Record<string, any>):
     id, uid, tipo: d.tipo, titulo: d.titulo ?? "", lugar: d.lugar ?? "", fechaHora: aFecha(d.fechaHora),
     antelacionMin: d.antelacionMin ?? 0, repeticion: (d.repeticion ?? "ninguna") as Repeticion, avisado: !!d.avisado,
     hecho: !!d.hecho, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
+    ...(d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}),
   };
 }
 

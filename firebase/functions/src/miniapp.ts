@@ -10,6 +10,7 @@ import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "
 import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
 import { iguales } from "./webhook";
+import { enlaceWhatsApp, MensajeWa, normalizarTelefono } from "./whatsapp";
 import { claveVapid, suscripcionValida } from "./webpush";
 import { crearAcceso } from "./sesiones";
 import { parseNacimiento } from "./fechas";
@@ -42,11 +43,12 @@ export interface RespuestaApi { estado: number; cuerpo: unknown }
 const ok = (cuerpo: unknown = { ok: true }): RespuestaApi => ({ estado: 200, cuerpo });
 const error = (estado: number, mensaje: string): RespuestaApi => ({ estado, cuerpo: { error: mensaje } });
 
-const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea"];
-const REPS: Repeticion[] = ["ninguna", "diaria", "semanal", "laborables"];
+const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea", "mensaje"];
+const REPS: Repeticion[] = ["ninguna", "diaria", "semanal", "laborables", "anual"];
 
 const eventoJson = (e: Evento, u: Usuario, ahora: Date) => ({
   id: e.id, tipo: e.tipo, titulo: e.titulo, lugar: e.lugar, hecho: e.hecho, repeticion: e.repeticion, antelacionMin: e.antelacionMin,
+  ...(e.mensaje ? { mensaje: e.mensaje, enlaceWa: enlaceWhatsApp(e.mensaje) } : {}),
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null, texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha",
 });
 
@@ -183,7 +185,16 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
 
     case "/api/evento": {
       const tipo = TIPOS.includes(c.tipo) ? (c.tipo as TipoEvento) : null;
-      const titulo = String(c.titulo ?? "").trim().slice(0, 80);
+      let titulo = String(c.titulo ?? "").trim().slice(0, 80);
+      let mensaje: MensajeWa | undefined;
+      if (tipo === "mensaje") {
+        const texto = String(c.texto ?? "").trim().slice(0, 1000), para = String(c.para ?? "").trim().slice(0, 40);
+        const tel = String(c.telefono ?? "").trim() ? normalizarTelefono(String(c.telefono)) : "";
+        if (!texto) return error(400, "Escribe el mensaje");
+        if (tel === null) return error(400, "El teléfono no es válido: ponlo con el prefijo del país, por ejemplo +34 600 000 000");
+        mensaje = { para, telefono: tel, texto };
+        if (!titulo) titulo = `Mensaje a ${para || "un contacto"}`;
+      }
       if (!tipo || !titulo) return error(400, "Falta el título");
       const fecha = c.cuando ? fechaLocal(c.cuando, u.zona) : null;
       if (c.cuando && !fecha) return error(400, "La fecha no es válida");
@@ -191,7 +202,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       if (fecha && fecha.getTime() <= ahora.getTime() - 60_000) return error(400, "Esa fecha ya ha pasado");
       let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
       if (fecha && ant > 0 && fecha.getTime() - ant * 60_000 <= ahora.getTime()) ant = 0;
-      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? (c.repeticion as Repeticion) : "ninguna", avisado: false, hecho: false, creadoEn: ahora } satisfies Omit<Evento, "id">;
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? (c.repeticion as Repeticion) : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...(mensaje ? { mensaje } : {}) } satisfies Omit<Evento, "id">;
       let ev = await deps.almacen.guardarEvento(base);
       ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
       await deps.almacen.guardarEvento(ev);

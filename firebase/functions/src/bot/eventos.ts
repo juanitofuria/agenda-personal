@@ -5,9 +5,10 @@ import { cancelarEvento, posponerEvento, programarEvento } from "../programar";
 import { EMOJI_TIPO } from "../secciones/agenda";
 import { bloque, cabecera } from "../util";
 import { BTN_CANCELAR, BTN_MENU, Ctx } from "./ctx";
+import { enlaceWhatsApp } from "../whatsapp";
 
-const NOMBRE_TIPO: Record<TipoEvento, string> = { alarma: "Alarma", cita: "Cita", tarea: "Tarea" };
-const REP_TEXTO: Record<Repeticion, string> = { ninguna: "solo una vez", diaria: "cada día", semanal: "cada semana", laborables: "de lunes a viernes" };
+const NOMBRE_TIPO: Record<TipoEvento, string> = { alarma: "Alarma", cita: "Cita", tarea: "Tarea", mensaje: "Mensaje de WhatsApp" };
+const REP_TEXTO: Record<Repeticion, string> = { ninguna: "solo una vez", diaria: "cada día", semanal: "cada semana", laborables: "de lunes a viernes", anual: "cada año" };
 const ANT_TEXTO = (m: number) => (m === 0 ? "sin aviso previo" : m < 60 ? `${m} min antes` : m < 1440 ? `${m / 60} h antes` : `${m / 1440} día${m >= 2880 ? "s" : ""} antes`);
 
 const AYUDA_CUANDO = [
@@ -33,6 +34,7 @@ export function textoEvento(e: Evento, zona: string, ahora: Date): string {
     bloque("🕐", "Cuándo", e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "<i>sin fecha</i>"),
   ];
   if (e.lugar) bloques.push("", bloque("📍", "Dónde", esc(e.lugar)));
+  if (e.mensaje) bloques.push("", bloque("💬", `Para ${esc(e.mensaje.para || "quien elijas")}`, `«${esc(e.mensaje.texto)}»`));
   if (e.tipo === "cita") bloques.push("", bloque("🔔", "Aviso", ANT_TEXTO(e.antelacionMin)));
   if (e.tipo === "alarma" || e.repeticion !== "ninguna") bloques.push("", bloque("🔁", "Se repite", REP_TEXTO[e.repeticion]));
   if (e.tipo === "tarea" && e.hecho) bloques.push("", bloque("✅", "Estado", "Hecha"));
@@ -239,15 +241,17 @@ export async function texto(c: Ctx): Promise<boolean> {
 /** Mensaje de aviso de un evento, con los botones Eliminar / Conservar / Modificar / Posponer. */
 export function mensajeAviso(e: Evento, zona: string, ahora: Date, retrasado = false): { html: string; teclado: Teclado } {
   const cuando = e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "";
-  const frase = e.tipo === "cita" ? "Tienes una cita" : e.tipo === "tarea" ? "Tienes una tarea pendiente" : "Es la hora de tu alarma";
+  const frase = e.tipo === "cita" ? "Tienes una cita" : e.tipo === "tarea" ? "Tienes una tarea pendiente" : e.tipo === "mensaje" ? "Es la hora de enviar un mensaje" : "Es la hora de tu alarma";
   const bloques = [cabecera(EMOJI_TIPO[e.tipo], esc(e.titulo), `${frase}${retrasado ? " · aviso retrasado" : ""}`)];
   if (e.antelacionMin > 0 && cuando) bloques.push("", bloque("⏳", "Es", `${cuando} <i>(${ANT_TEXTO(e.antelacionMin).replace("antes", "de antelación")})</i>`));
   if (e.lugar) bloques.push("", bloque("📍", "Dónde", esc(e.lugar)));
-  bloques.push("", "<i>¿Qué hago con él? 👇</i>");
+  if (e.mensaje) bloques.push("", bloque("💬", `Para ${esc(e.mensaje.para || "quien elijas")}`, `«${esc(e.mensaje.texto)}»`), "", "<i>Pulsa el botón verde: se abre WhatsApp con el mensaje escrito y solo tienes que enviarlo 👇</i>");
+  else bloques.push("", "<i>¿Qué hago con él? 👇</i>");
   const html = bloques.join("\n");
   return {
     html,
     teclado: [
+      ...(e.mensaje ? [[{ texto: "💬 Enviar por WhatsApp", url: enlaceWhatsApp(e.mensaje), color: "success" as const }]] : []),
       [{ texto: "🗑 Eliminar", datos: `e:delok:${e.id}` }, { texto: "✅ Conservar", datos: `e:keep:${e.id}` }, { texto: "✏️ Modificar", datos: `e:ver:${e.id}` }],
       [{ texto: "💤 Posponer 10 min", datos: `e:snz:${e.id}` }],
     ],

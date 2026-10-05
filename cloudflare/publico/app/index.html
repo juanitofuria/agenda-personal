@@ -88,8 +88,9 @@ html[data-estilo=formal] .btn{border-radius:10px;background:var(--azul);box-shad
 .interr{width:50px;height:30px;border-radius:15px;background:var(--linea);border:0;position:relative;cursor:pointer;flex:none;transition:.2s}
 .interr::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.3);transition:.2s}
 .interr.on{background:var(--ok)}.interr.on::after{left:23px}
-input[type=text],input[type=time],input[type=datetime-local],select{width:100%;border:1px solid var(--linea);background:var(--tarjeta);border-radius:12px;padding:12px;font-weight:700;font-size:15px;outline:none}
-input:focus,select:focus{border-color:var(--azul)}
+input[type=text],input[type=tel],input[type=time],input[type=datetime-local],input[type=date],textarea,select{width:100%;border:1px solid var(--linea);background:var(--tarjeta);border-radius:12px;padding:12px;font-weight:700;font-size:15px;outline:none}
+textarea{resize:vertical;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--azul)}
 label{display:block;font-weight:800;font-size:12.5px;color:var(--suave);margin:12px 2px 5px;text-transform:uppercase;letter-spacing:.8px}
 .seg{display:flex;gap:6px;background:var(--linea);padding:4px;border-radius:14px}
 .seg button{flex:1;border:0;background:transparent;padding:10px 6px;border-radius:11px;font-weight:800;font-size:13.5px;cursor:pointer;color:var(--suave)}
@@ -260,7 +261,7 @@ const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
-const EMO = { alarma: "⏰", cita: "📅", tarea: "✅" };
+const EMO = { alarma: "⏰", cita: "📅", tarea: "✅", mensaje: "💬" };
 const vistas = {
   inicio() {
     const u = S.datos.usuario, n = S.datos.secciones.filter((s) => s.activa).length, pend = S.datos.eventos.filter((e) => !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
@@ -308,8 +309,8 @@ const vistas = {
   eventos() {
     const ev = S.datos.eventos;
     return `${barra("Mis eventos")}
-      <div class="lista">${ev.length ? ev.map((e) => `<div class="fila ${e.hecho ? "hecho" : ""}"><div class="emo">${EMO[e.tipo]}</div><div class="t"><b>${esc(e.titulo)}</b><small>${esc(e.texto)}${e.lugar ? " · " + esc(e.lugar) : ""}${e.repeticion !== "ninguna" ? " · 🔁" : ""}</small></div>
-        <div class="acciones"><button class="btn chico sec" data-hecho="${e.id}">${e.hecho ? "↩︎" : "✓"}</button><button class="btn chico peligro" data-borrar="${e.id}">🗑</button></div></div>`).join("") : `<div class="vacio">Aún no tienes nada.<br>Pulsa + para crear una alarma, cita o tarea.</div>`}</div>
+      <div class="lista">${ev.length ? ev.map((e) => `<div class="fila ${e.hecho ? "hecho" : ""}"><div class="emo">${EMO[e.tipo]}</div><div class="t"><b>${esc(e.titulo)}</b><small>${esc(e.texto)}${e.lugar ? " · " + esc(e.lugar) : ""}${e.repeticion !== "ninguna" ? " · 🔁" : ""}${e.mensaje ? ` · «${esc(e.mensaje.texto.slice(0, 40))}${e.mensaje.texto.length > 40 ? "…" : ""}»` : ""}</small></div>
+        <div class="acciones">${e.mensaje ? `<button class="btn chico" data-wa="${e.id}" style="background:#25a85a">💬</button>` : ""}<button class="btn chico sec" data-hecho="${e.id}">${e.hecho ? "↩︎" : "✓"}</button><button class="btn chico peligro" data-borrar="${e.id}">🗑</button></div></div>`).join("") : `<div class="vacio">Aún no tienes nada.<br>Pulsa + para crear una alarma, cita, tarea o mensaje de WhatsApp.</div>`}</div>
       <button class="fab" data-nuevo="1" aria-label="Nuevo">${ic("mas")}</button>`;
   },
   secciones() {
@@ -376,8 +377,8 @@ function hojaNuevo() {
   const loc = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const h = document.createElement("div"); h.className = "hoja";
   h.innerHTML = `<div><h3>Nuevo</h3>
-    <div class="seg" id="tipo" style="margin-top:10px"><button class="on" data-t="alarma">⏰ Alarma</button><button data-t="cita">📅 Cita</button><button data-t="tarea">✅ Tarea</button></div>
-    <label>Nombre</label><input type="text" id="f-titulo" maxlength="80" placeholder="¿Cómo lo llamamos?">
+    <div class="seg" id="tipo" style="margin-top:10px"><button class="on" data-t="alarma">⏰ Alarma</button><button data-t="cita">📅 Cita</button><button data-t="tarea">✅ Tarea</button><button data-t="mensaje">💬 WhatsApp</button></div>
+    <div id="f-nombre"><label>Nombre</label><input type="text" id="f-titulo" maxlength="80" placeholder="¿Cómo lo llamamos?"></div>
     <label>Cuándo</label><input type="datetime-local" id="f-cuando" value="${loc}">
     <div id="f-extra"></div>
     <button class="btn ancho" id="f-ok">Guardar</button><button class="btn sec ancho" id="f-no">Cancelar</button></div>`;
@@ -385,17 +386,40 @@ function hojaNuevo() {
   let tipo = "alarma";
   const extra = () => {
     $("#f-extra", h).innerHTML = (tipo === "cita" ? `<label>Lugar</label><input type="text" id="f-lugar" maxlength="80" placeholder="Opcional"><label>Avisarme</label><select id="f-ant"><option value="30">30 min antes</option><option value="60" selected>1 hora antes</option><option value="180">3 horas antes</option><option value="1440">1 día antes</option><option value="0">A la hora</option></select>` : "")
-      + (tipo === "alarma" ? `<label>Repetir</label><select id="f-rep"><option value="ninguna">Solo una vez</option><option value="diaria">Cada día</option><option value="laborables">Lunes a viernes</option><option value="semanal">Cada semana</option></select>` : "")
+      + (tipo === "alarma" ? `<label>Repetir</label><select id="f-rep"><option value="ninguna">Solo una vez</option><option value="diaria">Cada día</option><option value="laborables">Lunes a viernes</option><option value="semanal">Cada semana</option><option value="anual">Cada año</option></select>` : "")
+      + (tipo === "mensaje" ? `<label>Para quién</label><input type="text" id="f-para" maxlength="40" placeholder="Por ejemplo: Mamá">
+        <label>Teléfono (opcional)</label><input type="tel" id="f-tel" maxlength="20" placeholder="+34 600 000 000" autocomplete="off">
+        <label>Mensaje</label><textarea id="f-texto" maxlength="1000" rows="4" placeholder="Lo que quieres enviar"></textarea>
+        <label>Repetir</label><select id="f-rep"><option value="ninguna">Solo una vez</option><option value="anual">Cada año (cumpleaños…)</option><option value="semanal">Cada semana</option><option value="diaria">Cada día</option></select>
+        <p class="nota">A la hora indicada te avisaré con un botón: lo pulsas, se abre WhatsApp con el mensaje ya escrito y solo tienes que enviarlo. Sin teléfono, eliges el contacto en WhatsApp.</p>` : "")
       + (tipo === "tarea" ? `<p class="nota">Las tareas pueden no tener fecha: deja el campo vacío.</p>` : "");
   };
   extra();
   h.addEventListener("click", async (e) => {
-    const t = e.target.closest("[data-t]"); if (t) { tipo = t.dataset.t; h.querySelectorAll("#tipo button").forEach((b) => b.classList.toggle("on", b === t)); extra(); }
+    const t = e.target.closest("[data-t]"); if (t) { tipo = t.dataset.t; h.querySelectorAll("#tipo button").forEach((b) => b.classList.toggle("on", b === t)); $("#f-nombre", h).style.display = tipo === "mensaje" ? "none" : ""; extra(); }
     if (e.target.id === "f-no" || e.target === h) h.remove();
     if (e.target.id === "f-ok") {
-      const cuerpo = { tipo, titulo: $("#f-titulo", h).value, cuando: $("#f-cuando", h).value || null, lugar: $("#f-lugar", h)?.value, antelacionMin: $("#f-ant", h)?.value, repeticion: $("#f-rep", h)?.value };
+      const cuerpo = { tipo, titulo: $("#f-titulo", h).value, cuando: $("#f-cuando", h).value || null, lugar: $("#f-lugar", h)?.value, para: $("#f-para", h)?.value, telefono: $("#f-tel", h)?.value, texto: $("#f-texto", h)?.value, antelacionMin: $("#f-ant", h)?.value, repeticion: $("#f-rep", h)?.value };
       await hacer(() => api("/api/evento", cuerpo), "✅ Guardado"); if (!document.querySelector(".aviso")?.textContent.startsWith("✅")) return; h.remove();
     }
+  });
+}
+
+/* Mensaje de WhatsApp programado: al llegar el aviso, un toque abre WhatsApp con el mensaje escrito. */
+function hojaWa(e) {
+  const m = e.mensaje; if (!m) return;
+  const h = document.createElement("div"); h.className = "hoja";
+  h.innerHTML = `<div><h3>💬 Mensaje para ${esc(m.para || "tu contacto")}</h3>
+    <p class="nota">${e.hecho ? "" : esc(e.texto)}</p>
+    <div class="doc" style="white-space:pre-wrap;font-size:14px">${esc(m.texto)}</div>
+    <button class="btn ancho" data-w="abrir" style="background:#25a85a">💬 Abrir WhatsApp con el mensaje</button>
+    <p class="nota">Se abre WhatsApp con el texto ya escrito: solo tienes que pulsar enviar.</p>
+    <button class="btn sec ancho" data-w="no">Cerrar</button></div>`;
+  document.body.appendChild(h);
+  h.addEventListener("click", (ev) => {
+    const w = ev.target.closest("[data-w]")?.dataset.w;
+    if (ev.target === h || w === "no") return h.remove();
+    if (w === "abrir") { abrirEnlace(e.enlaceWa); h.remove(); }
   });
 }
 
@@ -668,6 +692,7 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
+  if ((el = q("[data-wa]"))) return hojaWa(S.datos.eventos.find((x) => x.id === el.dataset.wa));
   if ((el = q("[data-so]"))) { S.guiaSO = el.dataset.so; return pintar(); }
   if (q("[data-cerrar-banner]")) { S.bannerOculto = S.bannerClave; return pintar(); }
   if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, "🔔 Notificaciones activadas");
@@ -765,10 +790,11 @@ const MENSAJE_ENTRADA = `<div class="cargando" style="line-height:1.6">Para usar
       if (!leerSesion()) { $("#app").innerHTML = MENSAJE_ENTRADA; registrarSW(); return; }
     }
     await cargar(); registrarSW(); if (!enTelegram() && !DEMO) await refrescarDispositivos();
-    const ver = url.searchParams.get("ver"), ir_ = url.searchParams.get("ir");
-    if (ver || ir_) history.replaceState(null, "", url.pathname);
+    const ver = url.searchParams.get("ver"), ir_ = url.searchParams.get("ir"), wa = url.searchParams.get("wa");
+    if (ver || ir_ || wa) history.replaceState(null, "", url.pathname);
     if (ir_ && vistas[ir_]) { S.vista = ir_; pintar(); } else pintar();
     if (ver) abrirVer(ver);
+    if (wa) { const e = S.datos.eventos.find((x) => x.id === wa); if (e) { S.vista = "eventos"; pintar(); hojaWa(e); } }
   } catch (e) { $("#app").innerHTML = e.sesion ? MENSAJE_ENTRADA : `<div class="cargando" style="line-height:1.6">${esc(e.message)}<br><br>Escribe <b>/app</b> al bot en Telegram para pedir un enlace nuevo.</div>`; }
 })();
 </script>

@@ -72,12 +72,13 @@ export function proximaOcurrencia(hhmm: string, zona: string, desde: Date): Date
   return localAUtc(n.y, n.m, n.d, h, mi, zona);
 }
 
-export type Repeticion = "ninguna" | "diaria" | "semanal" | "laborables";
+export type Repeticion = "ninguna" | "diaria" | "semanal" | "laborables" | "anual";
 
 /** Siguiente repetición conservando la hora local. */
 export function siguienteRepeticion(fecha: Date, rep: Repeticion, zona: string): Date | null {
   if (rep === "ninguna") return null;
   const p = partesEnZona(fecha, zona);
+  if (rep === "anual") return localAUtc(p.y + 1, p.m, p.m === 2 && p.d === 29 ? 28 : p.d, p.h, p.mi, zona); // el 29 de febrero pasa al 28 en los años sin él
   let dias = 1;
   if (rep === "semanal") dias = 7;
   if (rep === "laborables") { const sig = (p.dow + 1) % 7; dias = sig === 6 ? 3 : sig === 0 ? 2 : 1; }

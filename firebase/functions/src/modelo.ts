@@ -1,4 +1,5 @@
 import { Repeticion } from "./fechas";
+import { MensajeWa } from "./whatsapp";
 
 export type SeccionId = "tiempo" | "noticias" | "mercados" | "horoscopo" | "agenda";
 
@@ -64,7 +65,7 @@ export interface Usuario {
   creadoEn: Date;
 }
 
-export type TipoEvento = "alarma" | "cita" | "tarea";
+export type TipoEvento = "alarma" | "cita" | "tarea" | "mensaje";
 
 export interface Evento {
   id: string;
@@ -75,6 +76,8 @@ export interface Evento {
   fechaHora: Date | null;     // momento del evento; las tareas pueden no tener
   antelacionMin: number;      // minutos antes del evento a los que se avisa (0 en alarmas)
   repeticion: Repeticion;
+  /** Solo en el tipo «mensaje»: a quién y qué se envía por WhatsApp cuando llegue la hora. */
+  mensaje?: MensajeWa;
   avisado: boolean;           // ya se ha enviado el aviso (los repetitivos se rearman solos)
   hecho: boolean;
   creadoEn: Date;

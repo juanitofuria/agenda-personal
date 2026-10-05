@@ -964,7 +964,8 @@ function eventoDesdeJson(uid, id, d) {
     repeticion: d.repeticion ?? "ninguna",
     avisado: !!d.avisado,
     hecho: !!d.hecho,
-    creadoEn: aFecha(d.creadoEn) ?? /* @__PURE__ */ new Date(0)
+    creadoEn: aFecha(d.creadoEn) ?? /* @__PURE__ */ new Date(0),
+    ...d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}
   };
 }
 __name(eventoDesdeJson, "eventoDesdeJson");
@@ -1355,6 +1356,7 @@ __name(proximaOcurrencia, "proximaOcurrencia");
 function siguienteRepeticion(fecha, rep, zona) {
   if (rep === "ninguna") return null;
   const p = partesEnZona(fecha, zona);
+  if (rep === "anual") return localAUtc(p.y + 1, p.m, p.m === 2 && p.d === 29 ? 28 : p.d, p.h, p.mi, zona);
   let dias = 1;
   if (rep === "semanal") dias = 7;
   if (rep === "laborables") {
@@ -1584,7 +1586,7 @@ __name(conReintentos, "conReintentos");
 var NAV_MENU = [{ texto: "\u{1F3E0} Men\xFA", datos: "m:menu" }];
 
 // ../firebase/functions/src/secciones/agenda.ts
-var EMOJI_TIPO = { alarma: "\u23F0", cita: "\u{1FA7A}", tarea: "\u2705" };
+var EMOJI_TIPO = { alarma: "\u23F0", cita: "\u{1FA7A}", tarea: "\u2705", mensaje: "\u{1F4AC}" };
 var hhmm = /* @__PURE__ */ __name((d, zona) => {
   const p = partesEnZona(d, zona);
   return `${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`;
@@ -3487,9 +3489,20 @@ async function diagnostico(c) {
 }
 __name(diagnostico, "diagnostico");
 
+// ../firebase/functions/src/whatsapp.ts
+function normalizarTelefono(texto4) {
+  let d = texto4.replace(/[\s().-]/g, "");
+  if (d.startsWith("+")) d = d.slice(1);
+  else if (d.startsWith("00")) d = d.slice(2);
+  else if (/^[6-9]\d{8}$/.test(d)) d = "34" + d;
+  return /^\d{8,15}$/.test(d) ? d : null;
+}
+__name(normalizarTelefono, "normalizarTelefono");
+var enlaceWhatsApp = /* @__PURE__ */ __name((m) => `https://wa.me/${m.telefono}?text=${encodeURIComponent(m.texto)}`, "enlaceWhatsApp");
+
 // ../firebase/functions/src/bot/eventos.ts
-var NOMBRE_TIPO = { alarma: "Alarma", cita: "Cita", tarea: "Tarea" };
-var REP_TEXTO = { ninguna: "solo una vez", diaria: "cada d\xEDa", semanal: "cada semana", laborables: "de lunes a viernes" };
+var NOMBRE_TIPO = { alarma: "Alarma", cita: "Cita", tarea: "Tarea", mensaje: "Mensaje de WhatsApp" };
+var REP_TEXTO = { ninguna: "solo una vez", diaria: "cada d\xEDa", semanal: "cada semana", laborables: "de lunes a viernes", anual: "cada a\xF1o" };
 var ANT_TEXTO = /* @__PURE__ */ __name((m) => m === 0 ? "sin aviso previo" : m < 60 ? `${m} min antes` : m < 1440 ? `${m / 60} h antes` : `${m / 1440} d\xEDa${m >= 2880 ? "s" : ""} antes`, "ANT_TEXTO");
 var AYUDA_CUANDO = [
   cabecera("\u{1F552}", "\xBFCu\xE1ndo?", "Escr\xEDbelo como quieras"),
@@ -3513,6 +3526,7 @@ function textoEvento(e, zona, ahora) {
     bloque("\u{1F550}", "Cu\xE1ndo", e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "<i>sin fecha</i>")
   ];
   if (e.lugar) bloques.push("", bloque("\u{1F4CD}", "D\xF3nde", esc(e.lugar)));
+  if (e.mensaje) bloques.push("", bloque("\u{1F4AC}", `Para ${esc(e.mensaje.para || "quien elijas")}`, `\xAB${esc(e.mensaje.texto)}\xBB`));
   if (e.tipo === "cita") bloques.push("", bloque("\u{1F514}", "Aviso", ANT_TEXTO(e.antelacionMin)));
   if (e.tipo === "alarma" || e.repeticion !== "ninguna") bloques.push("", bloque("\u{1F501}", "Se repite", REP_TEXTO[e.repeticion]));
   if (e.tipo === "tarea" && e.hecho) bloques.push("", bloque("\u2705", "Estado", "Hecha"));
@@ -3797,15 +3811,17 @@ ${textoEvento(nuevo, c.u.zona, c.ahora)}`, tecladoEvento(nuevo));
 __name(texto2, "texto");
 function mensajeAviso(e, zona, ahora, retrasado = false) {
   const cuando = e.fechaHora ? formatearFechaHora(e.fechaHora, zona, ahora) : "";
-  const frase = e.tipo === "cita" ? "Tienes una cita" : e.tipo === "tarea" ? "Tienes una tarea pendiente" : "Es la hora de tu alarma";
+  const frase = e.tipo === "cita" ? "Tienes una cita" : e.tipo === "tarea" ? "Tienes una tarea pendiente" : e.tipo === "mensaje" ? "Es la hora de enviar un mensaje" : "Es la hora de tu alarma";
   const bloques = [cabecera(EMOJI_TIPO[e.tipo], esc(e.titulo), `${frase}${retrasado ? " \xB7 aviso retrasado" : ""}`)];
   if (e.antelacionMin > 0 && cuando) bloques.push("", bloque("\u23F3", "Es", `${cuando} <i>(${ANT_TEXTO(e.antelacionMin).replace("antes", "de antelaci\xF3n")})</i>`));
   if (e.lugar) bloques.push("", bloque("\u{1F4CD}", "D\xF3nde", esc(e.lugar)));
-  bloques.push("", "<i>\xBFQu\xE9 hago con \xE9l? \u{1F447}</i>");
+  if (e.mensaje) bloques.push("", bloque("\u{1F4AC}", `Para ${esc(e.mensaje.para || "quien elijas")}`, `\xAB${esc(e.mensaje.texto)}\xBB`), "", "<i>Pulsa el bot\xF3n verde: se abre WhatsApp con el mensaje escrito y solo tienes que enviarlo \u{1F447}</i>");
+  else bloques.push("", "<i>\xBFQu\xE9 hago con \xE9l? \u{1F447}</i>");
   const html = bloques.join("\n");
   return {
     html,
     teclado: [
+      ...e.mensaje ? [[{ texto: "\u{1F4AC} Enviar por WhatsApp", url: enlaceWhatsApp(e.mensaje), color: "success" }]] : [],
       [{ texto: "\u{1F5D1} Eliminar", datos: `e:delok:${e.id}` }, { texto: "\u2705 Conservar", datos: `e:keep:${e.id}` }, { texto: "\u270F\uFE0F Modificar", datos: `e:ver:${e.id}` }],
       [{ texto: "\u{1F4A4} Posponer 10 min", datos: `e:snz:${e.id}` }]
     ]
@@ -4596,7 +4612,8 @@ async function enviarEvento(dep, u, p, ahora, r) {
   } else {
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 6e4);
-      await entregar(dep, u, { html, teclado }, { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` });
+      const aviso = ev.mensaje ? { titulo: `\u{1F4AC} Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "\u2026" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "\u{1F4AC} Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } } : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` };
+      await entregar(dep, u, { html, teclado }, aviso);
       r.enviados++;
     } catch (e) {
       if (e instanceof ErrorTelegram && e.bloqueado) {
@@ -4788,8 +4805,8 @@ function validarInitData(initData, token, ahora) {
 __name(validarInitData, "validarInitData");
 var ok = /* @__PURE__ */ __name((cuerpo = { ok: true }) => ({ estado: 200, cuerpo }), "ok");
 var error3 = /* @__PURE__ */ __name((estado2, mensaje) => ({ estado: estado2, cuerpo: { error: mensaje } }), "error");
-var TIPOS = ["alarma", "cita", "tarea"];
-var REPS = ["ninguna", "diaria", "semanal", "laborables"];
+var TIPOS = ["alarma", "cita", "tarea", "mensaje"];
+var REPS = ["ninguna", "diaria", "semanal", "laborables", "anual"];
 var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
   id: e.id,
   tipo: e.tipo,
@@ -4798,6 +4815,7 @@ var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
   hecho: e.hecho,
   repeticion: e.repeticion,
   antelacionMin: e.antelacionMin,
+  ...e.mensaje ? { mensaje: e.mensaje, enlaceWa: enlaceWhatsApp(e.mensaje) } : {},
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null,
   texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha"
 }), "eventoJson");
@@ -4935,7 +4953,16 @@ async function manejarApi(deps, u, ruta, c) {
     }
     case "/api/evento": {
       const tipo = TIPOS.includes(c.tipo) ? c.tipo : null;
-      const titulo = String(c.titulo ?? "").trim().slice(0, 80);
+      let titulo = String(c.titulo ?? "").trim().slice(0, 80);
+      let mensaje;
+      if (tipo === "mensaje") {
+        const texto4 = String(c.texto ?? "").trim().slice(0, 1e3), para = String(c.para ?? "").trim().slice(0, 40);
+        const tel = String(c.telefono ?? "").trim() ? normalizarTelefono(String(c.telefono)) : "";
+        if (!texto4) return error3(400, "Escribe el mensaje");
+        if (tel === null) return error3(400, "El tel\xE9fono no es v\xE1lido: ponlo con el prefijo del pa\xEDs, por ejemplo +34 600 000 000");
+        mensaje = { para, telefono: tel, texto: texto4 };
+        if (!titulo) titulo = `Mensaje a ${para || "un contacto"}`;
+      }
       if (!tipo || !titulo) return error3(400, "Falta el t\xEDtulo");
       const fecha = c.cuando ? fechaLocal(c.cuando, u.zona) : null;
       if (c.cuando && !fecha) return error3(400, "La fecha no es v\xE1lida");
@@ -4943,7 +4970,7 @@ async function manejarApi(deps, u, ruta, c) {
       if (fecha && fecha.getTime() <= ahora.getTime() - 6e4) return error3(400, "Esa fecha ya ha pasado");
       let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
       if (fecha && ant > 0 && fecha.getTime() - ant * 6e4 <= ahora.getTime()) ant = 0;
-      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora };
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...mensaje ? { mensaje } : {} };
       let ev = await deps.almacen.guardarEvento(base);
       ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
       await deps.almacen.guardarEvento(ev);

@@ -1,5 +1,5 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
-const CACHE = "agenda-v1";
+const CACHE = "agenda-v2";
 const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest", "/app/icon-192.png", "/app/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -24,12 +24,15 @@ self.addEventListener("push", (e) => {
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Mi Agenda", cuerpo: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.titulo || "Mi Agenda Personal", {
     body: d.cuerpo || "", icon: "/app/icon-192.png", badge: "/app/icon-192.png", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
-    data: { url: d.url || "/app/" },
+    actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
+    data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
   }));
 });
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
+  const datos = e.notification.data || {};
+  if (e.action === "enlace" && datos.enlace) { e.waitUntil(self.clients.openWindow(datos.enlace)); return; } // botón de la notificación: un toque (p. ej. WhatsApp con el mensaje escrito)
   const destino = new URL((e.notification.data && e.notification.data.url) || "/app/", self.location.origin).href;
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ventanas) => {
     for (const v of ventanas) { if (v.url.startsWith(self.location.origin + "/app/") && "focus" in v) { v.focus(); return v.navigate(destino); } }
