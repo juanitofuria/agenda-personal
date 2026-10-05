@@ -363,13 +363,13 @@ test("worker: la lista compartida se abre con su enlace sin firma de Telegram (y
   assert.equal((await lista({}, "GET")).status, 405);
 });
 
-test("la frase del día: 365 frases distintas, cada una con texto y autor", () => {
+test("la frase del día: 365 frases motivadoras distintas, una por día", () => {
   const js = readFileSync(join(__dirname, "..", "..", "..", "publico", "app", "frases.js"), "utf8");
-  const frases = new Function(`${js}; return FRASES;`)() as [string, string][];
+  const frases = new Function(`${js}; return FRASES;`)() as string[];
   assert.equal(frases.length, 365);
-  assert.equal(new Set(frases.map((f) => f[0])).size, 365); // sin repetidas
-  for (const [texto, autor] of frases) { assert.ok(texto.length >= 8 && texto.length <= 200, texto); assert.ok(autor.length >= 3 && autor.length <= 60, autor); }
+  assert.equal(new Set(frases).size, 365); // sin repetidas
+  for (const f of frases) assert.ok(f.length >= 25 && f.length <= 140, f);
   const dia = (y: number, m: number, d: number) => Math.floor((Date.UTC(y, m, d) - Date.UTC(y, 0, 0)) / 864e5); // igual que la app
   assert.equal(dia(2026, 0, 1), 1); assert.equal(dia(2026, 11, 31), 365); assert.equal(dia(2028, 11, 31), 366); // año bisiesto: el último día repite la primera
-  assert.equal(frases[(366 - 1) % 365][0], frases[0][0]);
+  assert.equal(frases[(366 - 1) % 365], frases[0]);
 });

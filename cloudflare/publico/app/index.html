@@ -37,7 +37,7 @@ html[data-estilo=formal] .cab p{text-transform:uppercase;letter-spacing:2.4px;fo
 .colores{display:flex;gap:10px;justify-content:center;margin:8px 0 4px}.colores button{width:28px;height:28px;border-radius:50%;border:3px solid transparent;padding:0;cursor:pointer}.colores button.on{border-color:var(--tinta)}
 .dia{margin:14px 4px 0;text-align:center;font:800 11.5px var(--fuente);letter-spacing:1.6px;text-transform:uppercase;color:var(--suave)}
 html[data-estilo=formal] .dia{text-align:left;margin-left:2px}
-.frase small{display:block;font:700 14px var(--fuente);color:var(--suave);margin-top:6px;transform:none}
+
 .frase{margin:6px 4px 2px;font:700 22px/1.2 var(--mano);color:var(--azul2);text-align:center;transform:rotate(-1.5deg)}
 .frase::after{content:"";display:block;height:5px;width:46%;margin:8px auto 0;border-radius:3px;background:var(--azul2);opacity:.75;transform:rotate(1deg)}
 html[data-estilo=formal] .frase{font:italic 700 15.5px/1.4 var(--titulo);color:var(--suave);transform:none;text-align:left;margin:6px 2px 2px}
@@ -206,7 +206,7 @@ function burbuja(tam) {
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
 const botonAvatar = (tam = 58) => `<button class="avw" data-avatar="1" aria-label="Cambiar avatar" style="border:0;background:none;padding:0">${burbuja(tam)}<span class="lapiz">✎</span></button>`;
-const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>Mi Agenda Personal</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase[0])}<small>— ${esc(S.frase[1])}</small></div></div>`;
+const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>Mi Agenda Personal</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
