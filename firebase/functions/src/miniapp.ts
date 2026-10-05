@@ -4,9 +4,12 @@ import { Deps } from "./bot/ctx";
 import { contenidoDeSeccion } from "./bot/bot";
 import { buscarLugares } from "./geocoding";
 import { formatearFechaHora, localAUtc, Repeticion } from "./fechas";
-import { Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, TipoEvento, Usuario } from "./modelo";
+import { Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario } from "./modelo";
+import { slug } from "./bot/catalogo";
+import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
 import { iguales } from "./webhook";
+import { parseNacimiento } from "./fechas";
 
 /** Antigüedad máxima de los datos de inicio que da Telegram al abrir la mini app. */
 const VIGENCIA_S = 24 * 3600;
@@ -53,9 +56,24 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
     ...u.temas.map((t) => ({ ref: `tema:${t.id}`, emoji: t.emoji, titulo: t.titulo, descripcion: `Noticias sobre «${t.consulta}»`, activa: t.activa, hora: t.hora })),
   ];
   return ok({
-    usuario: { nombre: u.nombre, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
     secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
+}
+
+const refsActivas = (u: Usuario): string[] => ORDEN_SECCIONES.filter((x) => u.secciones[x].activa).map(String).concat(u.temas.filter((t) => t.activa).map((t) => `tema:${t.id}`));
+
+/** Botones de una sección que tienen sentido dentro de la mini app: enlaces, subpantallas de la misma sección y atajos a otras pantallas. */
+export function botonesApp(t?: Teclado): { texto: string; url?: string; ref?: string; ir?: string }[] {
+  const res: { texto: string; url?: string; ref?: string; ir?: string }[] = [];
+  for (const b of (t ?? []).flat()) {
+    const d = b.datos ?? "";
+    if (b.url) res.push({ texto: b.texto, url: b.url });
+    else if (/^se[cv]:/.test(d) && d !== "sec:todo") res.push({ texto: b.texto, ref: d.replace(/^se[cv]:/, "") });
+    else if (/^p:/.test(d)) res.push({ texto: b.texto, ir: "perfil" });
+    else if (/^[ne]:/.test(d)) res.push({ texto: b.texto, ir: "eventos" });
+  }
+  return res;
 }
 
 /** Lee «aaaa-mm-ddThh:mm» (hora local del usuario) y la pasa a UTC. */
@@ -88,8 +106,8 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       const cfg = ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === ref) : u.secciones[ref as SeccionId];
       if (!cfg) return error(404, "Esa sección no existe");
       if (typeof c.activa === "boolean") {
-        if (c.activa && ref === "tiempo" && !u.ciudad) return error(409, "Para el tiempo necesito tu ciudad: dímela en el chat (Mi perfil → Ciudad).");
-        if (c.activa && ref === "horoscopo" && !u.nacimiento) return error(409, "Para el horóscopo necesito tu fecha de nacimiento: ponla en el chat (Mi perfil).");
+        if (c.activa && ref === "tiempo" && !u.ciudad) return error(409, "Para el tiempo necesito tu ciudad: elige tu ciudad en Mi perfil.");
+        if (c.activa && ref === "horoscopo" && !u.nacimiento) return error(409, "Para el horóscopo necesito tu fecha de nacimiento: ponla en Mi perfil.");
         cfg.activa = c.activa;
       }
       if (typeof c.hora === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.hora)) cfg.hora = c.hora;
@@ -135,6 +153,47 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       u.ciudad = { nombre: l.nombre, provincia: l.provincia, lat: l.lat, lon: l.lon }; u.zona = l.zona;
       await deps.almacen.guardarUsuario(u); await sincronizarSecciones(deps.almacen, u, ahora);
       return ok({ ciudad: l.nombre });
+    }
+
+    case "/api/ver": {
+      // Prepara una o varias secciones para mostrarlas dentro de la mini app (no se manda nada al chat).
+      const refs = c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
+      if (!refs.length) return error(409, "No tienes ninguna sección activada");
+      const hechas = await Promise.all(refs.map(async (ref) => {
+        try {
+          const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref }) : await contenidoDeSeccion(deps, u, ref);
+          return { ref, html: cont.html, botones: botonesApp(cont.teclado) };
+        } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
+      }));
+      return ok({ secciones: hechas });
+    }
+
+    case "/api/perfil": {
+      if (typeof c.nombre === "string") u.nombre = c.nombre.trim().slice(0, 40);
+      if (typeof c.nacimiento === "string" && c.nacimiento) {
+        const n = parseNacimiento(c.nacimiento.split("-").reverse().join("/"), ahora);
+        if (!n) return error(400, "La fecha de nacimiento no es válida");
+        u.nacimiento = n;
+      }
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+
+    case "/api/tema": {
+      if (c.borrar) {
+        u.temas = u.temas.filter((t) => t.id !== c.borrar);
+        await deps.almacen.guardarUsuario(u); await programarSeccion(deps.almacen, u, `tema:${c.borrar}`, ahora);
+        return ok();
+      }
+      const titulo = String(c.titulo ?? "").trim().slice(0, 60);
+      if (!titulo) return error(400, "Escribe el tema");
+      if (u.temas.length >= 15) return error(409, "Ya tienes muchos temas: elimina alguno");
+      let id = slug(titulo), n = 2;
+      while (u.temas.some((t) => t.id === id)) id = `${slug(titulo)}-${n++}`;
+      const m = 8 * 60 + 30 + u.temas.length * 5;
+      const tema: Tema = { id, titulo, emoji: "⭐", consulta: String(c.consulta ?? "").trim().slice(0, 120) || titulo, hora: `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`, activa: true };
+      u.temas.push(tema); await deps.almacen.guardarUsuario(u); await programarSeccion(deps.almacen, u, `tema:${id}`, ahora);
+      return ok({ ref: `tema:${id}` });
     }
 
     case "/api/enviar": {

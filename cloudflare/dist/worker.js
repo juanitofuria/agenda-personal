@@ -2927,7 +2927,11 @@ function menuPrincipal(u, admin, urlBase, ahora = /* @__PURE__ */ new Date()) {
   const eventos = b(ic.eventos, "Mis eventos", "e:lista"), secciones = b(ic.secciones, "Mis secciones", "s:lista", "success");
   const perfil = b(ic.perfil, "Mi perfil", "p:ver", "primary"), ayuda = b(ic.ayuda, "Ayuda", "m:ayuda", "danger");
   const teclado = u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]] : modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]] : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
-  if (urlBase) teclado.unshift([{ texto: `${u.estilo === "formal" ? "\u{1F7E6}" : "\u{1F4F1}"} Abrir la app`, webApp: `${urlBase.replace(/\/+$/, "")}/app/`, color: "primary" }]);
+  if (urlBase) {
+    const app = { texto: `${u.estilo === "formal" ? "\u{1F7E6}" : "\u{1F4F1}"} Abrir la app`, webApp: `${urlBase.replace(/\/+$/, "")}/app/`, color: "primary" };
+    const htmlApp = [...cabecera_, "", u.estilo === "formal" ? "Todo su d\xEDa, en un solo lugar: resumen, agenda, secciones y ajustes." : "Todo en un solo sitio: tu resumen, tu agenda, tus secciones y tus ajustes.", "", u.estilo === "formal" ? "<i>Abra la aplicaci\xF3n \u{1F447}</i>" : "<i>Abre la app \u{1F447}</i>"].join("\n");
+    return { html: htmlApp, teclado: admin ? [[app], [b(ic.acceso, "Acceso", "acc:menu")]] : [[app]], foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` };
+  }
   if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
   return { html, teclado, ...urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` } : {} };
 }
@@ -3674,6 +3678,7 @@ __name(mensajeAviso, "mensajeAviso");
 async function mostrarMenu(c) {
   const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase, c.ahora);
   const cb = c.entrada.callback;
+  if (c.deps.urlBase) await c.deps.canal.botonApp?.(c.u.id, "\u{1F4F1} Agenda", `${c.deps.urlBase.replace(/\/+$/, "")}/app/`);
   if (m.foto && c.deps.canal.enviarFoto) {
     if (cb) await c.deps.canal.borrar?.(c.u.id, cb.mensajeId);
     await c.deps.canal.enviarFoto(c.u.id, m.foto, m.html, m.teclado);
@@ -4218,6 +4223,12 @@ var CanalTelegram = class {
       await this.enviar(chatId, html, teclado);
     }
   }
+  async botonApp(chatId, texto4, url) {
+    try {
+      await this.llamar("setChatMenuButton", { chat_id: chatId, menu_button: { type: "web_app", text: texto4, web_app: { url } } });
+    } catch {
+    }
+  }
   async borrar(chatId, mensajeId) {
     try {
       await this.llamar("deleteMessage", { chat_id: chatId, message_id: mensajeId });
@@ -4485,13 +4496,26 @@ async function estado(deps, u) {
     ...u.temas.map((t) => ({ ref: `tema:${t.id}`, emoji: t.emoji, titulo: t.titulo, descripcion: `Noticias sobre \xAB${t.consulta}\xBB`, activa: t.activa, hora: t.hora }))
   ];
   return ok({
-    usuario: { nombre: u.nombre, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
     secciones,
     eventos: eventos.map((e) => eventoJson(e, u, ahora)),
     ahora: ahora.toISOString()
   });
 }
 __name(estado, "estado");
+var refsActivas = /* @__PURE__ */ __name((u) => ORDEN_SECCIONES.filter((x) => u.secciones[x].activa).map(String).concat(u.temas.filter((t) => t.activa).map((t) => `tema:${t.id}`)), "refsActivas");
+function botonesApp(t) {
+  const res = [];
+  for (const b of (t ?? []).flat()) {
+    const d = b.datos ?? "";
+    if (b.url) res.push({ texto: b.texto, url: b.url });
+    else if (/^se[cv]:/.test(d) && d !== "sec:todo") res.push({ texto: b.texto, ref: d.replace(/^se[cv]:/, "") });
+    else if (/^p:/.test(d)) res.push({ texto: b.texto, ir: "perfil" });
+    else if (/^[ne]:/.test(d)) res.push({ texto: b.texto, ir: "eventos" });
+  }
+  return res;
+}
+__name(botonesApp, "botonesApp");
 function fechaLocal(texto4, zona) {
   const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/.exec(String(texto4 ?? ""));
   if (!m) return null;
@@ -4516,8 +4540,8 @@ async function manejarApi(deps, u, ruta, c) {
       const cfg = ref2.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === ref2) : u.secciones[ref2];
       if (!cfg) return error3(404, "Esa secci\xF3n no existe");
       if (typeof c.activa === "boolean") {
-        if (c.activa && ref2 === "tiempo" && !u.ciudad) return error3(409, "Para el tiempo necesito tu ciudad: d\xEDmela en el chat (Mi perfil \u2192 Ciudad).");
-        if (c.activa && ref2 === "horoscopo" && !u.nacimiento) return error3(409, "Para el hor\xF3scopo necesito tu fecha de nacimiento: ponla en el chat (Mi perfil).");
+        if (c.activa && ref2 === "tiempo" && !u.ciudad) return error3(409, "Para el tiempo necesito tu ciudad: elige tu ciudad en Mi perfil.");
+        if (c.activa && ref2 === "horoscopo" && !u.nacimiento) return error3(409, "Para el hor\xF3scopo necesito tu fecha de nacimiento: ponla en Mi perfil.");
         cfg.activa = c.activa;
       }
       if (typeof c.hora === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.hora)) cfg.hora = c.hora;
@@ -4566,6 +4590,48 @@ async function manejarApi(deps, u, ruta, c) {
       await deps.almacen.guardarUsuario(u);
       await sincronizarSecciones(deps.almacen, u, ahora);
       return ok({ ciudad: l.nombre });
+    }
+    case "/api/ver": {
+      const refs = c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
+      if (!refs.length) return error3(409, "No tienes ninguna secci\xF3n activada");
+      const hechas = await Promise.all(refs.map(async (ref2) => {
+        try {
+          const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref: ref2 }) : await contenidoDeSeccion(deps, u, ref2);
+          return { ref: ref2, html: cont.html, botones: botonesApp(cont.teclado) };
+        } catch (e) {
+          return { ref: ref2, error: String(e.message ?? e).slice(0, 100) };
+        }
+      }));
+      return ok({ secciones: hechas });
+    }
+    case "/api/perfil": {
+      if (typeof c.nombre === "string") u.nombre = c.nombre.trim().slice(0, 40);
+      if (typeof c.nacimiento === "string" && c.nacimiento) {
+        const n = parseNacimiento(c.nacimiento.split("-").reverse().join("/"), ahora);
+        if (!n) return error3(400, "La fecha de nacimiento no es v\xE1lida");
+        u.nacimiento = n;
+      }
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+    case "/api/tema": {
+      if (c.borrar) {
+        u.temas = u.temas.filter((t) => t.id !== c.borrar);
+        await deps.almacen.guardarUsuario(u);
+        await programarSeccion(deps.almacen, u, `tema:${c.borrar}`, ahora);
+        return ok();
+      }
+      const titulo = String(c.titulo ?? "").trim().slice(0, 60);
+      if (!titulo) return error3(400, "Escribe el tema");
+      if (u.temas.length >= 15) return error3(409, "Ya tienes muchos temas: elimina alguno");
+      let id = slug(titulo), n = 2;
+      while (u.temas.some((t) => t.id === id)) id = `${slug(titulo)}-${n++}`;
+      const m = 8 * 60 + 30 + u.temas.length * 5;
+      const tema = { id, titulo, emoji: "\u2B50", consulta: String(c.consulta ?? "").trim().slice(0, 120) || titulo, hora: `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`, activa: true };
+      u.temas.push(tema);
+      await deps.almacen.guardarUsuario(u);
+      await programarSeccion(deps.almacen, u, `tema:${id}`, ahora);
+      return ok({ ref: `tema:${id}` });
     }
     case "/api/enviar": {
       const refs = c.ref === "todo" ? ORDEN_SECCIONES.filter((s) => u.secciones[s].activa).map(String).concat(u.temas.filter((t) => t.activa).map((t) => `tema:${t.id}`)) : [String(c.ref ?? "")];

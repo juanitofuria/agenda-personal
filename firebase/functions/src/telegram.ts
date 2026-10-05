@@ -69,6 +69,10 @@ export class CanalTelegram implements Canal {
     }
   }
 
+  async botonApp(chatId: string, texto: string, url: string) {
+    try { await this.llamar("setChatMenuButton", { chat_id: chatId, menu_button: { type: "web_app", text: texto, web_app: { url } } }); } catch { /* no es crítico */ }
+  }
+
   async borrar(chatId: string, mensajeId: number) {
     try { await this.llamar("deleteMessage", { chat_id: chatId, message_id: mensajeId }); } catch { /* no es crítico */ }
   }

@@ -42,7 +42,11 @@ export function menuPrincipal(u: Usuario, admin: boolean, urlBase?: string, ahor
     u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]]
       : modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]]
         : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
-  if (urlBase) teclado.unshift([{ texto: `${u.estilo === "formal" ? "🟦" : "📱"} Abrir la app`, webApp: `${urlBase.replace(/\/+$/, "")}/app/`, color: "primary" }]);
+  if (urlBase) { // con la mini app, todo se hace dentro de ella: el menú del chat es solo el botón de entrada (más «Acceso» para el administrador)
+    const app = { texto: `${u.estilo === "formal" ? "🟦" : "📱"} Abrir la app`, webApp: `${urlBase.replace(/\/+$/, "")}/app/`, color: "primary" as const };
+    const htmlApp = [...cabecera_, "", u.estilo === "formal" ? "Todo su día, en un solo lugar: resumen, agenda, secciones y ajustes." : "Todo en un solo sitio: tu resumen, tu agenda, tus secciones y tus ajustes.", "", u.estilo === "formal" ? "<i>Abra la aplicación 👇</i>" : "<i>Abre la app 👇</i>"].join("\n");
+    return { html: htmlApp, teclado: admin ? [[app], [b(ic.acceso, "Acceso", "acc:menu")]] : [[app]], foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` };
+  }
   if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
   return { html, teclado, ...(urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` } : {}) };
 }

@@ -72,3 +72,30 @@ test("mini app: «Ver» manda la sección al chat y «Todo lo activado» solo la
   assert.equal(b.canal.mensajes.filter((m) => m.chatId === "1").length, 1);
   assert.equal(((await api("/api/enviar", { ref: "todo" })).cuerpo as any).enviadas, 1);
 });
+
+test("mini app: «ver» devuelve las secciones para mostrarlas dentro de la app, sin escribir en el chat, con sus botones útiles", async () => {
+  const { b, api } = await banco();
+  assert.equal((await api("/api/ver", { ref: "todo" })).estado, 409);
+  await api("/api/seccion", { ref: "agenda", activa: true });
+  b.canal.limpiar();
+  const r = (await api("/api/ver", { ref: "agenda" })).cuerpo as any;
+  assert.equal(r.secciones.length, 1); assert.match(r.secciones[0].html, /Agenda|agenda/); assert.equal(b.canal.mensajes.length, 0);
+  assert.ok(r.secciones[0].botones.some((x: any) => x.ir === "eventos")); // «Mis eventos» lleva a esa pantalla de la app
+  assert.ok(!r.secciones[0].botones.some((x: any) => x.texto.includes("Menú")));
+  const mala = (await api("/api/ver", { ref: "inventada" })).cuerpo as any; assert.ok(mala.secciones[0].error);
+  const sub = (await api("/api/ver", { ref: "tiempo:luna" })).cuerpo as any; assert.ok(sub.secciones[0].html || sub.secciones[0].error);
+});
+
+test("mini app: perfil y temas de noticias se editan desde la app", async () => {
+  const { b, api } = await banco();
+  assert.equal((await api("/api/perfil", { nombre: "  Juanito ", nacimiento: "1984-04-05" })).estado, 200);
+  const u = (await b.almacen.getUsuario("1"))!; assert.deepEqual([u.nombre, u.nacimiento], ["Juanito", "1984-04-05"]);
+  assert.equal((await api("/api/perfil", { nacimiento: "1984-13-45" })).estado, 400);
+  const t = (await api("/api/tema", { titulo: "Ajedrez", consulta: "ajedrez OR Magnus" })).cuerpo as any; assert.equal(t.ref, "tema:ajedrez");
+  assert.ok([...b.almacen.programaciones.values()].some((p) => p.ref === "tema:ajedrez"));
+  assert.equal((await api("/api/tema", { titulo: "Ajedrez" })).estado, 200); assert.equal((await b.almacen.getUsuario("1"))!.temas.length, 2); // id distinto
+  await api("/api/tema", { borrar: "ajedrez" });
+  assert.deepEqual((await b.almacen.getUsuario("1"))!.temas.map((x) => x.id), ["ajedrez-2"]);
+  assert.ok(![...b.almacen.programaciones.values()].some((p) => p.ref === "tema:ajedrez"));
+  assert.equal((await api("/api/tema", { titulo: " " })).estado, 400);
+});

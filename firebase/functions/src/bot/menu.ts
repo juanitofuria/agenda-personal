@@ -8,6 +8,7 @@ import { menuPrincipal } from "./vistas";
 export async function mostrarMenu(c: Ctx): Promise<void> {
   const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase, c.ahora);
   const cb = c.entrada.callback;
+  if (c.deps.urlBase) await c.deps.canal.botonApp?.(c.u.id, "📱 Agenda", `${c.deps.urlBase.replace(/\/+$/, "")}/app/`); // el botón de abajo también abre la app
   if (m.foto && c.deps.canal.enviarFoto) {
     if (cb) await c.deps.canal.borrar?.(c.u.id, cb.mensajeId);
     await c.deps.canal.enviarFoto(c.u.id, m.foto, m.html, m.teclado);

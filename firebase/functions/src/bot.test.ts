@@ -601,10 +601,13 @@ test("menú principal: informal = pictogramas, formal = cuadrados de color; la c
   assert.equal(inf.teclado[0][0].texto, "📋 Resumen de hoy"); assert.equal(inf.foto, undefined); // sin dirección pública: solo texto
   const oscuro = menuPrincipal({ ...u, modo: "oscuro" }, false);
   assert.deepEqual(claves(oscuro), [["m:hoy"], ["n:menu", "e:lista"], ["s:lista", "p:ver"], ["m:ayuda"]]); // «oscuro»: el reparto del diseño oscuro
-  const formal = menuPrincipal({ ...u, estilo: "formal" }, false, BASE + "/");
+  const formal = menuPrincipal({ ...u, estilo: "formal" }, false);
   assert.match(formal.html, /<b>AGENDA PERSONAL<\/b>/); assert.match(formal.html, /Hola, Ana/); assert.match(formal.html, /🟦 <b>Resumen de hoy<\/b>/); assert.match(formal.html, /Seleccione una opción/);
-  assert.deepEqual(claves(formal), [[undefined], ["m:hoy", "e:lista"], ["n:menu", "s:lista"], ["p:ver", "m:ayuda"]]);
-  assert.equal(formal.teclado[0][0].webApp, `${BASE}/app/`); assert.equal(formal.teclado[1][0].texto, "🟦 Resumen de hoy"); assert.equal(formal.foto, `${BASE}/menu-formal-claro.png`);
+  assert.deepEqual(claves(formal), [["m:hoy", "e:lista"], ["n:menu", "s:lista"], ["p:ver", "m:ayuda"]]); assert.equal(formal.teclado[0][0].texto, "🟦 Resumen de hoy");
+  // con la mini app (hay dirección pública) el menú del chat es solo el botón que la abre; el administrador conserva «Acceso»
+  const conApp = menuPrincipal({ ...u, estilo: "formal" }, false, BASE + "/");
+  assert.equal(conApp.teclado.length, 1); assert.equal(conApp.teclado[0][0].webApp, `${BASE}/app/`); assert.equal(conApp.foto, `${BASE}/menu-formal-claro.png`);
+  assert.deepEqual(menuPrincipal(u, true, BASE).teclado.map((f) => f[0].webApp ?? f[0].datos), [`${BASE}/app/`, "acc:menu"]);
   assert.equal(menuPrincipal({ ...u, estilo: "formal", modo: "oscuro" }, false, BASE).foto, `${BASE}/menu-formal-oscuro.png`);
   assert.equal(menuPrincipal(u, false, BASE).foto, `${BASE}/menu-informal-claro.png`);
   // colores de los botones (si la app los admite) y botón de acceso solo para el administrador
@@ -621,7 +624,8 @@ test("el menú sale con la cabecera (foto) del estilo y modo del usuario; desde 
   b.canal.limpiar();
   await b.escribir(U, "/menu");
   assert.equal(fotos(b).length, 1); assert.equal(fotos(b)[0].foto, `${BASE}/menu-formal-oscuro.png`); assert.match(fotos(b)[0].html, /AGENDA PERSONAL/);
-  assert.ok(hayBoton(b, "🟦 Resumen de hoy"));
+  assert.ok(hayBoton(b, "🟦 Abrir la app"));
+  assert.deepEqual(b.canal.botonesApp, [{ chatId: U, texto: "📱 Agenda", url: `${BASE}/app/` }]); // y el botón fijo del chat también abre la app
   b.canal.limpiar();
   await b.pulsar(U, "m:ayuda"); await b.pulsar(U, "m:menu"); // un botón «Menú» sobre un mensaje de texto
   assert.ok(b.canal.borrados.length >= 1 && fotos(b).length === 1); // se borra el mensaje y llega el menú nuevo con su cabecera
@@ -698,7 +702,8 @@ test("el menú automático usa la cabecera y el reparto que tocan a esa hora", (
   const noche = menuPrincipal(u, false, BASE, new Date("2026-10-05T21:00:00Z"));
   const dia = menuPrincipal(u, false, BASE, new Date("2026-10-06T10:00:00Z"));
   assert.equal(noche.foto, `${BASE}/menu-informal-oscuro.png`); assert.equal(dia.foto, `${BASE}/menu-informal-claro.png`);
-  assert.deepEqual(noche.teclado.map((f) => f.length), [1, 1, 2, 2, 1]); assert.deepEqual(dia.teclado.map((f) => f.length), [1, 2, 2, 1, 1]); // la primera fila es «Abrir la app»
+  const sin = (x: Date) => menuPrincipal(u, false, undefined, x).teclado.map((f) => f.length);
+  assert.deepEqual(sin(new Date("2026-10-05T21:00:00Z")), [1, 2, 2, 1]); assert.deepEqual(sin(new Date("2026-10-06T10:00:00Z")), [2, 2, 1, 1]); // reparto oscuro / claro (sin mini app)
   assert.equal(menuPrincipal({ ...u, modo: "oscuro" }, false, BASE, new Date("2026-10-06T10:00:00Z")).foto, `${BASE}/menu-informal-oscuro.png`);
 });
 

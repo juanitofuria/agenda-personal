@@ -28,6 +28,8 @@ export class CanalFalso implements Canal {
   callbacks: string[] = [];
   nombreUsuario = async () => "agenda_test_bot";
   borrados: { chatId: string; mensajeId: number }[] = [];
+  botonesApp: { chatId: string; texto: string; url: string }[] = [];
+  async botonApp(chatId: string, texto: string, url: string) { this.botonesApp.push({ chatId, texto, url }); }
   async enviarFoto(chatId: string, urlFoto: string, html: string, teclado?: Teclado) {
     this.violaciones.push(...validarTeclado(teclado));
     if (html.length > 1000) this.violaciones.push(`pie de foto de ${html.length} caracteres (máx. 1024)`);

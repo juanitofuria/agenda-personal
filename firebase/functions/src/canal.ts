@@ -23,6 +23,8 @@ export interface Canal {
   responderCallback(callbackId: string, texto?: string): Promise<void>;
   /** Envía una imagen (por URL pública) con un texto y botones debajo. Si no se puede, envía solo el texto. */
   enviarFoto?(chatId: string, urlFoto: string, html: string, teclado?: Teclado): Promise<void>;
+  /** Pone el botón fijo junto al cuadro de texto del chat para que abra la mini app. */
+  botonApp?(chatId: string, texto: string, url: string): Promise<void>;
   /** Borra un mensaje (si no se puede, no pasa nada). */
   borrar?(chatId: string, mensajeId: number): Promise<void>;
   /** Nombre de usuario del propio bot (para construir enlaces de invitación). */
