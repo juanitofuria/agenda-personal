@@ -16,7 +16,6 @@ export interface Deps {
   /** Dónde pedir el horóscopo si falta el de hoy. */
   horoscopoCfg?: Config;
   podcastFeed?: string;
-  simplificar?: (texto: string) => Promise<string | null>;
 }
 
 /** Contexto de una interacción: quién escribe, qué ha pulsado/escrito y cómo responderle. */

@@ -3,7 +3,6 @@ import { fechaIso } from "../fechas";
 import { construirDoc, obtenerHoroscopo, urlSegura } from "../horoscopo";
 import { signoDe } from "../signos";
 import { episodioDeSigno } from "../podcast";
-import { MAX_ENTRADA_SENCILLO, validarSencillo } from "../simplificar";
 import { cabecera, cacheado, conPlazo } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
@@ -32,33 +31,18 @@ export async function contenidoHoroscopo(ctx: Contexto): Promise<Contenido> {
   const url = doc.fuenteUrl ? urlSegura(doc.fuenteUrl) : "";
   const original = doc;
 
-  // Texto sencillo (si hay IA) y episodio del podcast, a la vez. Si algo falla se muestra el original y no pasa nada.
-  const [sencillo, episodio] = await Promise.all([
-    (async () => {
-      if (original.sencillo) return original.sencillo;
-      if (!ctx.simplificar) return null;
-      try {
-        const s = validarSencillo(original.prediccion, await conPlazo(ctx.simplificar(original.prediccion.slice(0, MAX_ENTRADA_SENCILLO)), 10_000));
-        if (s) await ctx.almacen.guardarHoroscopo(signo.id, { ...original, sencillo: s }).catch(() => undefined); // se guarda: lo piden otros usuarios del mismo signo
-        return s;
-      } catch { return null; }
-    })(),
-    (async () => {
-      if (!ctx.podcastFeed) return null;
-      const feed = ctx.podcastFeed;
-      try { return await cacheado(ctx.almacen, `podcast:${signo.id}:${hoy}`, 30 * 60_000, ctx.ahora, () => conPlazo(episodioDeSigno(ctx.http, feed, signo, hoy), 7000)); } catch { return null; }
-    })(),
-  ]);
+  // Episodio del podcast para el botón «Escuchar». Si algo falla simplemente no hay botón.
+  const episodio = ctx.podcastFeed ? await (async () => {
+    const feed = ctx.podcastFeed!;
+    try { return await cacheado(ctx.almacen, `podcast:${signo.id}:${hoy}`, 30 * 60_000, ctx.ahora, () => conPlazo(episodioDeSigno(ctx.http, feed, signo, hoy), 7000)); } catch { return null; }
+  })() : null;
 
   const enlaceFuente = url ? `<a href="${escAttr(url)}">${esc(original.fuente || "20minutos.es")}</a>` : esc(original.fuente || "20minutos.es");
-  const pie = sencillo
-    ? `✍️ <i>Basado en el horóscopo de ${enlaceFuente}, explicado con palabras sencillas.</i>`
-    : `<i>Fuente:</i> ${enlaceFuente}\n<i>Contenido informativo y de entretenimiento; los derechos pertenecen a su editor.</i>`;
   const html = [
     cabecera("🔮", `Horóscopo · ${signo.simbolo} ${signo.nombre}`),
     desactualizado ? `⚠️ <i>Aún no se ha publicado el de hoy: este es el del ${doc.fecha}.</i>` : "",
-    esc((sencillo ?? original.prediccion).trim()),
-  ].filter(Boolean).join("\n\n") + "\n\n" + pie;
+    esc(original.prediccion.trim()),
+  ].filter(Boolean).join("\n\n") + `\n\n<i>Fuente:</i> ${enlaceFuente}`;
   const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "🎧 Escuchar el podcast de hoy" : `🎧 Escuchar el último podcast (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
   return { html, teclado: [...botones, NAV_MENU] };
 }

@@ -11,8 +11,6 @@ export interface Contexto {
   horoscopoCfg?: Config;
   /** Feed RSS del podcast con un episodio por signo y día (para el botón «Escuchar»). */
   podcastFeed?: string;
-  /** Reescribe un texto con palabras sencillas (null si no puede). Solo si la plataforma tiene IA. */
-  simplificar?: (texto: string) => Promise<string | null>;
 }
 
 /** Mensaje listo para enviar. */

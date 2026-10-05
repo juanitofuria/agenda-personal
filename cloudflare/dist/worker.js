@@ -1854,20 +1854,6 @@ async function episodioDeSigno(http, feed, signo, hoy) {
 }
 __name(episodioDeSigno, "episodioDeSigno");
 
-// ../firebase/functions/src/simplificar.ts
-var INSTRUCCION_SENCILLO = "Eres un redactor que explica con palabras sencillas. Reescribe el texto que te doy en espa\xF1ol claro y cercano, con frases cortas y vocabulario de uso diario, para que lo entienda cualquier persona. Mant\xE9n las mismas ideas y el mismo tono; no a\xF1adas consejos, datos ni predicciones nuevos ni quites ideas importantes. No menciones fuentes ni uses listas ni t\xEDtulos. Responde solo con el texto reescrito, en un \xFAnico p\xE1rrafo.";
-var MAX_ENTRADA_SENCILLO = 1500;
-function validarSencillo(original, salida) {
-  if (typeof salida !== "string") return null;
-  const t = salida.replace(/^\s*["«]|["»]\s*$/g, "").replace(/\s+/g, " ").trim();
-  const o = original.replace(/\s+/g, " ").trim();
-  if (t.length < Math.max(40, o.length * 0.4) || t.length > o.length * 1.8) return null;
-  if (/\b(the|and|your|you)\b/i.test(t) && !/\b(el|la|de|que|y)\b/i.test(t)) return null;
-  if (t === o) return null;
-  return t;
-}
-__name(validarSencillo, "validarSencillo");
-
 // ../firebase/functions/src/secciones/horoscopo.ts
 async function contenidoHoroscopo(ctx) {
   const nac = ctx.usuario.nacimiento;
@@ -1896,36 +1882,22 @@ Todav\xEDa no hay hor\xF3scopo publicado para hoy. Lo intentar\xE9 de nuevo m\xE
   const desactualizado = doc.fecha !== hoy;
   const url = doc.fuenteUrl ? urlSegura(doc.fuenteUrl) : "";
   const original = doc;
-  const [sencillo, episodio] = await Promise.all([
-    (async () => {
-      if (original.sencillo) return original.sencillo;
-      if (!ctx.simplificar) return null;
-      try {
-        const s = validarSencillo(original.prediccion, await conPlazo(ctx.simplificar(original.prediccion.slice(0, MAX_ENTRADA_SENCILLO)), 1e4));
-        if (s) await ctx.almacen.guardarHoroscopo(signo.id, { ...original, sencillo: s }).catch(() => void 0);
-        return s;
-      } catch {
-        return null;
-      }
-    })(),
-    (async () => {
-      if (!ctx.podcastFeed) return null;
-      const feed = ctx.podcastFeed;
-      try {
-        return await cacheado(ctx.almacen, `podcast:${signo.id}:${hoy}`, 30 * 6e4, ctx.ahora, () => conPlazo(episodioDeSigno(ctx.http, feed, signo, hoy), 7e3));
-      } catch {
-        return null;
-      }
-    })()
-  ]);
+  const episodio = ctx.podcastFeed ? await (async () => {
+    const feed = ctx.podcastFeed;
+    try {
+      return await cacheado(ctx.almacen, `podcast:${signo.id}:${hoy}`, 30 * 6e4, ctx.ahora, () => conPlazo(episodioDeSigno(ctx.http, feed, signo, hoy), 7e3));
+    } catch {
+      return null;
+    }
+  })() : null;
   const enlaceFuente = url ? `<a href="${escAttr(url)}">${esc(original.fuente || "20minutos.es")}</a>` : esc(original.fuente || "20minutos.es");
-  const pie = sencillo ? `\u270D\uFE0F <i>Basado en el hor\xF3scopo de ${enlaceFuente}, explicado con palabras sencillas.</i>` : `<i>Fuente:</i> ${enlaceFuente}
-<i>Contenido informativo y de entretenimiento; los derechos pertenecen a su editor.</i>`;
   const html = [
     cabecera("\u{1F52E}", `Hor\xF3scopo \xB7 ${signo.simbolo} ${signo.nombre}`),
     desactualizado ? `\u26A0\uFE0F <i>A\xFAn no se ha publicado el de hoy: este es el del ${doc.fecha}.</i>` : "",
-    esc((sencillo ?? original.prediccion).trim())
-  ].filter(Boolean).join("\n\n") + "\n\n" + pie;
+    esc(original.prediccion.trim())
+  ].filter(Boolean).join("\n\n") + `
+
+<i>Fuente:</i> ${enlaceFuente}`;
   const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "\u{1F3A7} Escuchar el podcast de hoy" : `\u{1F3A7} Escuchar el \xFAltimo podcast (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
   return { html, teclado: [...botones, NAV_MENU] };
 }
@@ -2984,11 +2956,6 @@ async function diagnostico(c) {
       const e = await episodioDeSigno(http, c.deps.podcastFeed ?? FEED_PODCAST, SIGNOS[0], hoy);
       return e ? `\xAB${e.titulo.slice(0, 50)}\xBB \xB7 ${e.fecha} \xB7 ${new URL(e.url).hostname}` : "no encuentro episodios de Aries";
     }),
-    c.deps.simplificar ? probar("IA de Cloudflare (texto sencillo)", async () => {
-      const s = await c.deps.simplificar("Hoy es un d\xEDa favorable para tomar decisiones importantes en el trabajo, aunque conviene evitar las discusiones por la tarde.");
-      if (!s) throw new Error("no devolvi\xF3 texto");
-      return `\xAB${s.slice(0, 70)}\u2026\xBB`;
-    }) : Promise.resolve({ nombre: "IA de Cloudflare (texto sencillo)", ok: false, detalle: "no est\xE1 activada (falta el binding AI)", ms: 0 }),
     cfg ? probar("horoscopefree (respaldo)", async () => {
       await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8e3 });
     }) : Promise.resolve({ nombre: "horoscopefree (respaldo)", ok: false, detalle: "sin configurar", ms: 0 })
@@ -3552,7 +3519,7 @@ async function mostrarSeccion(c, ref2, editar = false) {
   await entregarSeccion(c, ref2, construirSeccion(c, ref2), editar);
 }
 __name(mostrarSeccion, "mostrarSeccion");
-var contenidoDeSeccion = /* @__PURE__ */ __name((deps, u, ref2) => construirContenido(ref2, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg, podcastFeed: deps.podcastFeed, simplificar: deps.simplificar }), "contenidoDeSeccion");
+var contenidoDeSeccion = /* @__PURE__ */ __name((deps, u, ref2) => construirContenido(ref2, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg, podcastFeed: deps.podcastFeed }), "contenidoDeSeccion");
 var construirSeccion = /* @__PURE__ */ __name((c, ref2) => c.deps.construirRemoto ? c.deps.construirRemoto({ uid: c.u.id, ref: ref2 }) : contenidoDeSeccion(c.deps, c.u, ref2), "construirSeccion");
 async function entregarSeccion(c, ref2, pendiente, editar = false) {
   try {
@@ -4035,15 +4002,6 @@ async function llamarInterno(env2, ruta, cuerpo) {
 }
 __name(llamarInterno, "llamarInterno");
 var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es", directo: true }), "horoscopoCfg");
-function simplificador(env2) {
-  if (!env2.AI) return void 0;
-  const ia = env2.AI, modelo = env2.MODELO_IA ?? "@cf/meta/llama-3.1-8b-instruct";
-  return async (texto4) => {
-    const r = await ia.run(modelo, { messages: [{ role: "system", content: INSTRUCCION_SENCILLO }, { role: "user", content: texto4 }], max_tokens: 700 });
-    return typeof r?.response === "string" ? r.response : null;
-  };
-}
-__name(simplificador, "simplificador");
 function dependencias(env2, s, remoto) {
   return {
     almacen: new AlmacenD1(env2.DB),
@@ -4052,7 +4010,6 @@ function dependencias(env2, s, remoto) {
     ahora: /* @__PURE__ */ __name(() => /* @__PURE__ */ new Date(), "ahora"),
     horoscopoCfg: horoscopoCfg(env2),
     podcastFeed: env2.PODCAST_FEED ?? FEED_PODCAST,
-    simplificar: simplificador(env2),
     construirRemoto: remoto && env2.SELF ? async (p) => {
       const r = await llamarInterno(env2, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");

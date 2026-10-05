@@ -20,7 +20,7 @@ async function mostrarSeccion(c: Ctx, ref: string, editar = false): Promise<void
 
 /** Genera el contenido de una sección con las dependencias dadas (es lo que hace la ejecución a la que se encarga cada sección). */
 export const contenidoDeSeccion = (deps: Deps, u: Usuario, ref: string): Promise<Contenido> =>
-  construirContenido(ref, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg, podcastFeed: deps.podcastFeed, simplificar: deps.simplificar });
+  construirContenido(ref, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg, podcastFeed: deps.podcastFeed });
 
 /** Pide el contenido de una sección: en otra ejecución si la plataforma lo ofrece, y si no, aquí mismo. */
 const construirSeccion = (c: Ctx, ref: string): Promise<Contenido> =>

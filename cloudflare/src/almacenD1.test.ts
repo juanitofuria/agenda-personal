@@ -253,30 +253,3 @@ test("si falla la llamada interna, el cron lo cuenta y la programación sigue ve
   assert.ok(r.fallidos >= 1 && r.enviados === 0);
   assert.ok((await new AlmacenD1(e.env.DB).programacionesVencidas(manana, 50)).length >= 1);
 });
-
-test("con la IA de Cloudflare el horóscopo sale con palabras sencillas (y la fuente), y /diagnostico prueba la IA; sin IA, texto original", async () => {
-  const ORIGINAL = "Hoy, de forma especial, debes tener cuidado de no dejarte llevar por la agresividad o la impaciencia, cosa que podría ocurrir, sobre todo, en la primera mitad del día. Afortunadamente, luego todo se va a suavizar.";
-  const SENCILLO = "Hoy cuida tu carácter: por la mañana puedes enfadarte con facilidad. No te preocupes, porque por la tarde todo se calma y el día mejora.";
-  for (const conIa of [true, false]) {
-    const e = entorno();
-    const peticiones: any[] = [];
-    if (conIa) e.env.AI = { run: async (modelo: string, entrada: any) => { peticiones.push({ modelo, entrada }); return { response: SENCILLO }; } };
-    await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
-    const almacen = new AlmacenD1(e.env.DB); const u = (await almacen.getUsuario("42"))!; u.nacimiento = "1990-04-05"; await almacen.guardarUsuario(u);
-    await almacen.guardarHoroscopo("aries", { signo: "aries", fecha: new Date().toISOString().slice(0, 10), prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
-    e.canal.limpiar();
-    await e.pulsar("sec:horoscopo"); await e.esperar();
-    const texto = e.canal.textos("42").join("\n");
-    if (conIa) {
-      assert.match(texto, /Hoy cuida tu carácter/); assert.match(texto, /Basado en el horóscopo de .*20minutos\.es.*explicado con palabras sencillas/);
-      assert.equal(peticiones.length, 1); assert.match(peticiones[0].modelo, /^@cf\//); assert.match(peticiones[0].entrada.messages[0].content, /palabras sencillas/); assert.equal(peticiones[0].entrada.messages[1].content, ORIGINAL);
-      assert.equal((await almacen.getHoroscopo("aries"))!.sencillo, SENCILLO);
-    } else {
-      assert.match(texto, /agresividad/); assert.match(texto, /Fuente:/);
-    }
-    e.canal.limpiar();
-    await e.escribir("/diagnostico"); await e.esperar();
-    const diag = e.canal.textos("42").join("\n");
-    assert.match(diag, conIa ? /✅ <b>IA de Cloudflare[\s\S]*Hoy cuida tu carácter/ : /❌ <b>IA de Cloudflare[\s\S]*falta el binding AI/);
-  }
-});

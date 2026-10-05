@@ -39,13 +39,6 @@ export async function diagnostico(c: Ctx): Promise<void> {
       const e = await episodioDeSigno(http, c.deps.podcastFeed ?? FEED_PODCAST, SIGNOS[0], hoy);
       return e ? `«${e.titulo.slice(0, 50)}» · ${e.fecha} · ${new URL(e.url).hostname}` : "no encuentro episodios de Aries";
     }),
-    c.deps.simplificar
-      ? probar("IA de Cloudflare (texto sencillo)", async () => {
-        const s = await c.deps.simplificar!("Hoy es un día favorable para tomar decisiones importantes en el trabajo, aunque conviene evitar las discusiones por la tarde.");
-        if (!s) throw new Error("no devolvió texto");
-        return `«${s.slice(0, 70)}…»`;
-      })
-      : Promise.resolve<Resultado>({ nombre: "IA de Cloudflare (texto sencillo)", ok: false, detalle: "no está activada (falta el binding AI)", ms: 0 }),
     cfg ? probar("horoscopefree (respaldo)", async () => { await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8000 }); }) : Promise.resolve<Resultado>({ nombre: "horoscopefree (respaldo)", ok: false, detalle: "sin configurar", ms: 0 }),
   ]);
   const guardados = (await Promise.all(SIGNOS.map((s) => c.almacen.getHoroscopo(s.id).catch(() => null)))).filter((d) => d?.fecha === hoy).length;
