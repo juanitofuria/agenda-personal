@@ -322,3 +322,28 @@ test("el webhook usa su propia dirección para la cabecera del menú, según el 
   assert.equal(foto.foto, "https://x.workers.dev/menu-formal-oscuro.png"); // el origen de la petición
   assert.match(foto.html, /AGENDA PERSONAL/);
 });
+
+test("worker: la API de la mini app exige datos firmados por Telegram y respeta el acceso privado", async () => {
+  const { createHmac } = await import("node:crypto");
+  const { d1, almacen } = nuevo();
+  const env: Env = { DB: d1, TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_WEBHOOK_SECRET: "secreto-largo-1234567890" };
+  const firmar = (id: number, token = env.TELEGRAM_BOT_TOKEN) => {
+    const p = new URLSearchParams({ auth_date: String(Math.floor(Date.now() / 1000)), user: JSON.stringify({ id, first_name: "Ana" }) });
+    const texto = [...p.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join("\n");
+    p.set("hash", createHmac("sha256", createHmac("sha256", "WebAppData").update(token).digest()).update(texto).digest("hex"));
+    return p.toString();
+  };
+  const api = (ruta: string, auth?: string, e: Env = env) =>
+    manejarFetch(new Request(`https://x.workers.dev${ruta}`, { method: "POST", headers: auth ? { authorization: `tma ${auth}` } : {}, body: "{}" }), e);
+  assert.equal((await api("/api/estado")).status, 401);
+  assert.equal((await api("/api/estado", firmar(7, "otro:token"))).status, 401); // firmado con otro token
+  assert.equal((await api("/api/estado", firmar(7))).status, 404); // firma válida pero aún no ha usado el bot
+  assert.equal((await manejarFetch(new Request("https://x.workers.dev/api/estado"), env)).status, 405);
+  await almacen.guardarUsuario(usuarioNuevo("7", "Ana", T0));
+  const r = await api("/api/estado", firmar(7)); assert.equal(r.status, 200);
+  assert.equal(((await r.json()) as any).usuario.nombre, "Ana");
+  const privado: Env = { ...env, ADMIN_CHAT_ID: "1" }; // bot privado: el usuario 7 no está autorizado
+  assert.equal((await api("/api/estado", firmar(7), privado)).status, 403);
+  await almacen.guardarAcceso({ id: "7", rol: "usuario", nombre: "Ana", desde: T0 });
+  assert.equal((await api("/api/estado", firmar(7), privado)).status, 200);
+});

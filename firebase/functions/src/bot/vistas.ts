@@ -42,6 +42,7 @@ export function menuPrincipal(u: Usuario, admin: boolean, urlBase?: string, ahor
     u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]]
       : modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]]
         : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
+  if (urlBase) teclado.unshift([{ texto: `${u.estilo === "formal" ? "🟦" : "📱"} Abrir la app`, webApp: `${urlBase.replace(/\/+$/, "")}/app/`, color: "primary" }]);
   if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
   return { html, teclado, ...(urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` } : {}) };
 }

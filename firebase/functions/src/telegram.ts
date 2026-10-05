@@ -19,7 +19,7 @@ function aMarkup(teclado?: Teclado, colores = true) {
   return {
     inline_keyboard: teclado.map((fila) => fila.map((b: Boton) => {
       const color = colores && b.color ? { style: b.color } : {};
-      return b.url ? { text: b.texto, url: b.url, ...color } : { text: b.texto, callback_data: b.datos ?? "noop", ...color };
+      return b.webApp ? { text: b.texto, web_app: { url: b.webApp }, ...color } : b.url ? { text: b.texto, url: b.url, ...color } : { text: b.texto, callback_data: b.datos ?? "noop", ...color };
     })),
   };
 }

@@ -603,8 +603,8 @@ test("menú principal: informal = pictogramas, formal = cuadrados de color; la c
   assert.deepEqual(claves(oscuro), [["m:hoy"], ["n:menu", "e:lista"], ["s:lista", "p:ver"], ["m:ayuda"]]); // «oscuro»: el reparto del diseño oscuro
   const formal = menuPrincipal({ ...u, estilo: "formal" }, false, BASE + "/");
   assert.match(formal.html, /<b>AGENDA PERSONAL<\/b>/); assert.match(formal.html, /Hola, Ana/); assert.match(formal.html, /🟦 <b>Resumen de hoy<\/b>/); assert.match(formal.html, /Seleccione una opción/);
-  assert.deepEqual(claves(formal), [["m:hoy", "e:lista"], ["n:menu", "s:lista"], ["p:ver", "m:ayuda"]]);
-  assert.equal(formal.teclado[0][0].texto, "🟦 Resumen de hoy"); assert.equal(formal.foto, `${BASE}/menu-formal-claro.png`);
+  assert.deepEqual(claves(formal), [[undefined], ["m:hoy", "e:lista"], ["n:menu", "s:lista"], ["p:ver", "m:ayuda"]]);
+  assert.equal(formal.teclado[0][0].webApp, `${BASE}/app/`); assert.equal(formal.teclado[1][0].texto, "🟦 Resumen de hoy"); assert.equal(formal.foto, `${BASE}/menu-formal-claro.png`);
   assert.equal(menuPrincipal({ ...u, estilo: "formal", modo: "oscuro" }, false, BASE).foto, `${BASE}/menu-formal-oscuro.png`);
   assert.equal(menuPrincipal(u, false, BASE).foto, `${BASE}/menu-informal-claro.png`);
   // colores de los botones (si la app los admite) y botón de acceso solo para el administrador
@@ -698,7 +698,7 @@ test("el menú automático usa la cabecera y el reparto que tocan a esa hora", (
   const noche = menuPrincipal(u, false, BASE, new Date("2026-10-05T21:00:00Z"));
   const dia = menuPrincipal(u, false, BASE, new Date("2026-10-06T10:00:00Z"));
   assert.equal(noche.foto, `${BASE}/menu-informal-oscuro.png`); assert.equal(dia.foto, `${BASE}/menu-informal-claro.png`);
-  assert.deepEqual(noche.teclado.map((f) => f.length), [1, 2, 2, 1]); assert.deepEqual(dia.teclado.map((f) => f.length), [2, 2, 1, 1]);
+  assert.deepEqual(noche.teclado.map((f) => f.length), [1, 1, 2, 2, 1]); assert.deepEqual(dia.teclado.map((f) => f.length), [1, 2, 2, 1, 1]); // la primera fila es «Abrir la app»
   assert.equal(menuPrincipal({ ...u, modo: "oscuro" }, false, BASE, new Date("2026-10-06T10:00:00Z")).foto, `${BASE}/menu-informal-oscuro.png`);
 });
 

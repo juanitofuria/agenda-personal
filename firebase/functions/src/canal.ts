@@ -1,6 +1,6 @@
 /** Canal de mensajería (Telegram hoy; WhatsApp u otro mañana): lo único que el bot necesita de él. */
 /** `color`: color del botón en Telegram (azul, verde o rojo) si la versión de la app lo admite; si no, se ignora. */
-export interface Boton { texto: string; datos?: string; url?: string; color?: "primary" | "success" | "danger" }
+export interface Boton { texto: string; datos?: string; url?: string; /** Abre una mini app de Telegram (solo chats privados). */ webApp?: string; color?: "primary" | "success" | "danger" }
 export type Teclado = Boton[][];
 
 export interface Entrada {

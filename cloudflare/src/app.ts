@@ -9,6 +9,7 @@ import { FEED_PODCAST } from "../../firebase/functions/src/podcast";
 import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/functions/src/scheduler";
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
 import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
+import { manejarApi, validarInitData } from "../../firebase/functions/src/miniapp";
 import { iguales, procesarWebhook } from "../../firebase/functions/src/webhook";
 
 export interface Env {
@@ -113,9 +114,32 @@ async function manejarInterno(req: Request, env: Env, ruta: string, fabrica: Fab
   return new Response("not found", { status: 404 });
 }
 
+/** API de la mini app de Telegram: cada petición va firmada por Telegram (cabecera `Authorization: tma <initData>`). */
+async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica): Promise<Response> {
+  const json = (estado: number, cuerpo: unknown) => Response.json(cuerpo, { status: estado, headers: { "cache-control": "no-store" } });
+  if (req.method !== "POST") return json(405, { error: "método no permitido" });
+  const firma = (req.headers.get("authorization") ?? "").replace(/^tma\s+/i, "");
+  const quien = validarInitData(firma, env.TELEGRAM_BOT_TOKEN, new Date());
+  if (!quien) return json(401, { error: "Abre esta app desde Telegram" });
+  const dep = dependencias(env, fabrica(env), true, url.origin);
+  const admin = dep.adminId;
+  if (admin && quien.id !== admin && !(await dep.almacen.getAcceso(quien.id))) return json(403, { error: "No tienes acceso al bot" });
+  const u = await dep.almacen.getUsuario(quien.id);
+  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
+  const cuerpo = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+  try {
+    const r = await manejarApi(dep, u, url.pathname, cuerpo);
+    return json(r.estado, r.cuerpo);
+  } catch (e) {
+    console.error(`api ${url.pathname}: ${(e as Error).message}`);
+    return json(500, { error: "Algo ha fallado. Inténtalo de nuevo." });
+  }
+}
+
 export async function manejarFetch(req: Request, env: Env, ctx?: Ctx, fabrica: Fabrica = fabricaReal): Promise<Response> {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env, url.pathname, fabrica);
+  if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env, url, fabrica);
   if (url.pathname !== "/telegram") return new Response(url.pathname === "/" ? "agenda-personal" : "not found", { status: url.pathname === "/" ? 200 : 404 });
   const cuerpo = await req.json().catch(() => null);
   const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? undefined;

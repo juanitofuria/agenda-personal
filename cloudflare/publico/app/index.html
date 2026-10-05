@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Agenda Personal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Nunito:wght@600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* ===== Temas: estilo (informal/formal) × modo (claro/oscuro). El script pone data-estilo y data-modo en <html>. ===== */
+:root{--fondo:#eef5fd;--fondo2:#dcebfa;--tarjeta:#fff;--tinta:#0f2347;--suave:#51658a;--linea:rgba(30,70,140,.12);--azul:#2f6fd6;--azul2:#46a0ff;--ok:#27a85a;--rojo:#ef4a5a;--sombra:0 10px 28px rgba(40,90,170,.14);
+  --fuente:'Nunito',system-ui,sans-serif;--titulo:'Nunito',system-ui,sans-serif;--radio:22px;--mano:'Caveat',cursive}
+html[data-modo=oscuro]{--fondo:#0d1b34;--fondo2:#0a1630;--tarjeta:#14274a;--tinta:#fff;--suave:#9fb7e0;--linea:rgba(150,185,255,.16);--azul:#3d9bff;--azul2:#46a0ff;--sombra:0 10px 28px rgba(0,0,0,.35)}
+html[data-estilo=formal]{--fondo:#f4f7fb;--fondo2:#fff;--tarjeta:#fff;--tinta:#0b1f4a;--suave:#5d6b86;--azul:#2f6fd6;--radio:14px;--titulo:'Playfair Display',Georgia,serif;--sombra:0 6px 20px rgba(11,31,74,.08)}
+html[data-estilo=formal][data-modo=oscuro]{--fondo:#0a1832;--fondo2:#071127;--tarjeta:#0e2142;--tinta:#fff;--suave:#7f9bc8;--linea:rgba(127,155,200,.2);--azul:#2f8bff;--sombra:0 6px 20px rgba(0,0,0,.4)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:var(--fuente);color:var(--tinta);background:linear-gradient(160deg,var(--fondo),var(--fondo2));min-height:100vh;padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
+button,input,select{font:inherit;color:inherit}
+.app{max-width:560px;margin:0 auto;padding:14px 16px}
+/* ===== Cabecera ===== */
+.cab{display:flex;align-items:center;gap:14px;padding:18px 16px;border-radius:var(--radio);background:var(--tarjeta);box-shadow:var(--sombra);border:1px solid var(--linea);position:relative;overflow:hidden}
+.cab .logo{flex:none;width:58px;height:58px}
+.cab h1{margin:0;font:800 21px/1.1 var(--titulo);letter-spacing:-.3px}
+html[data-estilo=formal] .cab h1{font-weight:700;font-size:24px}
+.cab p{margin:4px 0 0;font-weight:700;font-size:13px;color:var(--suave)}
+html[data-estilo=formal] .cab p{text-transform:uppercase;letter-spacing:2.4px;font-size:10.5px}
+.mano{font:700 19px/1 var(--mano);color:var(--azul2);transform:rotate(-6deg);margin-left:auto;text-align:center;flex:none}
+html[data-estilo=formal] .mano{display:none}
+html[data-estilo=formal] .cab::after{content:"";position:absolute;left:16px;bottom:0;width:76px;height:4px;border-radius:2px 2px 0 0;background:var(--azul)}
+.saludo{margin:18px 4px 10px;font:800 20px var(--titulo)}
+.saludo small{display:block;font:600 13px var(--fuente);color:var(--suave);margin-top:2px}
+/* ===== Tarjetas del menú ===== */
+.rejilla{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tarjeta{position:relative;text-align:left;border:1px solid var(--linea);background:var(--tarjeta);border-radius:var(--radio);padding:14px;box-shadow:var(--sombra);cursor:pointer;display:flex;flex-direction:column;gap:10px;min-height:118px;transition:transform .12s}
+.tarjeta:active{transform:scale(.97)}
+.tarjeta.ancha{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center}
+.tarjeta b{font:800 15.5px/1.2 var(--titulo)}
+.tarjeta span.d{font-size:12px;color:var(--suave);font-weight:600;margin-top:3px;display:block}
+.ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;flex:none;color:#fff}
+.ico svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.c1{background:linear-gradient(145deg,#4aa3ff,#2f6fd6)}.c2{background:linear-gradient(145deg,#ff9a5a,#f0652c)}.c3{background:linear-gradient(145deg,#4fd08a,#1f9d5a)}
+.c4{background:linear-gradient(145deg,#b58cff,#7a4fe0)}.c5{background:linear-gradient(145deg,#ff7a8a,#e23a52)}.c6{background:linear-gradient(145deg,#4cc9d8,#1f94b0)}
+html[data-estilo=formal] .ico{border-radius:10px;background:color-mix(in srgb,var(--azul) 10%,transparent);color:var(--tinta)}
+html[data-estilo=formal] .tarjeta::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 3px 3px 0;background:var(--acento,var(--azul))}
+html[data-estilo=formal] .c1{--acento:#2f6fd6}html[data-estilo=formal] .c2{--acento:#e88a2a}html[data-estilo=formal] .c3{--acento:#27a85a}html[data-estilo=formal] .c4{--acento:#7a4fe0}html[data-estilo=formal] .c5{--acento:#e23a52}html[data-estilo=formal] .c6{--acento:#1f94b0}
+html[data-estilo=formal] .ico[class*=c]{background:color-mix(in srgb,var(--acento) 12%,transparent);color:var(--acento)}
+/* ===== Pantallas interiores ===== */
+.barra{display:flex;align-items:center;gap:10px;margin:4px 0 14px}
+.barra h2{margin:0;font:800 21px var(--titulo);flex:1}
+.atras{border:0;background:var(--tarjeta);border:1px solid var(--linea);width:38px;height:38px;border-radius:12px;display:grid;place-items:center;cursor:pointer;box-shadow:var(--sombra)}
+.atras svg{width:20px;height:20px;fill:none;stroke:var(--tinta);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.lista{display:flex;flex-direction:column;gap:10px}
+.fila{display:flex;align-items:center;gap:12px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);padding:12px 14px;box-shadow:var(--sombra)}
+.fila .t{flex:1;min-width:0}.fila .t b{display:block;font-weight:800;font-size:15px}.fila .t small{color:var(--suave);font-weight:600;font-size:12.5px}
+.fila.hecho .t b{text-decoration:line-through;opacity:.55}
+.emo{font-size:26px;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--azul) 10%,transparent);flex:none}
+.btn{border:0;border-radius:14px;padding:11px 16px;font-weight:800;font-size:14px;cursor:pointer;background:linear-gradient(145deg,var(--azul2),var(--azul));color:#fff;box-shadow:0 6px 16px rgba(47,111,214,.3)}
+html[data-estilo=formal] .btn{border-radius:10px;background:var(--azul);box-shadow:none}
+.btn.sec{background:color-mix(in srgb,var(--azul) 12%,transparent);color:var(--azul);box-shadow:none}
+.btn.peligro{background:color-mix(in srgb,var(--rojo) 12%,transparent);color:var(--rojo);box-shadow:none}
+.btn.chico{padding:8px 12px;font-size:13px;border-radius:11px}
+.btn.ancho{width:100%;margin-top:10px}
+.acciones{display:flex;gap:8px;flex-wrap:wrap}
+.vacio{text-align:center;color:var(--suave);font-weight:700;padding:30px 10px}
+.interr{width:50px;height:30px;border-radius:15px;background:var(--linea);border:0;position:relative;cursor:pointer;flex:none;transition:.2s}
+.interr::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.3);transition:.2s}
+.interr.on{background:var(--ok)}.interr.on::after{left:23px}
+input[type=text],input[type=time],input[type=datetime-local],select{width:100%;border:1px solid var(--linea);background:var(--tarjeta);border-radius:12px;padding:12px;font-weight:700;font-size:15px;outline:none}
+input:focus,select:focus{border-color:var(--azul)}
+label{display:block;font-weight:800;font-size:12.5px;color:var(--suave);margin:12px 2px 5px;text-transform:uppercase;letter-spacing:.8px}
+.seg{display:flex;gap:6px;background:var(--linea);padding:4px;border-radius:14px}
+.seg button{flex:1;border:0;background:transparent;padding:10px 6px;border-radius:11px;font-weight:800;font-size:13.5px;cursor:pointer;color:var(--suave)}
+.seg button.on{background:var(--tarjeta);color:var(--tinta);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.nota{font-size:12.5px;color:var(--suave);font-weight:600;margin:8px 4px}
+.hoja{position:fixed;inset:0;background:rgba(5,12,30,.55);display:flex;align-items:flex-end;z-index:10}
+.hoja>div{width:100%;max-width:560px;margin:0 auto;background:var(--fondo);border-radius:26px 26px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 20px);max-height:90vh;overflow:auto}
+.hoja h3{margin:0 0 4px;font:800 19px var(--titulo)}
+.aviso{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--tinta);color:var(--fondo);padding:11px 18px;border-radius:14px;font-weight:800;font-size:14px;z-index:20;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.fab{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 20px);width:58px;height:58px;border-radius:20px;border:0;color:#fff;background:linear-gradient(145deg,var(--azul2),var(--azul));box-shadow:0 10px 24px rgba(47,111,214,.45);display:grid;place-items:center;cursor:pointer}
+html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
+.fab svg{width:28px;height:28px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round}
+.cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-resumen" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5h6M9 11h6M9 15h4"/></symbol>
+<symbol id="i-alarma" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M5 5 3 7M19 5l2 2"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
+<symbol id="i-sec" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1-4 4-6 7.5-6s6.500 2 7.5 6"/></symbol>
+<symbol id="i-pal" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.600 0 2.200-1.100 1.600-2.300-.6-1.300.2-2.700 1.700-2.700H18a3 3 0 0 0 3-3C21 6.800 17 3 12 3z"/><circle cx="8" cy="11" r="1"/><circle cx="11.500" cy="7.5" r="1"/><circle cx="16" cy="9" r="1"/></symbol>
+<symbol id="i-atras" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></symbol>
+<symbol id="i-logo" viewBox="0 0 64 64"><rect x="9" y="12" width="46" height="42" rx="10" fill="var(--logo-fondo,#f4f8ff)" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 26h46" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 22a10 10 0 0 1 10-10h26a10 10 0 0 1 10 10v4H9z" fill="var(--logo-tapa,#ef4a5a)"/><rect x="20" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><rect x="39" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><path d="M22 39l7 7 14-15" fill="none" stroke="var(--logo-check,#3d6fcf)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+<div class="app" id="app"><div class="cargando">Cargando…</div></div>
+<script>
+const TG = window.Telegram && Telegram.WebApp;
+const DEMO = new URLSearchParams(location.search).has("demo");
+const S = { datos: null, vista: "inicio", pila: [], formEv: null };
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
+
+/* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
+function aplicarTema() {
+  const u = S.datos?.usuario, root = document.documentElement;
+  const sistema = (TG && TG.colorScheme) || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const modo = !u || u.modo === "auto" ? (sistema === "dark" ? "oscuro" : "claro") : u.modo;
+  root.dataset.estilo = u ? u.estilo : "informal"; root.dataset.modo = modo;
+  const logo = modo === "oscuro" ? "--logo-fondo:#f4f8ff;--logo-borde:#dfe9f8;--logo-tapa:#ef4a5a;--logo-check:#3d6fcf" : "--logo-fondo:#fff;--logo-borde:#2f6fd6;--logo-tapa:#ef4a5a;--logo-check:#27a85a";
+  const formal = root.dataset.estilo === "formal" ? "--logo-fondo:transparent;--logo-borde:currentColor;--logo-tapa:transparent;--logo-check:currentColor" : logo;
+  root.style.cssText = formal;
+  if (TG) { const bg = getComputedStyle(root).getPropertyValue("--fondo").trim() || "#eef5fd"; try { TG.setHeaderColor(bg); TG.setBackgroundColor(bg); } catch (e) {} }
+}
+if (TG) TG.onEvent("themeChanged", aplicarTema);
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarTema);
+
+/* ---------- API ---------- */
+async function api(ruta, cuerpo = {}) {
+  if (DEMO) return demo(ruta, cuerpo);
+  const r = await fetch(ruta, { method: "POST", headers: { "content-type": "application/json", authorization: "tma " + (TG ? TG.initData : "") }, body: JSON.stringify(cuerpo) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Algo ha fallado");
+  return j;
+}
+async function cargar() { S.datos = await api("/api/estado"); aplicarTema(); }
+function aviso(t) { const d = document.createElement("div"); d.className = "aviso"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+async function hacer(f, ok) { try { await f(); if (ok) aviso(ok); await cargar(); pintar(); } catch (e) { aviso(e.message); } }
+
+/* ---------- Navegación ---------- */
+function ir(v) { S.pila.push(S.vista); S.vista = v; pintar(); window.scrollTo(0, 0); }
+function volver() { S.vista = S.pila.pop() || "inicio"; pintar(); }
+function botonAtras() {
+  if (!TG || !TG.BackButton) return;
+  if (S.vista === "inicio") TG.BackButton.hide(); else TG.BackButton.show();
+}
+if (TG && TG.BackButton) TG.BackButton.onClick(volver);
+
+const cabecera = () => {
+  const u = S.datos.usuario;
+  return `<div class="cab"><svg class="logo"><use href="#i-logo"/></svg><div><h1>Agenda Personal</h1><p>${u.estilo === "formal" ? "Tu tiempo, tus planes" : "Organiza · Disfruta · Avanza"}</p></div><div class="mano">Tu tiempo,<br>tus planes</div></div>`;
+};
+const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
+
+/* ---------- Vistas ---------- */
+const EMO = { alarma: "⏰", cita: "📅", tarea: "✅" };
+const vistas = {
+  inicio() {
+    const u = S.datos.usuario, n = S.datos.secciones.filter((s) => s.activa).length, pend = S.datos.eventos.filter((e) => !e.hecho).length;
+    const t = (c, i, titulo, d, v, cls = "") => `<button class="tarjeta ${cls}" data-ir="${v}"><div class="ico ${c}">${ic(i)}</div><div><b>${titulo}</b><span class="d">${d}</span></div></button>`;
+    return `${cabecera()}
+      <div class="saludo">${u.nombre ? `¡Hola, ${esc(u.nombre)}! 👋` : "¿Qué quieres hacer?"}<small>${u.estilo === "formal" ? "Seleccione una opción" : "Elige una opción"}</small></div>
+      <div class="rejilla">
+        ${t("c1", "resumen", "Resumen de hoy", "Lo que tienes activado", "resumen", "ancha")}
+        ${t("c2", "cal", "Mis eventos", pend ? `${pend} pendiente${pend === 1 ? "" : "s"}` : "Alarmas, citas y tareas", "eventos")}
+        ${t("c3", "sec", "Mis secciones", `${n} activa${n === 1 ? "" : "s"}`, "secciones")}
+        ${t("c4", "pal", "Apariencia", "Estilo y tema", "apariencia")}
+        ${t("c6", "user", "Mi perfil", u.ciudad ? esc(u.ciudad) : "Ciudad y datos", "perfil")}
+      </div>
+      <p class="nota" style="text-align:center;margin-top:18px">🌗 ${u.modo === "auto" ? "Tema automático: sigue el de tu dispositivo" : "Tema " + u.modo + " fijo"}</p>`;
+  },
+  resumen() {
+    const act = S.datos.secciones.filter((s) => s.activa);
+    return `${barra("Resumen de hoy")}
+      <p class="nota">Toca una sección y te la mando al chat, preparada al momento.</p>
+      <div class="lista">${S.datos.secciones.map((s) => `<div class="fila"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div><button class="btn chico ${s.activa ? "" : "sec"}" data-enviar="${esc(s.ref)}">Ver</button></div>`).join("")}</div>
+      <button class="btn ancho" data-enviar="todo" ${act.length ? "" : "disabled style=opacity:.5"}>📋 Todo lo activado (${act.length})</button>`;
+  },
+  eventos() {
+    const ev = S.datos.eventos;
+    return `${barra("Mis eventos")}
+      <div class="lista">${ev.length ? ev.map((e) => `<div class="fila ${e.hecho ? "hecho" : ""}"><div class="emo">${EMO[e.tipo]}</div><div class="t"><b>${esc(e.titulo)}</b><small>${esc(e.texto)}${e.lugar ? " · " + esc(e.lugar) : ""}${e.repeticion !== "ninguna" ? " · 🔁" : ""}</small></div>
+        <div class="acciones"><button class="btn chico sec" data-hecho="${e.id}">${e.hecho ? "↩︎" : "✓"}</button><button class="btn chico peligro" data-borrar="${e.id}">🗑</button></div></div>`).join("") : `<div class="vacio">Aún no tienes nada.<br>Pulsa + para crear una alarma, cita o tarea.</div>`}</div>
+      <button class="fab" data-nuevo="1" aria-label="Nuevo">${ic("mas")}</button>`;
+  },
+  secciones() {
+    return `${barra("Mis secciones")}<p class="nota">Activa lo que quieres recibir cada día y a qué hora.</p>
+      <div class="lista">${S.datos.secciones.map((s) => `<div class="fila"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div>
+        <input type="time" value="${s.hora}" data-hora="${esc(s.ref)}" style="width:96px;padding:8px"><button class="interr ${s.activa ? "on" : ""}" data-tog="${esc(s.ref)}" aria-label="Activar"></button></div>`).join("")}</div>`;
+  },
+  apariencia() {
+    const u = S.datos.usuario, b = (campo, val, txt) => `<button class="${u[campo] === val ? "on" : ""}" data-ap="${campo}:${val}">${txt}</button>`;
+    return `${barra("Apariencia")}
+      <label>Estilo</label><div class="seg">${b("estilo", "informal", "😊 Informal")}${b("estilo", "formal", "👔 Formal")}</div>
+      <p class="nota">${u.estilo === "formal" ? "Sobrio y profesional: tipografía con serifa y acentos de color." : "Cercano y colorido: iconos con color y letra redondeada."}</p>
+      <label>Tema</label><div class="seg">${b("modo", "claro", "☀️ Claro")}${b("modo", "oscuro", "🌙 Oscuro")}${b("modo", "auto", "🔄 Automático")}</div>
+      <p class="nota">Automático sigue el tema de tu dispositivo, el mismo que usa Telegram. Los mensajes del chat no pueden leerlo: ahí «Automático» cambia con el anochecer y el amanecer de tu ciudad (${esc(u.sol)}).</p>`;
+  },
+  perfil() {
+    const u = S.datos.usuario;
+    return `${barra("Mi perfil")}
+      <div class="lista"><div class="fila"><div class="emo">👤</div><div class="t"><b>${esc(u.nombre || "Sin nombre")}</b><small>${u.admin ? "Administrador" : "Usuario"}</small></div></div>
+      <div class="fila"><div class="emo">📍</div><div class="t"><b>${u.ciudad ? esc(u.ciudad) : "Sin ciudad"}</b><small>${esc(u.zona)}</small></div></div></div>
+      <label>Cambiar de ciudad</label><input type="text" id="ciudad" placeholder="Escribe tu municipio" autocomplete="off">
+      <button class="btn ancho" data-buscar="1">${"Buscar"}</button><div class="lista" id="lugares" style="margin-top:10px"></div>`;
+  },
+};
+
+function pintar() {
+  if (!S.datos) return;
+  $("#app").innerHTML = vistas[S.vista]();
+  botonAtras();
+}
+
+/* ---------- Formulario de evento ---------- */
+function hojaNuevo() {
+  const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0);
+  const loc = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const h = document.createElement("div"); h.className = "hoja";
+  h.innerHTML = `<div><h3>Nuevo</h3>
+    <div class="seg" id="tipo" style="margin-top:10px"><button class="on" data-t="alarma">⏰ Alarma</button><button data-t="cita">📅 Cita</button><button data-t="tarea">✅ Tarea</button></div>
+    <label>Nombre</label><input type="text" id="f-titulo" maxlength="80" placeholder="¿Cómo lo llamamos?">
+    <label>Cuándo</label><input type="datetime-local" id="f-cuando" value="${loc}">
+    <div id="f-extra"></div>
+    <button class="btn ancho" id="f-ok">Guardar</button><button class="btn sec ancho" id="f-no">Cancelar</button></div>`;
+  document.body.appendChild(h);
+  let tipo = "alarma";
+  const extra = () => {
+    $("#f-extra", h).innerHTML = (tipo === "cita" ? `<label>Lugar</label><input type="text" id="f-lugar" maxlength="80" placeholder="Opcional"><label>Avisarme</label><select id="f-ant"><option value="30">30 min antes</option><option value="60" selected>1 hora antes</option><option value="180">3 horas antes</option><option value="1440">1 día antes</option><option value="0">A la hora</option></select>` : "")
+      + (tipo === "alarma" ? `<label>Repetir</label><select id="f-rep"><option value="ninguna">Solo una vez</option><option value="diaria">Cada día</option><option value="laborables">Lunes a viernes</option><option value="semanal">Cada semana</option></select>` : "")
+      + (tipo === "tarea" ? `<p class="nota">Las tareas pueden no tener fecha: deja el campo vacío.</p>` : "");
+  };
+  extra();
+  h.addEventListener("click", async (e) => {
+    const t = e.target.closest("[data-t]"); if (t) { tipo = t.dataset.t; h.querySelectorAll("#tipo button").forEach((b) => b.classList.toggle("on", b === t)); extra(); }
+    if (e.target.id === "f-no" || e.target === h) h.remove();
+    if (e.target.id === "f-ok") {
+      const cuerpo = { tipo, titulo: $("#f-titulo", h).value, cuando: $("#f-cuando", h).value || null, lugar: $("#f-lugar", h)?.value, antelacionMin: $("#f-ant", h)?.value, repeticion: $("#f-rep", h)?.value };
+      await hacer(() => api("/api/evento", cuerpo), "✅ Guardado"); if (!document.querySelector(".aviso")?.textContent.startsWith("✅")) return; h.remove();
+    }
+  });
+}
+
+/* ---------- Eventos de la página ---------- */
+document.addEventListener("click", async (e) => {
+  const q = (s) => e.target.closest(s);
+  let el;
+  if ((el = q("[data-ir]"))) return ir(el.dataset.ir);
+  if (q("[data-a=volver]")) return volver();
+  if ((el = q("[data-enviar]"))) { const b = el; b.disabled = true; await hacer(async () => { await api("/api/enviar", { ref: b.dataset.enviar }); }, "📨 Enviado al chat"); return; }
+  if ((el = q("[data-hecho]"))) return hacer(() => api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }));
+  if ((el = q("[data-borrar]"))) { if (!confirm("¿Eliminar?")) return; return hacer(() => api("/api/evento/accion", { id: el.dataset.borrar, accion: "borrar" }), "🗑 Eliminado"); }
+  if (q("[data-nuevo]")) return hojaNuevo();
+  if ((el = q("[data-tog]"))) { const s = S.datos.secciones.find((x) => x.ref === el.dataset.tog); return hacer(() => api("/api/seccion", { ref: s.ref, activa: !s.activa })); }
+  if ((el = q("[data-ap]"))) { const [c, v] = el.dataset.ap.split(":"); S.datos.usuario[c] = v; aplicarTema(); pintar(); return hacer(() => api("/api/apariencia", { [c]: v })); }
+  if (q("[data-buscar]")) {
+    const nombre = $("#ciudad").value.trim(); if (!nombre) return;
+    try {
+      const r = await api("/api/ciudad", { nombre });
+      $("#lugares").innerHTML = r.lugares.length ? r.lugares.map((l) => `<button class="btn sec" style="text-align:left" data-lugar='${JSON.stringify({ nombre, i: l.i })}'>📍 ${esc(l.etiqueta)}</button>`).join("") : `<div class="vacio">No encuentro ese lugar</div>`;
+    } catch (err) { aviso(err.message); }
+    return;
+  }
+  if ((el = q("[data-lugar]"))) { const l = JSON.parse(el.dataset.lugar); return hacer(() => api("/api/ciudad", { nombre: l.nombre, elegir: { i: l.i } }), "📍 Ciudad guardada"); }
+});
+document.addEventListener("change", (e) => {
+  const el = e.target.closest("[data-hora]");
+  if (el && el.value) hacer(() => api("/api/seccion", { ref: el.dataset.hora, hora: el.value }), "🕒 Hora guardada");
+});
+
+/* ---------- Datos de muestra (solo con ?demo=1, para ver el diseño fuera de Telegram) ---------- */
+function demo(ruta, c) {
+  const d = (window.__demo ||= {
+    usuario: { nombre: "Ana", estilo: new URLSearchParams(location.search).get("estilo") || "informal", modo: new URLSearchParams(location.search).get("modo") || "auto", ciudad: "Córdoba", zona: "Europe/Madrid", sol: "amanece 08:12 · anochece 19:41", admin: true },
+    secciones: [["tiempo", "🌤", "Tiempo", "Previsión por horas, lluvia, sol, viento, UV y luna", 1], ["noticias", "📰", "Noticias", "Economía, política y noticias de tu zona", 1], ["agenda", "🗓", "Agenda", "Tus citas y tareas de hoy y mañana", 0], ["horoscopo", "🔮", "Horóscopo", "El horóscopo del día de tu signo", 1], ["mercados", "📈", "Mercados", "Premercado de Wall Street y cierre de ayer", 0]].map(([ref, emoji, titulo, descripcion, a]) => ({ ref, emoji, titulo, descripcion, activa: !!a, hora: "07:30" })),
+    eventos: [{ id: "1", tipo: "cita", titulo: "Cardiología", lugar: "Hospital", texto: "mañana · 10:30", hecho: false, repeticion: "ninguna" }, { id: "2", tipo: "alarma", titulo: "Tomar la pastilla", lugar: "", texto: "hoy · 21:00", hecho: false, repeticion: "diaria" }, { id: "3", tipo: "tarea", titulo: "Llamar al fontanero", lugar: "", texto: "sin fecha", hecho: true, repeticion: "ninguna" }],
+  });
+  if (ruta === "/api/apariencia") Object.assign(d.usuario, { ...(c.estilo && { estilo: c.estilo }), ...(c.modo && { modo: c.modo }) });
+  if (ruta === "/api/seccion") { const s = d.secciones.find((x) => x.ref === c.ref); if (typeof c.activa === "boolean") s.activa = c.activa; if (c.hora) s.hora = c.hora; }
+  if (ruta === "/api/ciudad") return Promise.resolve({ lugares: [{ i: 0, etiqueta: "Córdoba, Andalucía, España" }] });
+  return Promise.resolve(ruta === "/api/estado" ? structuredClone(d) : { ok: true });
+}
+
+/* ---------- Arranque ---------- */
+(async () => {
+  if (TG) { TG.ready(); TG.expand(); }
+  if (!DEMO && !(TG && TG.initData)) { $("#app").innerHTML = `<div class="cargando">Abre esta app desde el bot de Telegram.</div>`; return; }
+  try { await cargar(); pintar(); } catch (e) { $("#app").innerHTML = `<div class="cargando">${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

@@ -1071,8 +1071,8 @@ var AlmacenD1 = class {
   async borrarSolicitud(id) {
     await this.db.prepare("DELETE FROM solicitudes WHERE id = ?").bind(id).run();
   }
-  async listarSolicitudes(estado) {
-    const r = estado ? await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes WHERE estado = ? ORDER BY fecha").bind(estado).all() : await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes ORDER BY fecha").all();
+  async listarSolicitudes(estado2) {
+    const r = estado2 ? await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes WHERE estado = ? ORDER BY fecha").bind(estado2).all() : await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes ORDER BY fecha").all();
     return r.results.map((f) => this.solicitudDesde(f));
   }
   async getHoroscopo(signoId) {
@@ -1644,8 +1644,8 @@ async function obtenerSigno20min(http, signo, fecha) {
       headers: { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9", Accept: "text/html" }
     })).data;
   } catch (e) {
-    const estado = e.response?.status;
-    throw new ErrorApi(estado ? `20minutos: HTTP ${estado}` : `20minutos: ${e.message}`, estado);
+    const estado2 = e.response?.status;
+    throw new ErrorApi(estado2 ? `20minutos: HTTP ${estado2}` : `20minutos: ${e.message}`, estado2);
   }
   if (typeof html !== "string") throw new ErrorApi("20minutos: respuesta no v\xE1lida", 502, "PARSE");
   const entradas = leerPagina20min(html);
@@ -1671,9 +1671,9 @@ var SIGNOS = [
   { id: "piscis", ingles: "pisces", nombre: "Piscis" }
 ];
 var ErrorApi = class extends Error {
-  constructor(mensaje, estado, codigo) {
+  constructor(mensaje, estado2, codigo) {
     super(mensaje);
-    this.estado = estado;
+    this.estado = estado2;
     this.codigo = codigo;
   }
   estado;
@@ -2079,7 +2079,7 @@ __name(noticiasDe, "noticiasDe");
 async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
   const vistas = /* @__PURE__ */ new Set();
   const bloques = [];
-  let ok = 0;
+  let ok2 = 0;
   let motivo = "";
   const respuestas = await Promise.allSettled(secciones.map((s) => noticiasDe(ctx, s.consulta)));
   secciones.forEach((s, i) => {
@@ -2096,12 +2096,12 @@ async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
       vistas.add(k);
       return true;
     }).slice(0, porSeccion);
-    ok++;
+    ok2++;
     const t = s.titulo ? `${s.titulo}
 ` : "";
     bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
   });
-  if (ok === 0) throw new Error(motivo || "no se pudo obtener ninguna noticia");
+  if (ok2 === 0) throw new Error(motivo || "no se pudo obtener ninguna noticia");
   return [cabecera2, ...bloques].join("\n\n");
 }
 __name(resumenNoticias, "resumenNoticias");
@@ -2205,8 +2205,8 @@ async function contenidoMercados(ctx) {
         return lineaCotizacion(n, q);
       })(), PLAZO_COTIZACIONES_MS)))
     ]);
-    const ok = /* @__PURE__ */ __name((r) => r.flatMap((x) => x.status === "fulfilled" ? [x.value] : []), "ok");
-    return { fut: ok(fut), ind: ok(ind) };
+    const ok2 = /* @__PURE__ */ __name((r) => r.flatMap((x) => x.status === "fulfilled" ? [x.value] : []), "ok");
+    return { fut: ok2(fut), ind: ok2(ind) };
   });
   if (bloque2.fut.length === 0 && bloque2.ind.length === 0) throw new Error("no se pudo obtener ninguna cotizaci\xF3n");
   const partes = [cabecera("\u{1F4C8}", "Mercados")];
@@ -2927,6 +2927,7 @@ function menuPrincipal(u, admin, urlBase, ahora = /* @__PURE__ */ new Date()) {
   const eventos = b(ic.eventos, "Mis eventos", "e:lista"), secciones = b(ic.secciones, "Mis secciones", "s:lista", "success");
   const perfil = b(ic.perfil, "Mi perfil", "p:ver", "primary"), ayuda = b(ic.ayuda, "Ayuda", "m:ayuda", "danger");
   const teclado = u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]] : modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]] : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
+  if (urlBase) teclado.unshift([{ texto: `${u.estilo === "formal" ? "\u{1F7E6}" : "\u{1F4F1}"} Abrir la app`, webApp: `${urlBase.replace(/\/+$/, "")}/app/`, color: "primary" }]);
   if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
   return { html, teclado, ...urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` } : {} };
 }
@@ -4156,7 +4157,7 @@ function aMarkup(teclado, colores = true) {
   return {
     inline_keyboard: teclado.map((fila) => fila.map((b) => {
       const color = colores && b.color ? { style: b.color } : {};
-      return b.url ? { text: b.texto, url: b.url, ...color } : { text: b.texto, callback_data: b.datos ?? "noop", ...color };
+      return b.webApp ? { text: b.texto, web_app: { url: b.webApp }, ...color } : b.url ? { text: b.texto, url: b.url, ...color } : { text: b.texto, callback_data: b.datos ?? "noop", ...color };
     }))
   };
 }
@@ -4418,6 +4419,9 @@ async function procesarProgramacion(dep, p) {
 __name(procesarProgramacion, "procesarProgramacion");
 var sumar = /* @__PURE__ */ __name((a, b) => ({ enviados: a.enviados + b.enviados, omitidos: a.omitidos + b.omitidos, fallidos: a.fallidos + b.fallidos }), "sumar");
 
+// ../firebase/functions/src/miniapp.ts
+import { createHmac } from "node:crypto";
+
 // ../firebase/functions/src/webhook.ts
 import { timingSafeEqual } from "node:crypto";
 function iguales(a, b) {
@@ -4437,6 +4441,150 @@ async function procesarWebhook(deps, secreto, p, log3 = () => void 0) {
   return { estado: 200, texto: "ok" };
 }
 __name(procesarWebhook, "procesarWebhook");
+
+// ../firebase/functions/src/miniapp.ts
+var VIGENCIA_S = 24 * 3600;
+function validarInitData(initData, token, ahora) {
+  try {
+    const p = new URLSearchParams(initData);
+    const hash = p.get("hash");
+    if (!hash || !token) return null;
+    p.delete("hash");
+    const texto4 = [...p.entries()].sort(([a], [b]) => a < b ? -1 : 1).map(([k, v]) => `${k}=${v}`).join("\n");
+    const clave = createHmac("sha256", "WebAppData").update(token).digest();
+    if (!iguales(createHmac("sha256", clave).update(texto4).digest("hex"), hash)) return null;
+    const fecha = Number(p.get("auth_date"));
+    if (!fecha || ahora.getTime() / 1e3 - fecha > VIGENCIA_S) return null;
+    const u = JSON.parse(p.get("user") ?? "null");
+    return u?.id ? { id: String(u.id), nombre: u.first_name ?? "" } : null;
+  } catch {
+    return null;
+  }
+}
+__name(validarInitData, "validarInitData");
+var ok = /* @__PURE__ */ __name((cuerpo = { ok: true }) => ({ estado: 200, cuerpo }), "ok");
+var error3 = /* @__PURE__ */ __name((estado2, mensaje) => ({ estado: estado2, cuerpo: { error: mensaje } }), "error");
+var TIPOS = ["alarma", "cita", "tarea"];
+var REPS = ["ninguna", "diaria", "semanal", "laborables"];
+var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
+  id: e.id,
+  tipo: e.tipo,
+  titulo: e.titulo,
+  lugar: e.lugar,
+  hecho: e.hecho,
+  repeticion: e.repeticion,
+  antelacionMin: e.antelacionMin,
+  cuando: e.fechaHora ? e.fechaHora.toISOString() : null,
+  texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha"
+}), "eventoJson");
+async function estado(deps, u) {
+  const ahora = deps.ahora();
+  const eventos = (await deps.almacen.listarEventos(u.id)).sort((a, b) => (a.fechaHora?.getTime() ?? Infinity) - (b.fechaHora?.getTime() ?? Infinity)).slice(0, 100);
+  const secciones = [
+    ...ORDEN_SECCIONES.map((s) => ({ ref: s, emoji: SECCIONES[s].emoji, titulo: SECCIONES[s].titulo, descripcion: SECCIONES[s].descripcion, activa: u.secciones[s].activa, hora: u.secciones[s].hora })),
+    ...u.temas.map((t) => ({ ref: `tema:${t.id}`, emoji: t.emoji, titulo: t.titulo, descripcion: `Noticias sobre \xAB${t.consulta}\xBB`, activa: t.activa, hora: t.hora }))
+  ];
+  return ok({
+    usuario: { nombre: u.nombre, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    secciones,
+    eventos: eventos.map((e) => eventoJson(e, u, ahora)),
+    ahora: ahora.toISOString()
+  });
+}
+__name(estado, "estado");
+function fechaLocal(texto4, zona) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/.exec(String(texto4 ?? ""));
+  if (!m) return null;
+  const [y, mo, d, h, mi] = m.slice(1).map(Number);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
+  return localAUtc(y, mo, d, h, mi, zona);
+}
+__name(fechaLocal, "fechaLocal");
+async function manejarApi(deps, u, ruta, c) {
+  const ahora = deps.ahora();
+  switch (ruta) {
+    case "/api/estado":
+      return estado(deps, u);
+    case "/api/apariencia": {
+      if (c.estilo === "formal" || c.estilo === "informal") u.estilo = c.estilo;
+      if (c.modo === "claro" || c.modo === "oscuro" || c.modo === "auto") u.modo = c.modo;
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+    case "/api/seccion": {
+      const ref2 = String(c.ref ?? "");
+      const cfg = ref2.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === ref2) : u.secciones[ref2];
+      if (!cfg) return error3(404, "Esa secci\xF3n no existe");
+      if (typeof c.activa === "boolean") {
+        if (c.activa && ref2 === "tiempo" && !u.ciudad) return error3(409, "Para el tiempo necesito tu ciudad: d\xEDmela en el chat (Mi perfil \u2192 Ciudad).");
+        if (c.activa && ref2 === "horoscopo" && !u.nacimiento) return error3(409, "Para el hor\xF3scopo necesito tu fecha de nacimiento: ponla en el chat (Mi perfil).");
+        cfg.activa = c.activa;
+      }
+      if (typeof c.hora === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.hora)) cfg.hora = c.hora;
+      await deps.almacen.guardarUsuario(u);
+      await programarSeccion(deps.almacen, u, ref2, ahora);
+      return ok();
+    }
+    case "/api/evento": {
+      const tipo = TIPOS.includes(c.tipo) ? c.tipo : null;
+      const titulo = String(c.titulo ?? "").trim().slice(0, 80);
+      if (!tipo || !titulo) return error3(400, "Falta el t\xEDtulo");
+      const fecha = c.cuando ? fechaLocal(c.cuando, u.zona) : null;
+      if (c.cuando && !fecha) return error3(400, "La fecha no es v\xE1lida");
+      if (tipo !== "tarea" && !fecha) return error3(400, "Indica la fecha y la hora");
+      if (fecha && fecha.getTime() <= ahora.getTime() - 6e4) return error3(400, "Esa fecha ya ha pasado");
+      let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
+      if (fecha && ant > 0 && fecha.getTime() - ant * 6e4 <= ahora.getTime()) ant = 0;
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora };
+      let ev = await deps.almacen.guardarEvento(base);
+      ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
+      await deps.almacen.guardarEvento(ev);
+      return ok({ evento: eventoJson(ev, u, ahora) });
+    }
+    case "/api/evento/accion": {
+      const ev = await deps.almacen.getEvento(u.id, String(c.id ?? ""));
+      if (!ev) return error3(404, "Ese evento ya no existe");
+      if (c.accion === "borrar") {
+        await cancelarEvento(deps.almacen, u.id, ev.id);
+        return ok();
+      }
+      if (c.accion === "hecho") {
+        const nuevo = { ...ev, hecho: !ev.hecho };
+        await deps.almacen.guardarEvento(nuevo);
+        await programarEvento(deps.almacen, nuevo, u.zona, ahora);
+        return ok({ evento: eventoJson(nuevo, u, ahora) });
+      }
+      return error3(400, "Acci\xF3n desconocida");
+    }
+    case "/api/ciudad": {
+      const lugares = await buscarLugares(deps.http, String(c.nombre ?? "").slice(0, 60)).catch(() => []);
+      if (!c.elegir) return ok({ lugares: lugares.map((l2, i) => ({ i, etiqueta: l2.etiqueta })) });
+      const l = lugares[Number(c.elegir.i)];
+      if (!l) return error3(404, "No encuentro ese lugar");
+      u.ciudad = { nombre: l.nombre, provincia: l.provincia, lat: l.lat, lon: l.lon };
+      u.zona = l.zona;
+      await deps.almacen.guardarUsuario(u);
+      await sincronizarSecciones(deps.almacen, u, ahora);
+      return ok({ ciudad: l.nombre });
+    }
+    case "/api/enviar": {
+      const refs = c.ref === "todo" ? ORDEN_SECCIONES.filter((s) => u.secciones[s].activa).map(String).concat(u.temas.filter((t) => t.activa).map((t) => `tema:${t.id}`)) : [String(c.ref ?? "")];
+      if (!refs.length) return error3(409, "No tienes ninguna secci\xF3n activada");
+      for (const ref2 of refs) {
+        try {
+          const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref: ref2 }) : await contenidoDeSeccion(deps, u, ref2);
+          await deps.canal.enviar(u.id, cont.html, cont.teclado);
+        } catch (e) {
+          return error3(502, `No he podido preparar \xAB${ref2}\xBB: ${String(e.message).slice(0, 80)}`);
+        }
+      }
+      return ok({ enviadas: refs.length });
+    }
+    default:
+      return error3(404, "No existe");
+  }
+}
+__name(manejarApi, "manejarApi");
 
 // src/app.ts
 var fabricaReal = /* @__PURE__ */ __name((env2) => {
@@ -4512,9 +4660,31 @@ async function manejarInterno(req, env2, ruta, fabrica) {
   return new Response("not found", { status: 404 });
 }
 __name(manejarInterno, "manejarInterno");
+async function manejarMiniApp(req, env2, url, fabrica) {
+  const json = /* @__PURE__ */ __name((estado2, cuerpo2) => Response.json(cuerpo2, { status: estado2, headers: { "cache-control": "no-store" } }), "json");
+  if (req.method !== "POST") return json(405, { error: "m\xE9todo no permitido" });
+  const firma = (req.headers.get("authorization") ?? "").replace(/^tma\s+/i, "");
+  const quien2 = validarInitData(firma, env2.TELEGRAM_BOT_TOKEN, /* @__PURE__ */ new Date());
+  if (!quien2) return json(401, { error: "Abre esta app desde Telegram" });
+  const dep = dependencias(env2, fabrica(env2), true, url.origin);
+  const admin = dep.adminId;
+  if (admin && quien2.id !== admin && !await dep.almacen.getAcceso(quien2.id)) return json(403, { error: "No tienes acceso al bot" });
+  const u = await dep.almacen.getUsuario(quien2.id);
+  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
+  const cuerpo = await req.json().catch(() => ({})) ?? {};
+  try {
+    const r = await manejarApi(dep, u, url.pathname, cuerpo);
+    return json(r.estado, r.cuerpo);
+  } catch (e) {
+    console.error(`api ${url.pathname}: ${e.message}`);
+    return json(500, { error: "Algo ha fallado. Int\xE9ntalo de nuevo." });
+  }
+}
+__name(manejarMiniApp, "manejarMiniApp");
 async function manejarFetch(req, env2, ctx, fabrica = fabricaReal) {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env2, url.pathname, fabrica);
+  if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env2, url, fabrica);
   if (url.pathname !== "/telegram") return new Response(url.pathname === "/" ? "agenda-personal" : "not found", { status: url.pathname === "/" ? 200 : 404 });
   const cuerpo = await req.json().catch(() => null);
   const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? void 0;

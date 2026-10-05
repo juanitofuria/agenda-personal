@@ -108,6 +108,15 @@ de cabecera**, y los botones usan emojis. Los botones llevan además un color (a
 bot lo detecta y sigue sin colores. Un bot tampoco puede saber si la persona usa tema claro u oscuro: de ahí la pregunta.
 También hay modo **🔄 automático**: el bot calcula el amanecer y el anochecer de tu ciudad (sin red, a partir de sus coordenadas) y usa el modo oscuro desde el anochecer hasta el amanecer.
 
+### Mini app de Telegram
+
+El menú principal lleva un botón **📱 Abrir la app**: una aplicación web dentro de Telegram (`cloudflare/publico/app/index.html`, la sirve el propio Worker en `/app/`)
+con el diseño de las imágenes: tarjetas con iconos de color (informal) o sobrias con serifa y filo de color (formal), en claro u oscuro. A diferencia de los mensajes,
+la mini app **sí puede leer el tema real de tu dispositivo** (`Telegram.WebApp.colorScheme`), así que con *Automático* sigue al sistema. Desde ella puedes ver y mandarte
+al chat el resumen, crear/completar/borrar alarmas, citas y tareas, activar secciones y cambiar su hora, cambiar de ciudad y elegir estilo y tema.
+Todo usa los mismos datos que el bot, y cada petición va firmada por Telegram (cabecera `Authorization: tma <initData>`, comprobada con el token del bot); en un bot privado
+solo entra quien tenga acceso. No hay que configurar nada más: el botón aparece solo. Para ver el diseño fuera de Telegram: `…/app/?demo=1&estilo=formal&modo=oscuro`.
+
 Las cuatro cabeceras son PNG en `cloudflare/publico/` (se sirven desde la propia dirección del Worker; Telegram las descarga de ahí). Se regeneran con
 `cd tools/banners && npm install && npm run generar` (necesita Chromium; la ilustración y las tipografías están en `tools/banners/generar.mjs`).
 Sin dirección pública (versión de Firebase) el menú es solo texto.

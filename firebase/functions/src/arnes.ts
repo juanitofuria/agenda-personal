@@ -15,7 +15,8 @@ export function validarTeclado(t?: Teclado): string[] {
   if (botones.length > 100) fallos.push(`demasiados botones (${botones.length})`);
   for (const b of botones) {
     if (!b.texto.trim()) fallos.push("botón sin texto");
-    if (!b.url && (!b.datos || Buffer.byteLength(b.datos) < 1 || Buffer.byteLength(b.datos) > 64)) fallos.push(`callback_data fuera de 1–64 bytes: «${b.datos}» (${b.datos ? Buffer.byteLength(b.datos) : 0})`);
+    if (b.webApp && !/^https:\/\//.test(b.webApp)) fallos.push(`la mini app necesita una dirección https: «${b.webApp}»`);
+    else if (!b.url && !b.webApp && (!b.datos || Buffer.byteLength(b.datos) < 1 || Buffer.byteLength(b.datos) > 64)) fallos.push(`callback_data fuera de 1–64 bytes: «${b.datos}» (${b.datos ? Buffer.byteLength(b.datos) : 0})`);
   }
   return fallos;
 }
