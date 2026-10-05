@@ -225,18 +225,23 @@ function burbuja(tam) {
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
 const botonAvatar = (tam = 58) => `<button class="avw" data-avatar="1" aria-label="Cambiar avatar" style="border:0;background:none;padding:0">${burbuja(tam)}<span class="lapiz">✎</span></button>`;
-/* Invitación a instalar la app y activar los avisos, en la pantalla de inicio (solo fuera de Telegram, y se puede descartar una semana). */
+/* Invitación a instalar la app y a activar los avisos: solo la PRIMERA vez que se abre en este dispositivo (cada invitación una vez; la de avisos, una vez en el navegador y otra en la app instalada). */
 const modoApp = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const vistoBanner = (k) => { try { return !!localStorage.getItem("visto_" + k); } catch (e) { return false; } };
+const marcarBanner = (k) => { try { localStorage.setItem("visto_" + k, "1"); } catch (e) {} };
 function bannerApp() {
   if (enTelegram() || DEMO) return "";
-  try { if (Date.now() < +localStorage.getItem("bannerOff")) return ""; } catch (e) {}
   const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const aqui = S.aqui && S.aqui.suscrito, cierre = `<button class="x" data-cerrar-banner="1" aria-label="Ahora no">✕</button>`;
-  if (!modoApp() && S.instalacion) return `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`;
-  if (!modoApp() && esIOS()) return `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`;
-  if (soportaPush && !aqui && (modoApp() || !esIOS()) && Notification.permission !== "denied") return `<div class="pasos">${cierre}<b>🔔 Activa los avisos</b><p>Recibe tus resúmenes y recordatorios como notificaciones de esta app.</p><button class="btn" data-activar-ya="1">🔔 Activar notificaciones</button></div>`;
-  return "";
+  let clave = "", html = "";
+  if (!modoApp() && S.instalacion) { clave = "instalar"; html = `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`; }
+  else if (!modoApp() && esIOS()) { clave = "ios"; html = `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`; }
+  else if (soportaPush && !aqui && (modoApp() || !esIOS()) && Notification.permission !== "denied") { clave = "avisos_" + (modoApp() ? "app" : "web"); html = `<div class="pasos">${cierre}<b>🔔 Activa los avisos</b><p>Recibe tus resúmenes y recordatorios como notificaciones de esta app.</p><button class="btn" data-activar-ya="1">🔔 Activar notificaciones</button></div>`; }
+  if (!clave) return "";
+  if (S.bannerClave !== clave && vistoBanner(clave)) return ""; // ya se enseñó en una apertura anterior
+  S.bannerClave = clave; marcarBanner(clave); // se queda en pantalla durante esta sesión; la próxima vez no sale
+  return S.bannerOculto === clave ? "" : html;
 }
 const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}! 👋` : "¡Hola! 👋"}</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
@@ -557,7 +562,7 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
-  if (q("[data-cerrar-banner]")) { try { localStorage.setItem("bannerOff", Date.now() + 7 * 864e5); } catch (err) {} return pintar(); }
+  if (q("[data-cerrar-banner]")) { S.bannerOculto = S.bannerClave; return pintar(); }
   if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, "🔔 Notificaciones activadas");
   if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
   if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); const r = await peticionInstalar.userChoice.catch(() => ({})); peticionInstalar = null; S.instalacion = false; if (r.outcome === "accepted") aviso("✅ Instalada: ábrela desde su icono y activa los avisos"); pintar(); } return; }
