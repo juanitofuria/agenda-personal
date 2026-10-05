@@ -71,6 +71,22 @@ Todos los comandos, desde la carpeta `cloudflare/`:
 **Para actualizar** a una versión nueva del código: descarga los archivos y repite solo el paso 5 (`npx wrangler@4.147.0 deploy`).
 Los pasos 1–4 y 6 se hacen una sola vez.
 
+### Despliegue automático desde GitHub (opcional)
+
+Con esto no tienes que descargar nada para actualizar: cada cambio que se sube a GitHub se prueba y se despliega solo
+(`.github/workflows/deploy-cloudflare.yml`). Se configura una vez:
+
+1. **Crea un token de Cloudflare**: [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens) → *Create Token* →
+   plantilla **Edit Cloudflare Workers** (Account Resources: tu cuenta). Si el paso de la base de datos se queja de permisos, añade al
+   token el permiso *D1 · Edit*. Copia el token (solo se muestra una vez).
+2. **Apunta el ID de tu cuenta**: está en la URL del panel (`dash.cloudflare.com/<ID de cuenta>/…`) o en *Workers & Pages* → *Account ID*.
+3. **Guárdalos en GitHub**: tu repositorio → *Settings* → *Secrets and variables* → *Actions* → *New repository secret*, y crea
+   `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
+
+A partir de ahí, cada subida a las ramas `main` y `claude/android-notifications-app-pxj3sn` que toque el bot lanza: tests → empaquetado → tablas de D1 → despliegue.
+Si faltan los secretos, solo corre los tests y avisa. También se puede lanzar a mano desde la pestaña *Actions* → *Desplegar en Cloudflare* → *Run workflow*.
+Los secretos del bot (token de Telegram y secreto del webhook) siguen guardados en Cloudflare y no pasan por GitHub.
+
 **Prueba de humo recomendada:** `/start` → «Resumen de hoy» → una alarma «en 2 minutos» → `/borrar`.
 
 > **Para desarrolladores:** `cd cloudflare && npm install` solo hace falta para ejecutar los tests o cambiar el código. Tras cambiar algo en
