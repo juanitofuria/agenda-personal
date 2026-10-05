@@ -122,3 +122,31 @@ test("mini app: lista de la compra (añadir varias, marcar, terminar guardando c
   await c({ accion: "vaciar" }); assert.deepEqual((await b.almacen.getUsuario("1"))!.compra.items, []);
   assert.deepEqual(((await api("/api/estado")).cuerpo as any).compra.items, []);
 });
+
+test("lista compartida por enlace: quien la recibe ve, añade, marca y quita; al terminar la compra el enlace caduca y el siguiente es nuevo", async () => {
+  const { manejarListaPublica } = await import("./miniapp");
+  const { b, api } = await banco();
+  b.deps.urlBase = "https://agenda.test";
+  const dueno = async (cuerpo: Record<string, unknown>) => (await api("/api/compra", cuerpo)).cuerpo as any;
+  assert.equal((await api("/api/compra", { accion: "marcar", id: "x" })).estado, 404);
+  await dueno({ accion: "anadir", texto: "Leche, Pan" });
+  const r1 = await dueno({ accion: "compartir" });
+  assert.match(r1.enlace, /^https:\/\/agenda\.test\/lista\/\?t=[a-z2-9]{18}$/);
+  const token = r1.enlace.split("t=")[1];
+  assert.equal((await dueno({ accion: "compartir" })).enlace, r1.enlace); // mientras la lista siga abierta, el mismo enlace
+  const pub = (c: Record<string, unknown>) => manejarListaPublica(b.deps, { token, ...c });
+  const v = (await pub({ accion: "estado" })).cuerpo as any; assert.deepEqual(v.items.map((x: any) => x.texto), ["Leche", "Pan"]); assert.equal(v.propietario, "Ana");
+  await pub({ accion: "anadir", texto: "Huevos" }); await pub({ accion: "marcar", id: v.items[0].id }); // lo que hace quien recibe el enlace…
+  const mio = (await b.almacen.getUsuario("1"))!.compra; assert.deepEqual(mio.items.map((x) => [x.texto, x.hecho]), [["Leche", true], ["Pan", false], ["Huevos", false]]); // …lo ve el dueño
+  assert.equal((await pub({ accion: "terminar", guardar: true })).estado, 403); // quien recibe el enlace no puede terminar la compra ni tocar el historial
+  assert.equal((await pub({ accion: "vaciar" })).estado, 403);
+  await pub({ accion: "quitar", id: v.items[1].id });
+  assert.equal((await manejarListaPublica(b.deps, { token: "aaaaaaaaaaaaaaaaaa", accion: "estado" })).estado, 404); // código inventado
+  assert.equal((await manejarListaPublica(b.deps, { token: "../../etc", accion: "estado" })).estado, 404);
+  await dueno({ accion: "terminar", guardar: true }); // el dueño termina la compra
+  assert.equal((await pub({ accion: "estado" })).estado, 404); // el enlace viejo ya no vale
+  await dueno({ accion: "anadir", texto: "Sal" });
+  const r2 = await dueno({ accion: "compartir" }); assert.notEqual(r2.enlace, r1.enlace); // la nueva lista, enlace nuevo
+  await dueno({ accion: "descompartir" });
+  assert.equal((await manejarListaPublica(b.deps, { token: r2.enlace.split("t=")[1], accion: "estado" })).estado, 404);
+});

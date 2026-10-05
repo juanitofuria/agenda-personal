@@ -347,3 +347,18 @@ test("worker: la API de la mini app exige datos firmados por Telegram y respeta 
   await almacen.guardarAcceso({ id: "7", rol: "usuario", nombre: "Ana", desde: T0 });
   assert.equal((await api("/api/estado", firmar(7), privado)).status, 200);
 });
+
+test("worker: la lista compartida se abre con su enlace sin firma de Telegram (y solo con el código correcto)", async () => {
+  const { d1, almacen } = nuevo();
+  const env: Env = { DB: d1, TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_WEBHOOK_SECRET: "secreto-largo-1234567890" };
+  const u = usuarioNuevo("7", "Ana", T0); u.compra.items = [{ id: "a1", texto: "Leche", hecho: false }]; u.compra.token = "abcdefghijkmnpqrst";
+  await almacen.guardarUsuario(u);
+  await almacen.cacheSet("lista:abcdefghijkmnpqrst", "7", 3600_000, new Date());
+  const lista = (cuerpo: unknown, metodo = "POST") => manejarFetch(new Request("https://x.workers.dev/api/lista", { method: metodo, body: metodo === "POST" ? JSON.stringify(cuerpo) : undefined }), env);
+  const r = await lista({ token: "abcdefghijkmnpqrst", accion: "estado" }); assert.equal(r.status, 200);
+  assert.deepEqual(((await r.json()) as any).items.map((x: any) => x.texto), ["Leche"]);
+  assert.equal((await lista({ token: "abcdefghijkmnpqrst", accion: "marcar", id: "a1" })).status, 200);
+  assert.equal((await almacen.getUsuario("7"))!.compra.items[0].hecho, true);
+  assert.equal((await lista({ token: "zzzzzzzzzzzzzzzzzz", accion: "estado" })).status, 404);
+  assert.equal((await lista({}, "GET")).status, 405);
+});

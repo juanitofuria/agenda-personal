@@ -33,7 +33,7 @@ export type Modo = "claro" | "oscuro" | "auto";
 /** Lista de la compra: lo pendiente y el historial de compras terminadas (con su fecha de finalización). */
 export interface ArticuloCompra { id: string; texto: string; hecho: boolean }
 export interface CompraTerminada { id: string; fecha: string /* ISO */; items: string[] }
-export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTerminada[] }
+export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTerminada[]; /** Código del enlace compartido de la lista actual (null si no se ha compartido). */ token?: string | null }
 
 export interface Usuario {
   id: string;                 // id del chat

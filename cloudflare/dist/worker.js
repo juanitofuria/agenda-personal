@@ -939,7 +939,7 @@ function usuarioDesdeJson(id, d) {
     nacimiento: d.nacimiento ?? null,
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
-    compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [] },
+    compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
     secciones: d.secciones ?? {},
     temas: d.temas ?? [],
     estado: d.estado ?? null,
@@ -4519,6 +4519,72 @@ function botonesApp(t) {
   return res;
 }
 __name(botonesApp, "botonesApp");
+var VIGENCIA_LISTA_MS = 120 * 24 * 36e5;
+var claveLista = /* @__PURE__ */ __name((token) => `lista:${token}`, "claveLista");
+var tokenNuevo = /* @__PURE__ */ __name(() => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(18)), (b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join(""), "tokenNuevo");
+var enlaceLista = /* @__PURE__ */ __name((deps, token) => `${(deps.urlBase ?? "").replace(/\/+$/, "")}/lista/?t=${token}`, "enlaceLista");
+function editarCompra(l, c, ahora, propietario) {
+  const id = /* @__PURE__ */ __name(() => globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10), "id");
+  switch (c.accion) {
+    case "anadir": {
+      const nuevos = String(c.texto ?? "").split(/[\n,;]+/).map((t) => t.trim().slice(0, 60)).filter(Boolean);
+      if (!nuevos.length) return error3(400, "Escribe lo que quieres comprar");
+      if (l.items.length + nuevos.length > 150) return error3(409, "La lista es demasiado larga: termina la compra primero");
+      for (const t of nuevos) l.items.push({ id: id(), texto: t, hecho: false });
+      return null;
+    }
+    case "marcar": {
+      const a = l.items.find((x) => x.id === c.id);
+      if (!a) return error3(404, "Ya no est\xE1 en la lista");
+      a.hecho = !a.hecho;
+      return null;
+    }
+    case "quitar":
+      l.items = l.items.filter((x) => x.id !== c.id);
+      return null;
+  }
+  if (!propietario) return error3(403, "No permitido");
+  switch (c.accion) {
+    case "terminar": {
+      const comprados = l.items.filter((x) => x.hecho);
+      if (!comprados.length) return error3(409, "Marca primero lo que has comprado");
+      if (c.guardar) l.historial.unshift({ id: id(), fecha: ahora.toISOString(), items: comprados.map((x) => x.texto) });
+      l.items = l.items.filter((x) => !x.hecho);
+      l.historial = l.historial.slice(0, 30);
+      return null;
+    }
+    case "vaciar":
+      l.items = [];
+      return null;
+    case "olvidar":
+      l.historial = l.historial.filter((x) => x.id !== c.id);
+      return null;
+    case "repetir": {
+      const h = l.historial.find((x) => x.id === c.id);
+      if (!h) return error3(404, "Esa compra ya no est\xE1");
+      for (const t of h.items) if (!l.items.some((x) => !x.hecho && x.texto.toLowerCase() === t.toLowerCase())) l.items.push({ id: id(), texto: t, hecho: false });
+      return null;
+    }
+    default:
+      return error3(400, "Acci\xF3n desconocida");
+  }
+}
+__name(editarCompra, "editarCompra");
+async function manejarListaPublica(deps, c) {
+  const token = String(c.token ?? "");
+  if (!/^[a-z2-9]{18}$/.test(token)) return error3(404, "Esta lista ya no est\xE1 disponible");
+  const ahora = deps.ahora();
+  const uid = await deps.almacen.cacheGet(claveLista(token), ahora);
+  const u = uid ? await deps.almacen.getUsuario(uid) : null;
+  if (!u || u.compra.token !== token) return error3(404, "Esta lista ya no est\xE1 disponible");
+  if (c.accion && c.accion !== "estado") {
+    const fallo = editarCompra(u.compra, c, ahora, false);
+    if (fallo) return fallo;
+    await deps.almacen.guardarUsuario(u);
+  }
+  return ok({ propietario: u.nombre, items: u.compra.items, estilo: u.estilo });
+}
+__name(manejarListaPublica, "manejarListaPublica");
 function fechaLocal(texto4, zona) {
   const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/.exec(String(texto4 ?? ""));
   if (!m) return null;
@@ -4609,49 +4675,24 @@ async function manejarApi(deps, u, ruta, c) {
     }
     case "/api/compra": {
       const l = u.compra;
-      const id = /* @__PURE__ */ __name(() => globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10), "id");
-      switch (c.accion) {
-        case "anadir": {
-          const nuevos = String(c.texto ?? "").split(/[\n,;]+/).map((t) => t.trim().slice(0, 60)).filter(Boolean);
-          if (!nuevos.length) return error3(400, "Escribe lo que quieres comprar");
-          if (l.items.length + nuevos.length > 150) return error3(409, "La lista es demasiado larga: termina la compra primero");
-          for (const t of nuevos) l.items.push({ id: id(), texto: t, hecho: false });
-          break;
+      if (c.accion === "compartir") {
+        if (!l.token) {
+          l.token = tokenNuevo();
         }
-        case "marcar": {
-          const a = l.items.find((x) => x.id === c.id);
-          if (!a) return error3(404, "Ya no est\xE1 en la lista");
-          a.hecho = !a.hecho;
-          break;
-        }
-        case "quitar":
-          l.items = l.items.filter((x) => x.id !== c.id);
-          break;
-        case "terminar": {
-          const comprados = l.items.filter((x) => x.hecho);
-          if (!comprados.length) return error3(409, "Marca primero lo que has comprado");
-          if (c.guardar) l.historial.unshift({ id: id(), fecha: ahora.toISOString(), items: comprados.map((x) => x.texto) });
-          l.items = l.items.filter((x) => !x.hecho);
-          l.historial = l.historial.slice(0, 30);
-          break;
-        }
-        case "vaciar":
-          l.items = [];
-          break;
-        case "olvidar":
-          l.historial = l.historial.filter((x) => x.id !== c.id);
-          break;
-        case "repetir": {
-          const h = l.historial.find((x) => x.id === c.id);
-          if (!h) return error3(404, "Esa compra ya no est\xE1");
-          for (const t of h.items) if (!l.items.some((x) => !x.hecho && x.texto.toLowerCase() === t.toLowerCase())) l.items.push({ id: id(), texto: t, hecho: false });
-          break;
-        }
-        default:
-          return error3(400, "Acci\xF3n desconocida");
+        await deps.almacen.guardarUsuario(u);
+        await deps.almacen.cacheSet(claveLista(l.token), u.id, VIGENCIA_LISTA_MS, ahora);
+        return ok({ compra: l, enlace: enlaceLista(deps, l.token) });
       }
+      if (c.accion === "descompartir") {
+        l.token = null;
+        await deps.almacen.guardarUsuario(u);
+        return ok({ compra: l });
+      }
+      const fallo = editarCompra(l, c, ahora, true);
+      if (fallo) return fallo;
+      if (c.accion === "terminar") l.token = null;
       await deps.almacen.guardarUsuario(u);
-      return ok({ compra: l });
+      return ok({ compra: l, enlace: l.token ? enlaceLista(deps, l.token) : null });
     }
     case "/api/perfil": {
       if (typeof c.nombre === "string") u.nombre = c.nombre.trim().slice(0, 40);
@@ -4775,6 +4816,19 @@ async function manejarInterno(req, env2, ruta, fabrica) {
   return new Response("not found", { status: 404 });
 }
 __name(manejarInterno, "manejarInterno");
+async function manejarListaCompartida(req, env2, fabrica) {
+  const json = /* @__PURE__ */ __name((estado2, cuerpo2) => Response.json(cuerpo2, { status: estado2, headers: { "cache-control": "no-store" } }), "json");
+  if (req.method !== "POST") return json(405, { error: "m\xE9todo no permitido" });
+  const cuerpo = await req.json().catch(() => ({})) ?? {};
+  try {
+    const r = await manejarListaPublica(dependencias(env2, fabrica(env2), false), cuerpo);
+    return json(r.estado, r.cuerpo);
+  } catch (e) {
+    console.error(`lista: ${e.message}`);
+    return json(500, { error: "Algo ha fallado. Int\xE9ntalo de nuevo." });
+  }
+}
+__name(manejarListaCompartida, "manejarListaCompartida");
 async function manejarMiniApp(req, env2, url, fabrica) {
   const json = /* @__PURE__ */ __name((estado2, cuerpo2) => Response.json(cuerpo2, { status: estado2, headers: { "cache-control": "no-store" } }), "json");
   if (req.method !== "POST") return json(405, { error: "m\xE9todo no permitido" });
@@ -4799,6 +4853,7 @@ __name(manejarMiniApp, "manejarMiniApp");
 async function manejarFetch(req, env2, ctx, fabrica = fabricaReal) {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env2, url.pathname, fabrica);
+  if (url.pathname === "/api/lista") return manejarListaCompartida(req, env2, fabrica);
   if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env2, url, fabrica);
   if (url.pathname !== "/telegram") return new Response(url.pathname === "/" ? "agenda-personal" : "not found", { status: url.pathname === "/" ? 200 : 404 });
   const cuerpo = await req.json().catch(() => null);

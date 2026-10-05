@@ -76,6 +76,66 @@ export function botonesApp(t?: Teclado): { texto: string; url?: string; ref?: st
   return res;
 }
 
+const VIGENCIA_LISTA_MS = 120 * 24 * 3600_000;
+const claveLista = (token: string) => `lista:${token}`;
+const tokenNuevo = () => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(18)), (b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
+const enlaceLista = (deps: Deps, token: string) => `${(deps.urlBase ?? "").replace(/\/+$/, "")}/lista/?t=${token}`;
+
+/** Cambios de la lista de la compra. `propietario`: puede además terminar la compra, vaciarla y gestionar el historial. Devuelve un error, o null si fue bien. */
+function editarCompra(l: Usuario["compra"], c: Record<string, any>, ahora: Date, propietario: boolean): RespuestaApi | null {
+  const id = () => globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10);
+  switch (c.accion) {
+    case "anadir": {
+      const nuevos = String(c.texto ?? "").split(/[\n,;]+/).map((t) => t.trim().slice(0, 60)).filter(Boolean);
+      if (!nuevos.length) return error(400, "Escribe lo que quieres comprar");
+      if (l.items.length + nuevos.length > 150) return error(409, "La lista es demasiado larga: termina la compra primero");
+      for (const t of nuevos) l.items.push({ id: id(), texto: t, hecho: false });
+      return null;
+    }
+    case "marcar": { const a = l.items.find((x) => x.id === c.id); if (!a) return error(404, "Ya no está en la lista"); a.hecho = !a.hecho; return null; }
+    case "quitar": l.items = l.items.filter((x) => x.id !== c.id); return null;
+  }
+  if (!propietario) return error(403, "No permitido");
+  switch (c.accion) {
+    case "terminar": {
+      // Lo marcado como comprado sale de la lista: se guarda en el historial con la fecha de hoy («guardar») o se borra («eliminar»).
+      const comprados = l.items.filter((x) => x.hecho);
+      if (!comprados.length) return error(409, "Marca primero lo que has comprado");
+      if (c.guardar) l.historial.unshift({ id: id(), fecha: ahora.toISOString(), items: comprados.map((x) => x.texto) });
+      l.items = l.items.filter((x) => !x.hecho);
+      l.historial = l.historial.slice(0, 30);
+      return null;
+    }
+    case "vaciar": l.items = []; return null;
+    case "olvidar": l.historial = l.historial.filter((x) => x.id !== c.id); return null;
+    case "repetir": {
+      const h = l.historial.find((x) => x.id === c.id); if (!h) return error(404, "Esa compra ya no está");
+      for (const t of h.items) if (!l.items.some((x) => !x.hecho && x.texto.toLowerCase() === t.toLowerCase())) l.items.push({ id: id(), texto: t, hecho: false });
+      return null;
+    }
+    default: return error(400, "Acción desconocida");
+  }
+}
+
+/**
+ * Lista compartida por enlace: la abre quien recibe el enlace (sin cuenta de Telegram) y puede ver, añadir, marcar y quitar artículos.
+ * El enlace lleva un código imposible de adivinar que apunta a la lista de su dueño; al terminar la compra el código deja de valer.
+ */
+export async function manejarListaPublica(deps: Deps, c: Record<string, any>): Promise<RespuestaApi> {
+  const token = String(c.token ?? "");
+  if (!/^[a-z2-9]{18}$/.test(token)) return error(404, "Esta lista ya no está disponible");
+  const ahora = deps.ahora();
+  const uid = await deps.almacen.cacheGet(claveLista(token), ahora);
+  const u = uid ? await deps.almacen.getUsuario(uid) : null;
+  if (!u || u.compra.token !== token) return error(404, "Esta lista ya no está disponible");
+  if (c.accion && c.accion !== "estado") {
+    const fallo = editarCompra(u.compra, c, ahora, false);
+    if (fallo) return fallo;
+    await deps.almacen.guardarUsuario(u);
+  }
+  return ok({ propietario: u.nombre, items: u.compra.items, estilo: u.estilo });
+}
+
 /** Lee «aaaa-mm-ddThh:mm» (hora local del usuario) y la pasa a UTC. */
 function fechaLocal(texto: unknown, zona: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})$/.exec(String(texto ?? ""));
@@ -170,37 +230,19 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
 
     case "/api/compra": {
       const l = u.compra;
-      const id = () => globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10);
-      switch (c.accion) {
-        case "anadir": {
-          const nuevos = String(c.texto ?? "").split(/[\n,;]+/).map((t) => t.trim().slice(0, 60)).filter(Boolean);
-          if (!nuevos.length) return error(400, "Escribe lo que quieres comprar");
-          if (l.items.length + nuevos.length > 150) return error(409, "La lista es demasiado larga: termina la compra primero");
-          for (const t of nuevos) l.items.push({ id: id(), texto: t, hecho: false });
-          break;
-        }
-        case "marcar": { const a = l.items.find((x) => x.id === c.id); if (!a) return error(404, "Ya no está en la lista"); a.hecho = !a.hecho; break; }
-        case "quitar": l.items = l.items.filter((x) => x.id !== c.id); break;
-        case "terminar": {
-          // Lo marcado como comprado sale de la lista: se guarda en el historial con la fecha de hoy («guardar») o se borra («eliminar»).
-          const comprados = l.items.filter((x) => x.hecho);
-          if (!comprados.length) return error(409, "Marca primero lo que has comprado");
-          if (c.guardar) l.historial.unshift({ id: id(), fecha: ahora.toISOString(), items: comprados.map((x) => x.texto) });
-          l.items = l.items.filter((x) => !x.hecho);
-          l.historial = l.historial.slice(0, 30);
-          break;
-        }
-        case "vaciar": l.items = []; break;
-        case "olvidar": l.historial = l.historial.filter((x) => x.id !== c.id); break;
-        case "repetir": {
-          const h = l.historial.find((x) => x.id === c.id); if (!h) return error(404, "Esa compra ya no está");
-          for (const t of h.items) if (!l.items.some((x) => !x.hecho && x.texto.toLowerCase() === t.toLowerCase())) l.items.push({ id: id(), texto: t, hecho: false });
-          break;
-        }
-        default: return error(400, "Acción desconocida");
+      if (c.accion === "compartir") {
+        // Un enlace por lista: se reutiliza mientras la lista siga abierta y se cambia al terminar la compra.
+        if (!l.token) { l.token = tokenNuevo(); }
+        await deps.almacen.guardarUsuario(u);
+        await deps.almacen.cacheSet(claveLista(l.token), u.id, VIGENCIA_LISTA_MS, ahora);
+        return ok({ compra: l, enlace: enlaceLista(deps, l.token) });
       }
+      if (c.accion === "descompartir") { l.token = null; await deps.almacen.guardarUsuario(u); return ok({ compra: l }); }
+      const fallo = editarCompra(l, c, ahora, true);
+      if (fallo) return fallo;
+      if (c.accion === "terminar") l.token = null; // la lista termina: el enlace deja de valer y la siguiente tendrá uno nuevo
       await deps.almacen.guardarUsuario(u);
-      return ok({ compra: l });
+      return ok({ compra: l, enlace: l.token ? enlaceLista(deps, l.token) : null });
     }
 
     case "/api/perfil": {

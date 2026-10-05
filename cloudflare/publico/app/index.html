@@ -212,7 +212,7 @@ const vistas = {
     return `${barra("Lista de la compra", `<button class="btn chico sec" data-ir="historial">🕘 Historial</button>`)}
       <div class="anadir"><input type="text" id="nuevo-art" maxlength="60" placeholder="Añadir (varios, con comas)" autocomplete="off"><button class="btn" data-anadir="1">＋</button></div>
       <div class="lista" style="margin-top:12px">${pend.map(fila).join("") || (hechos.length ? "" : `<div class="vacio">Tu lista está vacía.<br>Añade lo que necesitas comprar.</div>`)}</div>
-      ${pend.length ? `<button class="btn sec ancho" data-compartir="1">📤 Compartir lo que falta (${pend.length})</button>` : ""}
+      ${l.items.length ? `<button class="btn sec ancho" data-compartir="1">📤 Compartir la lista${l.token ? " · compartida ✓" : ""}</button>` : ""}
       ${hechos.length ? `<label>Comprado (${hechos.length})</label><div class="lista">${hechos.map(fila).join("")}</div><button class="btn ancho" data-terminar="1">✓ Compra hecha</button>` : ""}
       ${l.items.length ? `<button class="btn peligro ancho" data-vaciar="1">Vaciar la lista</button>` : ""}`;
   },
@@ -297,26 +297,29 @@ function hojaNuevo() {
   });
 }
 
-/* Compartir: solo lo que aún no está comprado. Telegram no ofrece el menú «Compartir» del sistema dentro de las mini apps, así que se ofrecen los destinos más usados. */
-function textoCompra() {
+/* Compartir: se crea un enlace a una lista que cualquiera puede abrir y modificar (marcar, añadir, quitar). Telegram no ofrece el menú «Compartir» del sistema dentro de las mini apps, así que se ofrecen los destinos más usados. */
+function mensajeCompra(enlace) {
   const pend = S.datos.compra.items.filter((x) => !x.hecho);
-  return "🛒 Lista de la compra\n" + pend.map((x) => "• " + x.texto).join("\n");
+  return "🛒 Lista de la compra\n" + pend.map((x) => "• " + x.texto).join("\n") + "\n\nÁbrela y ve marcando lo que compras:\n" + enlace;
 }
 async function copiar(t) {
   try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
   try { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; } catch (e) { return false; }
 }
 function abrirEnlace(u) { if (TG && TG.openLink) TG.openLink(u); else window.open(u, "_blank"); }
-function hojaCompartir() {
-  const texto = textoCompra();
-  if (!S.datos.compra.items.some((x) => !x.hecho)) return aviso("No queda nada por comprar");
+async function hojaCompartir() {
+  if (!S.datos.compra.items.length) return aviso("La lista está vacía");
+  let enlace;
+  try { const r = await api("/api/compra", { accion: "compartir" }); enlace = r.enlace; S.datos.compra = r.compra; } catch (e) { return aviso(e.message); }
+  const texto = mensajeCompra(enlace);
   const h = document.createElement("div"); h.className = "hoja";
-  h.innerHTML = `<div><h3>Compartir la lista</h3><p class="nota">Se envía solo lo que falta por comprar.</p><div class="doc" style="white-space:pre-wrap;font-size:13.5px">${esc(texto)}</div>
+  h.innerHTML = `<div><h3>Compartir la lista</h3><p class="nota">Quien reciba el enlace podrá <b>ver, añadir y marcar</b> productos, y tú verás los cambios aquí. Al terminar la compra, el enlace deja de valer y la siguiente lista tendrá uno nuevo.</p><div class="doc" style="white-space:pre-wrap;font-size:13px">${esc(texto)}</div>
     <button class="btn ancho" data-c="wa">💬 WhatsApp</button>
     <button class="btn ancho" data-c="mail">✉️ Correo</button>
     <button class="btn ancho" data-c="tg">✈️ Telegram</button>
     ${navigator.share ? `<button class="btn ancho" data-c="otras">📤 Otras aplicaciones…</button>` : ""}
-    <button class="btn sec ancho" data-c="copiar">📋 Copiar el texto</button>
+    <button class="btn sec ancho" data-c="copiar">📋 Copiar el mensaje</button>
+    <button class="btn peligro ancho" data-c="parar">🚫 Dejar de compartir</button>
     <button class="btn sec ancho" data-c="no">Cerrar</button></div>`;
   document.body.appendChild(h);
   h.addEventListener("click", async (e) => {
@@ -326,10 +329,11 @@ function hojaCompartir() {
     const t = encodeURIComponent(texto);
     if (c === "wa") abrirEnlace("https://wa.me/?text=" + t);
     else if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Lista de la compra") + "&body=" + t);
-    else if (c === "tg") { const u = "https://t.me/share/url?url=%20&text=" + t; if (TG && TG.openTelegramLink) TG.openTelegramLink(u); else window.open(u, "_blank"); }
+    else if (c === "tg") { const u = "https://t.me/share/url?url=" + encodeURIComponent(enlace) + "&text=" + encodeURIComponent("🛒 Lista de la compra"); if (TG && TG.openTelegramLink) TG.openTelegramLink(u); else window.open(u, "_blank"); }
     else if (c === "otras") { try { await navigator.share({ title: "Lista de la compra", text: texto }); } catch (err) {} }
-    else if (c === "copiar") { aviso((await copiar(texto)) ? "📋 Copiado" : "No he podido copiar"); }
-    if (c !== "copiar") h.remove();
+    else if (c === "copiar") { aviso((await copiar(texto)) ? "📋 Copiado" : "No he podido copiar"); return; }
+    else if (c === "parar") { h.remove(); return hacer(() => api("/api/compra", { accion: "descompartir" }), "🚫 Enlace desactivado"); }
+    h.remove();
   });
 }
 
@@ -405,6 +409,7 @@ function demo(ruta, c) {
     if (c.accion === "anadir") c.texto.split(",").forEach((t, i) => l.items.push({ id: "n" + Date.now() + i, texto: t.trim(), hecho: false }));
     if (c.accion === "marcar") it.hecho = !it.hecho; if (c.accion === "quitar") l.items = l.items.filter((x) => x !== it);
     if (c.accion === "terminar") { const ok = l.items.filter((x) => x.hecho); if (c.guardar) l.historial.unshift({ id: "h" + Date.now(), fecha: new Date().toISOString(), items: ok.map((x) => x.texto) }); l.items = l.items.filter((x) => !x.hecho); }
+    if (c.accion === "compartir") { l.token = "demo"; return Promise.resolve({ compra: l, enlace: location.origin + "/lista/?t=abcdefghijkmnpqrst" }); }
     return Promise.resolve({ ok: true }); }
   if (ruta === "/api/ver") return new Promise((ok) => setTimeout(() => ok({ secciones: (c.ref === "todo" ? ["tiempo", "noticias"] : [c.ref]).map((ref) => ({ ref, html: ref === "tiempo" ? "🌤 <b>Tiempo · Córdoba</b>\nHoy: 24° / 11°, sol y algunas nubes.\n\n🕐 Mañana: <b>soleado</b>\n<i>Fuente: Open-Meteo</i>" : "📰 <b>Noticias del día</b>\n• Titular de ejemplo <a href=\"https://example.com\">enlace</a>\n• Otro titular de ejemplo", botones: ref === "tiempo" ? [{ texto: "🕐 Hora a hora", ref: "tiempo:horas" }, { texto: "🌙 Calendario lunar", ref: "tiempo:luna" }] : [] })) }), 600));
   if (ruta === "/api/ciudad") return Promise.resolve({ lugares: [{ i: 0, etiqueta: "Córdoba, Andalucía, España" }] });

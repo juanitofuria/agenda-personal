@@ -9,7 +9,7 @@ import { FEED_PODCAST } from "../../firebase/functions/src/podcast";
 import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/functions/src/scheduler";
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
 import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
-import { manejarApi, validarInitData } from "../../firebase/functions/src/miniapp";
+import { manejarApi, manejarListaPublica, validarInitData } from "../../firebase/functions/src/miniapp";
 import { iguales, procesarWebhook } from "../../firebase/functions/src/webhook";
 
 export interface Env {
@@ -114,6 +114,17 @@ async function manejarInterno(req: Request, env: Env, ruta: string, fabrica: Fab
   return new Response("not found", { status: 404 });
 }
 
+/** Lista de la compra compartida por enlace: no lleva firma de Telegram, la protege el código del enlace. */
+async function manejarListaCompartida(req: Request, env: Env, fabrica: Fabrica): Promise<Response> {
+  const json = (estado: number, cuerpo: unknown) => Response.json(cuerpo, { status: estado, headers: { "cache-control": "no-store" } });
+  if (req.method !== "POST") return json(405, { error: "método no permitido" });
+  const cuerpo = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+  try {
+    const r = await manejarListaPublica(dependencias(env, fabrica(env), false), cuerpo);
+    return json(r.estado, r.cuerpo);
+  } catch (e) { console.error(`lista: ${(e as Error).message}`); return json(500, { error: "Algo ha fallado. Inténtalo de nuevo." }); }
+}
+
 /** API de la mini app de Telegram: cada petición va firmada por Telegram (cabecera `Authorization: tma <initData>`). */
 async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica): Promise<Response> {
   const json = (estado: number, cuerpo: unknown) => Response.json(cuerpo, { status: estado, headers: { "cache-control": "no-store" } });
@@ -139,6 +150,7 @@ async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica
 export async function manejarFetch(req: Request, env: Env, ctx?: Ctx, fabrica: Fabrica = fabricaReal): Promise<Response> {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env, url.pathname, fabrica);
+  if (url.pathname === "/api/lista") return manejarListaCompartida(req, env, fabrica);
   if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env, url, fabrica);
   if (url.pathname !== "/telegram") return new Response(url.pathname === "/" ? "agenda-personal" : "not found", { status: url.pathname === "/" ? 200 : 404 });
   const cuerpo = await req.json().catch(() => null);
