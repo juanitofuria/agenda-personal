@@ -102,7 +102,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [] }, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }

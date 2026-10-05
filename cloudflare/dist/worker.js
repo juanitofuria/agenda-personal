@@ -1258,7 +1258,7 @@ function usuarioNuevo(id, nombre, ahora) {
     nacimiento: null,
     zona: "Europe/Madrid",
     ciudad: null,
-    compra: { items: [], historial: [] },
+    compra: { items: [], historial: [], token: null },
     secciones,
     temas: [],
     estado: null,
