@@ -114,6 +114,19 @@ html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
 .pasos b{display:block;font:800 15px var(--titulo);margin-bottom:4px;padding-right:26px}.pasos p{margin:0 0 10px;color:var(--suave);font-weight:600;font-size:13px}
 .pasos .x{position:absolute;right:8px;top:8px;border:0;background:none;color:var(--suave);font-size:18px;cursor:pointer;padding:4px 8px}
 .pasos .btn{width:100%}
+.so{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:var(--linea);padding:4px;border-radius:14px;margin:6px 0 14px}
+.so button{border:0;background:transparent;padding:8px 2px;border-radius:11px;font-weight:800;font-size:11.5px;cursor:pointer;color:var(--suave);display:flex;flex-direction:column;align-items:center;gap:2px}
+.so button span{font-size:20px}.so button.on{background:var(--tarjeta);color:var(--tinta);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.guia h4{margin:16px 2px 8px;font:800 15px var(--titulo)}
+.paso{display:flex;gap:12px;align-items:flex-start;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:12px;margin-bottom:8px}
+.paso i{flex:none;width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,var(--azul2),var(--azul));color:#fff;font:800 13px var(--fuente);display:grid;place-items:center;font-style:normal}
+.paso div{font-size:13.5px;line-height:1.45;font-weight:500;color:var(--suave)}.paso div b{font-weight:800;color:var(--tinta)}
+.paso small{display:block;color:var(--suave);font-size:12px;margin-top:2px;font-weight:600}
+.guia details{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:4px 12px;margin-bottom:8px}
+.guia summary{cursor:pointer;font-weight:800;font-size:13.5px;padding:9px 0;list-style:none}.guia summary::-webkit-details-marker{display:none}.guia summary::before{content:"▸ ";color:var(--azul)}
+.guia details[open] summary::before{content:"▾ "}
+.guia details p{margin:0 0 10px;font-size:13px;line-height:1.5;color:var(--suave);font-weight:600}
+.aviso-ok{background:color-mix(in srgb,var(--ok) 14%,transparent);border-radius:14px;padding:11px 14px;font-weight:800;font-size:13.5px}
 .cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
 </style>
 </head>
@@ -319,18 +332,14 @@ const vistas = {
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     const canal = (v, txt) => `<button class="${n.canal === v ? "on" : ""}" data-canal="${v}">${txt}</button>`;
-    const instalar = !fuera ? `<p class="nota">Estás dentro de Telegram. Para instalarla, abre un <b>enlace de acceso</b> (más abajo) en el navegador del dispositivo donde la quieras.</p>`
-      : instalada ? `<div class="doc" style="white-space:normal">✅ Esta app ya está instalada en este dispositivo.</div>`
-      : S.instalacion ? `<button class="btn ancho" data-instalar="1">⬇️ Instalar en este dispositivo</button>`
-      : ios ? `<div class="doc" style="white-space:normal"><b>En iPhone o iPad</b><br>1. Abre este enlace en <b>Safari</b>.<br>2. Pulsa el botón <b>Compartir</b> (el cuadrado con la flecha).<br>3. Elige <b>Añadir a pantalla de inicio</b>.<br>4. Ábrela desde el icono nuevo.</div>`
-      : `<div class="doc" style="white-space:normal"><b>En Android, Windows o Mac</b><br>Abre el menú del navegador (Chrome o Edge) y elige <b>Instalar aplicación</b> (o el icono de instalar en la barra de direcciones). En Safari de Mac: Archivo → <b>Añadir al Dock</b>.</div>`;
     let notis;
     if (!fuera) notis = `<p class="nota">Las notificaciones de la app se activan desde la app instalada, no desde Telegram.</p>`;
     else if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
     else if (!soportaPush) notis = `<p class="nota">Este navegador no admite notificaciones.</p>`;
     else notis = aqui.suscrito ? `<button class="btn peligro ancho" data-push="off">🔕 Desactivar en este dispositivo</button>` : `<button class="btn ancho" data-push="on">🔔 Activar en este dispositivo</button>`;
     return `${barra("App y notificaciones")}
-      <label>Instalar</label>${instalar}
+      ${!fuera ? `<p class="nota">Estás dentro de Telegram: para instalar la app, abre un <b>enlace de acceso</b> (más abajo) en el navegador del dispositivo donde la quieras.</p>` : ""}${fuera && instalada ? `<div class="aviso-ok" style="margin-bottom:8px">✅ Esta app ya está instalada en este dispositivo.</div>` : ""}${fuera && !instalada && S.instalacion ? `<button class="btn ancho" data-instalar="1" style="margin-bottom:8px">⬇️ Instalar en este dispositivo</button>` : ""}
+      <label>Guía paso a paso</label>${guiaHTML()}
       <label>Usar en otro dispositivo</label>
       <p class="nota">Crea un enlace de un solo uso (caduca en 10 minutos) y ábrelo en el móvil u ordenador donde quieras tener la app. También lo puedes pedir con <b>/app</b> en el bot.</p>
       <button class="btn sec ancho" data-enlace="1">🔗 Crear enlace de acceso</button>
@@ -492,6 +501,103 @@ function hojaTerminar() {
   });
 }
 
+/* ---------- Guía de instalación por sistema ---------- */
+const SISTEMAS = [["android", "🤖", "Android"], ["ios", "🍎", "iPhone / iPad"], ["windows", "🪟", "Windows"], ["mac", "💻", "Mac"]];
+const sistemaDetectado = () => { const ua = navigator.userAgent; return /Android/.test(ua) ? "android" : esIOS() ? "ios" : /Windows/.test(ua) ? "windows" : /Mac/.test(ua) ? "mac" : "android"; };
+const GUIAS = {
+  android: {
+    nota: "Necesitas Chrome. Vale cualquier Android reciente.",
+    instalar: [
+      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot, o usa «Crear enlace de acceso» más abajo."],
+      ["Ábrelo en Chrome", "Pulsa <b>🌐 Abrir ahora en el navegador</b>. Si se abre dentro de Telegram, copia el enlace y pégalo en Chrome."],
+      ["Instálala", "Pulsa <b>⬇️ Instalar ahora</b> en el recuadro de la pantalla de inicio. Si no sale: menú <b>⋮</b> → <b>Instalar aplicación</b>.", "No elijas «Añadir a pantalla de inicio»: eso crea solo un acceso directo a la web."],
+      ["Confirma y ábrela desde su icono", "Se verá a pantalla completa, sin barra del navegador."],
+    ],
+    avisos: [
+      ["Abre la app instalada", "Desde su icono, no desde Chrome."],
+      ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
+      ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>: debe sonar en el móvil."],
+      ["Elige cómo recibir los avisos", "<b>App</b> (solo notificaciones) o <b>Ambos</b> (también por Telegram)."],
+    ],
+    fallos: [
+      ["Se abre con la barra del navegador", "Es un acceso directo, no la app. Mantén pulsado el icono → <b>Quitar</b>, y vuelve a instalarla con «Instalar aplicación»."],
+      ["Dije «No» al permiso de notificaciones", "Ajustes de Android → <b>Aplicaciones</b> → la app (Agenda) → <b>Notificaciones</b> → activar. Después vuelve a pulsar «Activar en este dispositivo»."],
+      ["La prueba no suena", "Ajustes → Aplicaciones → Agenda → <b>Batería</b> → «Sin restricciones», y comprueba que no esté activado «No molestar»."],
+    ],
+  },
+  ios: {
+    nota: "Necesitas <b>iOS 16.4 o superior</b> (Ajustes → General → Información) y usar <b>Safari</b>.",
+    instalar: [
+      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot."],
+      ["Ábrelo en Safari", "No sirve Chrome ni el navegador de dentro de Telegram. Copia el enlace y pégalo en Safari."],
+      ["Pulsa Compartir", "El icono del cuadrado con una flecha hacia arriba (abajo en el centro, o arriba a la derecha en iPad)."],
+      ["Elige «Añadir a pantalla de inicio»", "Desliza la lista hacia abajo si no lo ves y pulsa <b>Añadir</b>."],
+      ["Ábrela desde el icono nuevo", "Siempre desde ese icono, no desde Safari: así se ve a pantalla completa y Apple permite las notificaciones."],
+    ],
+    avisos: [
+      ["Abre la app desde su icono", "Es imprescindible para poder activar los avisos en iPhone."],
+      ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
+      ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>."],
+      ["Mejor «Ambos»", "En iPhone las notificaciones pueden retrasarse algo. Con <b>Ambos</b> también te llega por Telegram."],
+    ],
+    fallos: [
+      ["No me sale el botón de activar avisos", "Ábrela desde el icono de la pantalla de inicio, no desde Safari. Y comprueba que tienes iOS 16.4 o superior."],
+      ["Dije «No Permitir»", "Ajustes del iPhone → <b>Notificaciones</b> → la app (Agenda) → <b>Permitir notificaciones</b>."],
+      ["No suenan", "Revisa que no esté activo un <b>modo Concentración</b> o «No molestar», y que el volumen y el modo silencio estén bien."],
+    ],
+  },
+  windows: {
+    nota: "Vale Chrome o Edge.",
+    instalar: [
+      ["Pide el enlace de acceso", "En Telegram (en el móvil o en el ordenador) escribe <b>/app</b> al bot y copia el enlace."],
+      ["Ábrelo en Chrome o Edge", "Pégalo en la barra de direcciones."],
+      ["Instálala", "Pulsa <b>⬇️ Instalar ahora</b>, o el icono de instalar (un monitor con flecha) al final de la barra de direcciones. También: Chrome <b>⋮ → Transmitir, guardar y compartir → Instalar página como aplicación</b>; Edge <b>⋯ → Aplicaciones → Instalar este sitio como una aplicación</b>."],
+      ["Ábrela desde su icono", "Se abre en su propia ventana. Puedes anclarla a la barra de tareas o al menú Inicio."],
+    ],
+    avisos: [
+      ["Abre la app instalada", "Desde su icono."],
+      ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
+      ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>: saldrá un aviso en la esquina de la pantalla."],
+      ["Deja el navegador abierto en segundo plano", "Las notificaciones solo llegan si Chrome o Edge siguen en marcha (aunque no veas la ventana)."],
+    ],
+    fallos: [
+      ["No me llegan avisos", "Windows → <b>Configuración → Sistema → Notificaciones</b>: actívalas y desactiva «No molestar» o la Asistencia de concentración."],
+      ["Quiero que lleguen con el navegador cerrado", "Chrome: <b>Configuración → Sistema → «Seguir ejecutando aplicaciones en segundo plano al cerrar Chrome»</b>."],
+      ["Dije «Bloquear»", "En la app: icono del candado junto al título → <b>Notificaciones → Permitir</b>."],
+    ],
+  },
+  mac: {
+    nota: "Vale Chrome, Edge o Safari (macOS Sonoma 14 o superior).",
+    instalar: [
+      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot y copia el enlace."],
+      ["Ábrelo en tu navegador", "Chrome, Edge o Safari."],
+      ["Instálala", "Chrome o Edge: <b>⬇️ Instalar ahora</b> o el icono de instalar en la barra de direcciones. Safari: menú <b>Archivo → Añadir al Dock</b>."],
+      ["Ábrela desde el Dock o Launchpad", "Se abre en su propia ventana, como cualquier app."],
+    ],
+    avisos: [
+      ["Abre la app instalada", "Desde el Dock o Launchpad."],
+      ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
+      ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>."],
+      ["Mantén el navegador en marcha", "Con Chrome o Edge, las notificaciones llegan mientras el navegador siga abierto en segundo plano."],
+    ],
+    fallos: [
+      ["No me llegan avisos", "<b>Ajustes del Sistema → Notificaciones</b>: busca la app (o Chrome/Edge/Safari) y permite las notificaciones; revisa que no esté activo «No molestar» o un modo de concentración."],
+      ["Dije «No permitir»", "En la app: menú de la ventana → Ajustes del sitio → Notificaciones → Permitir (en Safari: Safari → Ajustes → Sitios web → Notificaciones)."],
+    ],
+  },
+};
+function guiaHTML() {
+  const k = S.guiaSO || sistemaDetectado(), g = GUIAS[k];
+  const pasos = (l) => l.map((p, i) => `<div class="paso"><i>${i + 1}</i><div>${p[0] ? `<b>${p[0]}</b><br>` : ""}${p[1]}${p[2] ? `<small>${p[2]}</small>` : ""}</div></div>`).join("");
+  return `<div class="guia">
+    <div class="so">${SISTEMAS.map(([id, ico, nom]) => `<button class="${id === k ? "on" : ""}" data-so="${id}"><span>${ico}</span>${nom}</button>`).join("")}</div>
+    <p class="nota" style="margin-top:0">${g.nota}</p>
+    <h4>① Instalar la app</h4>${pasos(g.instalar)}
+    <h4>② Activar los avisos</h4>${pasos(g.avisos)}
+    <h4>Si algo no funciona</h4>${g.fallos.map((f) => `<details><summary>${f[0]}</summary><p>${f[1]}</p></details>`).join("")}
+  </div>`;
+}
+
 /* ---------- App instalable y notificaciones ---------- */
 let peticionInstalar = null;
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); peticionInstalar = e; S.instalacion = true; if (S.vista === "dispositivos" || S.vista === "inicio") pintar(); });
@@ -562,6 +668,7 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
+  if ((el = q("[data-so]"))) { S.guiaSO = el.dataset.so; return pintar(); }
   if (q("[data-cerrar-banner]")) { S.bannerOculto = S.bannerClave; return pintar(); }
   if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, "🔔 Notificaciones activadas");
   if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
