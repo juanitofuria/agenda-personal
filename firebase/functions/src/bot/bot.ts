@@ -4,14 +4,15 @@ import { sincronizarSecciones } from "../programar";
 import { construirContenido } from "../secciones";
 import { cabecera } from "../util";
 import { Contenido } from "../secciones/tipos";
+import * as acceso from "./acceso";
 import * as ajustes from "./ajustes";
 import { diagnostico } from "./diagnostico";
 import { Ctx, Deps, BTN_MENU } from "./ctx";
 import * as eventos from "./eventos";
 import * as onboarding from "./onboarding";
-import { seccionesActivas, tecladoHoy, tecladoMenu, textoAyuda, textoMenu } from "./vistas";
+import { seccionesActivas, tecladoHoy, tecladoMenuPara, textoAyuda, textoMenu } from "./vistas";
 
-async function menu(c: Ctx): Promise<void> { await c.responder(textoMenu(c.u), tecladoMenu); }
+async function menu(c: Ctx): Promise<void> { await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin)); }
 
 /** Envía una sección. `editar`: sustituye el mensaje del botón (navegación dentro de una misma sección). */
 async function mostrarSeccion(c: Ctx, ref: string, editar = false): Promise<void> {
@@ -57,14 +58,15 @@ async function cancelar(c: Ctx): Promise<void> {
   const habia = !!c.u.estado;
   await c.terminarFlujo();
   if (habia && !c.u.onboardingHecho) { await onboarding.terminar(c, true); return; }
-  await c.nuevo(habia ? "Cancelado." : "No había nada que cancelar.", tecladoMenu);
+  await c.nuevo(habia ? "Cancelado." : "No había nada que cancelar.", tecladoMenuPara(c.esAdmin));
 }
 
 async function comando(c: Ctx, texto: string): Promise<boolean> {
   const cmd = texto.split(/[\s@]/)[0].toLowerCase();
+  if (await acceso.comando(c, cmd)) return true;
   switch (cmd) {
-    case "/start": if (c.u.onboardingHecho) { await c.terminarFlujo(); await c.nuevo(textoMenu(c.u), tecladoMenu); } else await onboarding.iniciar(c); return true;
-    case "/menu": await c.terminarFlujo(); await c.nuevo(textoMenu(c.u), tecladoMenu); return true;
+    case "/start": if (c.u.onboardingHecho) { await c.terminarFlujo(); await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin)); } else await onboarding.iniciar(c); return true;
+    case "/menu": await c.terminarFlujo(); await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin)); return true;
     case "/hoy": await c.terminarFlujo(); await c.nuevo("📋 <b>Resumen de hoy</b>\n¿Qué quieres ver?", tecladoHoy(c.u)); return true;
     case "/nueva": await c.terminarFlujo(); await eventos.menuNueva(c); return true;
     case "/eventos": await c.terminarFlujo(); await eventos.lista(c); return true;
@@ -73,7 +75,7 @@ async function comando(c: Ctx, texto: string): Promise<boolean> {
     case "/ayuda": case "/help": await c.nuevo(textoAyuda, [[BTN_MENU]]); return true;
     case "/cancelar": await cancelar(c); return true;
     case "/borrar": await ajustes.callback(c, ["p", "borrar"]); return true;
-    case "/diagnostico": await diagnostico(c); return true; // no sale en el menú: es para encontrar fallos
+    case "/diagnostico": if (!c.esAdmin && c.deps.adminId) return false; await diagnostico(c); return true; // no sale en el menú: es para encontrar fallos
     default: return false;
   }
 }
@@ -91,7 +93,7 @@ async function despachar(c: Ctx): Promise<void> {
 }
 
 async function atenderBoton(c: Ctx, p: string[]): Promise<void> {
-  if (!c.u.onboardingHecho && p[0] !== "o" && p[0] !== "x") { await onboarding.iniciar(c); return; }
+  if (!c.u.onboardingHecho && p[0] !== "o" && p[0] !== "x" && p[0] !== "acc") { await onboarding.iniciar(c); return; } // «acc» (aprobar, rechazar…) funciona aunque el administrador no haya terminado el asistente
   switch (p[0]) {
     case "o": await onboarding.callback(c, p); return;
     case "m":
@@ -102,6 +104,7 @@ async function atenderBoton(c: Ctx, p: string[]): Promise<void> {
     case "n": case "e": await eventos.callback(c, p); return;
     case "s": case "p": await ajustes.callback(c, p); return;
     case "x": await cancelar(c); return;
+    case "acc": await acceso.callback(c, p); return;
     default: return; // "noop" y botones desconocidos
   }
 }
@@ -112,13 +115,14 @@ async function atenderTexto(c: Ctx): Promise<void> {
   if (t.startsWith("/") && (await comando(c, t))) return;
   if (!c.u.onboardingHecho && !c.u.estado) { await onboarding.iniciar(c); return; }
   if (c.u.estado && ((await onboarding.texto(c)) || (await eventos.texto(c)) || (await ajustes.texto(c)))) return;
-  await c.nuevo("Usa el menú para moverte por la agenda 👇", tecladoMenu);
+  await c.nuevo("Usa el menú para moverte por la agenda 👇", tecladoMenuPara(c.esAdmin));
 }
 
 /** Punto de entrada de cada mensaje o botón que llega del canal. */
 export async function manejarEntrada(deps: Deps, entrada: Entrada): Promise<void> {
   const { almacen, canal } = deps;
   const ahora = deps.ahora();
+  if (!entrada.bloqueado && !(await acceso.puerta(deps, entrada))) return; // bot privado: solo pasan el administrador y quien tenga acceso
   let u = await almacen.getUsuario(entrada.chatId);
 
   if (entrada.bloqueado) { // el usuario ha bloqueado el bot: se dejan de programar envíos

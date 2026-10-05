@@ -68,6 +68,15 @@ export interface HoroscopoDoc {
   signo: string; fecha: string; prediccion: string; idioma?: string; fuente?: string; fuenteUrl?: string;
 }
 
+/** Persona autorizada a usar el bot (solo se comprueba si hay un administrador configurado). */
+export interface Acceso { id: string; rol: "admin" | "usuario"; nombre: string; desde: Date }
+
+/** Invitación de un solo uso. Con `para` solo vale para esa persona (la que pidió acceso y fue aprobada). */
+export interface Invitacion { codigo: string; caduca: Date; creadaPor: string; para?: string }
+
+/** Petición de acceso de alguien no autorizado, pendiente de que el administrador decida (o rechazada: no se puede repetir). */
+export interface Solicitud { id: string; nombre: string; usuario?: string; fecha: Date; estado: "pendiente" | "rechazada" }
+
 /** Hora a la que se avisa de un evento (evento - antelación). */
 export function momentoAviso(e: Evento): Date | null {
   return e.fechaHora ? new Date(e.fechaHora.getTime() - e.antelacionMin * 60_000) : null;

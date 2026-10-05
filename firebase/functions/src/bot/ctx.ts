@@ -13,6 +13,11 @@ export interface Deps {
    * quien llama, así los mensajes salen en orden aunque las secciones se construyan a la vez.
    */
   construirRemoto?: (p: { uid: string; ref: string }) => Promise<Contenido>;
+  /**
+   * Opcional. Id de Telegram del administrador. Si está definido, el bot es privado: solo lo usan el administrador y quien este invite o apruebe.
+   * Si no está definido, cualquiera puede usarlo (comportamiento abierto).
+   */
+  adminId?: string;
   /** Dónde pedir el horóscopo si falta el de hoy. */
   horoscopoCfg?: Config;
   podcastFeed?: string;
@@ -23,6 +28,8 @@ export class Ctx {
   constructor(readonly deps: Deps, public u: Usuario, readonly entrada: Entrada) {}
 
   get ahora(): Date { return this.deps.ahora(); }
+  /** Quien escribe es el administrador del bot. */
+  get esAdmin(): boolean { return !!this.deps.adminId && this.u.id === this.deps.adminId; }
   get almacen(): Almacen { return this.deps.almacen; }
   get texto(): string { return (this.entrada.texto ?? "").trim(); }
 

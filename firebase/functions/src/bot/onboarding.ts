@@ -9,7 +9,7 @@ import { signoDe } from "../signos";
 import { SECCIONES_BASICAS, TEMAS, separarIntereses, slug } from "./catalogo";
 import { bloque, cabecera } from "../util";
 import { Ctx } from "./ctx";
-import { textoMenu, tecladoMenu } from "./vistas";
+import { textoMenu, tecladoMenuPara } from "./vistas";
 
 const FLUJO = "onb";
 
@@ -118,7 +118,7 @@ export async function terminar(c: Ctx, omitido: boolean): Promise<void> {
   c.u.estado = null;
   await c.guardar();
   await sincronizarSecciones(c.almacen, c.u, ahora);
-  await c.responder(textoMenu(c.u), tecladoMenu);
+  await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
 }
 
 /** Pulsaciones de botones del asistente ("o:..."). */

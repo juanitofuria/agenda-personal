@@ -253,3 +253,49 @@ test("si falla la llamada interna, el cron lo cuenta y la programación sigue ve
   assert.ok(r.fallidos >= 1 && r.enviados === 0);
   assert.ok((await new AlmacenD1(e.env.DB).programacionesVencidas(manana, 50)).length >= 1);
 });
+
+// ---------- Control de acceso en D1 ----------
+test("acceso en D1: accesos, invitaciones (un uso, caducidad, personales y atómicas) y solicitudes", async () => {
+  const { almacen } = nuevo();
+  const ahora = new Date("2026-10-05T10:00:00Z");
+  await almacen.guardarAcceso({ id: "1", rol: "admin", nombre: "Juan", desde: ahora });
+  await almacen.guardarAcceso({ id: "2", rol: "usuario", nombre: "Ana", desde: new Date(ahora.getTime() + 1000) });
+  await almacen.guardarAcceso({ id: "2", rol: "usuario", nombre: "Ana B", desde: ahora }); // actualizar no cambia «desde» ni duplica
+  assert.deepEqual((await almacen.listarAccesos()).map((a) => `${a.id}:${a.rol}:${a.nombre}`), ["1:admin:Juan", "2:usuario:Ana B"]);
+  assert.equal((await almacen.getAcceso("2"))!.desde.getTime(), ahora.getTime() + 1000);
+  await almacen.borrarAcceso("2"); assert.equal(await almacen.getAcceso("2"), null);
+
+  const caduca = new Date(ahora.getTime() + 7 * 86_400_000);
+  await almacen.guardarInvitacion({ codigo: "GENERICA", caduca, creadaPor: "1" });
+  await almacen.guardarInvitacion({ codigo: "PERSONAL", caduca, creadaPor: "1", para: "7" });
+  await almacen.guardarInvitacion({ codigo: "VIEJA", caduca: new Date(ahora.getTime() - 1), creadaPor: "1" });
+  assert.equal(await almacen.consumirInvitacion("VIEJA", "9", ahora), null); // caducada
+  assert.equal(await almacen.consumirInvitacion("NO-EXISTE", "9", ahora), null);
+  assert.equal(await almacen.consumirInvitacion("PERSONAL", "9", ahora), null); // es de otra persona
+  assert.equal((await almacen.consumirInvitacion("PERSONAL", "7", ahora))!.para, "7"); assert.equal(await almacen.consumirInvitacion("PERSONAL", "7", ahora), null); // y una sola vez
+  const [a, b] = await Promise.all([almacen.consumirInvitacion("GENERICA", "10", ahora), almacen.consumirInvitacion("GENERICA", "11", ahora)]);
+  assert.equal([a, b].filter(Boolean).length, 1, "dos personas a la vez: solo una entra"); // atómico
+  await almacen.guardarInvitacion({ codigo: "P2", caduca, creadaPor: "1", para: "8" }); await almacen.borrarInvitacionesPara("8"); assert.equal(await almacen.consumirInvitacion("P2", "8", ahora), null);
+
+  await almacen.guardarSolicitud({ id: "5", nombre: "Eva", usuario: "eva_g", fecha: new Date(ahora.getTime() + 10), estado: "pendiente" });
+  await almacen.guardarSolicitud({ id: "4", nombre: "Leo", fecha: ahora, estado: "rechazada" });
+  assert.deepEqual((await almacen.listarSolicitudes()).map((s) => s.id), ["4", "5"]); // por fecha
+  assert.deepEqual((await almacen.listarSolicitudes("pendiente")).map((s) => `${s.id}:${s.usuario}`), ["5:eva_g"]);
+  assert.equal((await almacen.getSolicitud("4"))!.usuario, undefined);
+  await almacen.guardarSolicitud({ ...(await almacen.getSolicitud("5"))!, estado: "rechazada" }); assert.equal((await almacen.getSolicitud("5"))!.estado, "rechazada");
+  await almacen.borrarSolicitud("4"); assert.equal(await almacen.getSolicitud("4"), null);
+});
+
+test("con ADMIN_CHAT_ID el Worker es privado: solo entran el administrador y quien tenga invitación; sin él, abierto", async () => {
+  for (const privado of [true, false]) {
+    const e = entorno();
+    if (privado) e.env.ADMIN_CHAT_ID = "42"; // el usuario 42 de estos tests es el administrador
+    const enviar = (chat: number, texto: string) => manejarFetch(new Request("https://x.workers.dev/telegram", { method: "POST", headers: { "x-telegram-bot-api-secret-token": SECRETO }, body: JSON.stringify({ update_id: Math.floor(Math.random() * 1e9), message: { chat: { id: chat, type: "private" }, from: { first_name: `U${chat}` }, text: texto } }) }), e.env, e.ctx, e.fabrica);
+    await enviar(99, "/start"); await e.esperar();
+    const almacen = new AlmacenD1(e.env.DB);
+    assert.equal(!!(await almacen.getUsuario("99")), !privado); // abierto: se registra; privado: nada
+    assert.match(e.canal.textos("99").join("\n"), privado ? /Bot privado/ : /Soy tu agenda personal/);
+    await enviar(42, "/start"); await e.esperar();
+    assert.ok(await almacen.getUsuario("42")); assert.equal((await almacen.getAcceso("42"))?.rol, privado ? "admin" : undefined);
+  }
+});

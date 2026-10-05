@@ -27,6 +27,7 @@ Corre en **Cloudflare Workers** con **D1**, en el **plan gratuito y sin tarjeta*
 * **Ajustes**: activar o desactivar secciones, cambiar la hora de cada una, añadir y quitar temas, y cambiar nombre, fecha de
   nacimiento y ciudad (al cambiar de ciudad se recalculan las horas según su zona horaria).
 * **Privacidad**: `/borrar` elimina todos tus datos y deja de enviarte mensajes.
+* **Bot privado** (opcional, ver abajo): solo lo usan el administrador y quien este invite o apruebe.
 
 Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/cancelar` `/borrar`.
 Hay además `/diagnostico` (no sale en el menú): comprueba desde el servidor si llegan Open-Meteo, Google News, Bing News, Yahoo Finance, 20minutos, el podcast y
@@ -94,10 +95,32 @@ Los secretos del bot (token de Telegram y secreto del webhook) siguen guardados 
 > **Para desarrolladores:** `cd cloudflare && npm install` solo hace falta para ejecutar los tests o cambiar el código. Tras cambiar algo en
 > `src/` (o en `../firebase/functions/src`), ejecuta `npm run empaquetar` y sube también `dist/worker.js`; CI lo comprueba.
 
+## Bot privado: invitaciones y solicitudes de acceso
+
+Telegram no tiene «bots privados»: cualquiera que encuentre el nombre del bot puede escribirle. Por eso el control se hace dentro del bot, y se activa
+al definir quién es el administrador:
+
+1. **Averigua tu número de Telegram**: escribe `/miid` a tu bot (lo contesta a cualquiera, también con el bot abierto). Es un número, no un secreto.
+2. **Actívalo** guardando ese número como secreto (en la carpeta `cloudflare/`; pega el número cuando lo pida):
+   ```bash
+   npx wrangler@4.147.0 secret put ADMIN_CHAT_ID
+   ```
+   Es inmediato y no hace falta desplegar. **Si te equivocas de número** y te quedas fuera, repite el comando con el correcto
+   (o `npx wrangler@4.147.0 secret delete ADMIN_CHAT_ID` para volver a dejar el bot abierto).
+3. A partir de ahí, quien no esté autorizado solo ve «Bot privado» con un botón **🙋 Pedir acceso**. Tú recibes el aviso con **✅ Aprobar / 🚫 Rechazar**:
+   si apruebas, el bot le envía una **invitación personal** (un botón/enlace `t.me/<bot>?start=inv_…` que solo vale para esa persona, una vez, y caduca a los 7 días).
+
+Comandos del administrador (los demás no existen para el resto): `/acceso` (panel; también el botón **🔐 Acceso** del menú), `/invitar` (enlace de un uso para
+repartir), `/solicitudes` (pendientes, con sus botones) y `/usuarios` (quién tiene acceso; **🗑 Quitar** pide confirmación y borra sus datos).
+Quien tenía el bot antes de activar esto y no sea el administrador pierde el acceso y deja de recibir sus resúmenes programados.
+`/diagnostico` también pasa a ser solo del administrador. Esta función está en la lógica común; en la versión de Firebase está disponible pero no
+se ha cableado el secreto del administrador.
+
 ## Datos en D1 (solo accesibles desde el Worker)
 
 | Tabla | Contenido |
 |---|---|
+| `acceso`, `invitaciones`, `solicitudes` | quién puede usar el bot, invitaciones de un uso (con caducidad) y peticiones de acceso (solo si hay administrador) |
 | `usuarios` | nombre, nacimiento, zona horaria, ciudad, secciones (activa + hora), temas, estado de la conversación |
 | `eventos` | alarma, cita o tarea de cada usuario: título, lugar, fecha y hora (UTC), antelación, repetición, estado |
 | `programaciones` | qué hay que enviar y cuándo (`proximo`); el planificador lee las vencidas cada minuto |

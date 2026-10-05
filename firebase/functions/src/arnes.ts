@@ -25,6 +25,7 @@ export class CanalFalso implements Canal {
   /** Incumplimientos de los límites de Telegram detectados al enviar. */
   violaciones: string[] = [];
   callbacks: string[] = [];
+  nombreUsuario = async () => "agenda_test_bot";
   falla?: (chatId: string) => Error | undefined;
   private n = 100;
   async enviar(chatId: string, html: string, teclado?: Teclado) {

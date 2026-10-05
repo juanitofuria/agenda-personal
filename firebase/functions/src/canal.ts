@@ -5,6 +5,8 @@ export type Teclado = Boton[][];
 export interface Entrada {
   chatId: string;
   nombre: string;
+  /** Nombre de usuario de Telegram (@alias), si lo tiene. */
+  usuario?: string;
   updateId: number;
   texto?: string;
   callback?: { id: string; datos: string; mensajeId: number };
@@ -18,6 +20,8 @@ export interface Canal {
   /** Edita un mensaje anterior (si no se puede, envía uno nuevo). */
   editar(chatId: string, mensajeId: number, html: string, teclado?: Teclado): Promise<void>;
   responderCallback(callbackId: string, texto?: string): Promise<void>;
+  /** Nombre de usuario del propio bot (para construir enlaces de invitación). */
+  nombreUsuario?(): Promise<string | undefined>;
 }
 
 export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

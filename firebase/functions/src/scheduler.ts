@@ -7,7 +7,7 @@ import { construirContenido } from "./secciones";
 import { ErrorTelegram } from "./telegram";
 import { HttpGet } from "./util";
 
-export interface DepsTick { almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date; log?: (m: string) => void }
+export interface DepsTick { almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date; log?: (m: string) => void; /** Si hay administrador, solo se envía a quien tenga acceso. */ adminId?: string }
 
 const MAX_SECCION_RETRASO = 3 * 3_600_000;  // un resumen de hace más de 3 h ya no sirve
 const MAX_EVENTO_RETRASO = 24 * 3_600_000;  // un aviso de hace más de 1 día se descarta
@@ -97,6 +97,7 @@ export async function procesarProgramacion(dep: DepsTick, p: Programacion): Prom
   try {
     const u = await dep.almacen.getUsuario(p.uid);
     if (!u || !u.activo) { await dep.almacen.borrarProgramacion(p.id); return r; }
+    if (dep.adminId && p.uid !== dep.adminId && !(await dep.almacen.getAcceso(p.uid))) { await dep.almacen.borrarProgramacion(p.id); return r; } // sin acceso: no se le envía nada
     if (p.tipo === "seccion") await enviarSeccion(dep, u, p, ahora, r); else await enviarEvento(dep, u, p, ahora, r);
   } catch (e) {
     r.fallidos++;

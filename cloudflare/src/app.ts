@@ -17,6 +17,11 @@ export interface Env {
   SELF?: { fetch(req: Request): Promise<Response> };
   TELEGRAM_BOT_TOKEN: string;      // secreto (`wrangler secret put`)
   TELEGRAM_WEBHOOK_SECRET: string; // secreto
+  /**
+   * Secreto (`wrangler secret put ADMIN_CHAT_ID`): tu número de Telegram (el bot te lo dice con /miid). Si no está, el bot es abierto; si está,
+   * es privado: solo entran tú y quien invites o apruebes.
+   */
+  ADMIN_CHAT_ID?: string;
   HOROSCOPO_BASE_URL?: string;
   HOROSCOPO_IDIOMA?: string;
   /** Feed RSS del podcast con un episodio por signo y día (botón «Escuchar»). */
@@ -67,7 +72,7 @@ const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https:
 function dependencias(env: Env, s: Servicios, remoto: boolean): Deps & { almacen: AlmacenD1 } {
   return {
     almacen: new AlmacenD1(env.DB), canal: s.canal, http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
-    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST,
+    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined,
     construirRemoto: remoto && env.SELF ? async (p) => {
       const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecución interna");

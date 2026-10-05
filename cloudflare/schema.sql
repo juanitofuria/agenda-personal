@@ -31,3 +31,26 @@ CREATE TABLE IF NOT EXISTS cache (
   valor TEXT NOT NULL,
   expira INTEGER NOT NULL
 );
+
+-- Control de acceso: quién puede usar el bot (solo si hay administrador configurado), invitaciones de un uso y solicitudes de acceso.
+CREATE TABLE IF NOT EXISTS acceso (
+  id TEXT PRIMARY KEY,
+  rol TEXT NOT NULL,          -- admin | usuario
+  nombre TEXT NOT NULL,
+  desde INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS invitaciones (
+  codigo TEXT PRIMARY KEY,
+  caduca INTEGER NOT NULL,
+  creada_por TEXT NOT NULL,
+  para TEXT                   -- si lleva valor, solo vale para esa persona
+);
+
+CREATE TABLE IF NOT EXISTS solicitudes (
+  id TEXT PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  usuario TEXT,
+  fecha INTEGER NOT NULL,
+  estado TEXT NOT NULL        -- pendiente | rechazada
+);

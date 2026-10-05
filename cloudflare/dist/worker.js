@@ -234,8 +234,8 @@ var PerformanceObserver = class {
   __unenv__ = true;
   static supportedEntryTypes = [];
   _callback = null;
-  constructor(callback4) {
-    this._callback = callback4;
+  constructor(callback5) {
+    this._callback = callback5;
   }
   takeRecords() {
     return [];
@@ -419,20 +419,20 @@ var WriteStream = class {
   constructor(fd) {
     this.fd = fd;
   }
-  clearLine(dir3, callback4) {
-    callback4 && callback4();
+  clearLine(dir3, callback5) {
+    callback5 && callback5();
     return false;
   }
-  clearScreenDown(callback4) {
-    callback4 && callback4();
+  clearScreenDown(callback5) {
+    callback5 && callback5();
     return false;
   }
-  cursorTo(x, y, callback4) {
-    callback4 && typeof callback4 === "function" && callback4();
+  cursorTo(x, y, callback5) {
+    callback5 && typeof callback5 === "function" && callback5();
     return false;
   }
-  moveCursor(dx, dy, callback4) {
-    callback4 && callback4();
+  moveCursor(dx, dy, callback5) {
+    callback5 && callback5();
     return false;
   }
   getColorDepth(env2) {
@@ -1028,6 +1028,50 @@ var AlmacenD1 = class {
   async reclamarProgramacion(id, esperado, nuevo) {
     const r = await this.db.prepare("UPDATE programaciones SET proximo = ? WHERE id = ? AND proximo = ?").bind(nuevo.getTime(), id, esperado.getTime()).run();
     return (r.meta?.changes ?? 0) === 1;
+  }
+  async getAcceso(id) {
+    const f = await this.db.prepare("SELECT rol, nombre, desde FROM acceso WHERE id = ?").bind(id).first();
+    return f ? { id, rol: f.rol === "admin" ? "admin" : "usuario", nombre: f.nombre, desde: new Date(f.desde) } : null;
+  }
+  async guardarAcceso(a) {
+    await this.db.prepare("INSERT INTO acceso (id, rol, nombre, desde) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET rol = excluded.rol, nombre = excluded.nombre").bind(a.id, a.rol, a.nombre, a.desde.getTime()).run();
+  }
+  async borrarAcceso(id) {
+    await this.db.prepare("DELETE FROM acceso WHERE id = ?").bind(id).run();
+  }
+  async listarAccesos() {
+    const r = await this.db.prepare("SELECT id, rol, nombre, desde FROM acceso ORDER BY desde").all();
+    return r.results.map((f) => ({ id: f.id, rol: f.rol === "admin" ? "admin" : "usuario", nombre: f.nombre, desde: new Date(f.desde) }));
+  }
+  async guardarInvitacion(i) {
+    await this.db.prepare("INSERT INTO invitaciones (codigo, caduca, creada_por, para) VALUES (?, ?, ?, ?) ON CONFLICT(codigo) DO UPDATE SET caduca = excluded.caduca, para = excluded.para").bind(i.codigo, i.caduca.getTime(), i.creadaPor, i.para ?? null).run();
+  }
+  /** Atómico: un único DELETE condicionado; solo quien lo borra (1 fila) puede usar la invitación. */
+  async consumirInvitacion(codigo, uid, ahora) {
+    const f = await this.db.prepare("SELECT caduca, creada_por, para FROM invitaciones WHERE codigo = ?").bind(codigo).first();
+    if (!f || f.caduca <= ahora.getTime() || f.para && f.para !== uid) return null;
+    const r = await this.db.prepare("DELETE FROM invitaciones WHERE codigo = ?").bind(codigo).run();
+    return (r.meta?.changes ?? 0) === 1 ? { codigo, caduca: new Date(f.caduca), creadaPor: f.creada_por, para: f.para ?? void 0 } : null;
+  }
+  async borrarInvitacionesPara(uid) {
+    await this.db.prepare("DELETE FROM invitaciones WHERE para = ?").bind(uid).run();
+  }
+  solicitudDesde(f) {
+    return { id: f.id, nombre: f.nombre, usuario: f.usuario ?? void 0, fecha: new Date(f.fecha), estado: f.estado === "rechazada" ? "rechazada" : "pendiente" };
+  }
+  async getSolicitud(id) {
+    const f = await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes WHERE id = ?").bind(id).first();
+    return f ? this.solicitudDesde(f) : null;
+  }
+  async guardarSolicitud(s) {
+    await this.db.prepare("INSERT INTO solicitudes (id, nombre, usuario, fecha, estado) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET nombre = excluded.nombre, usuario = excluded.usuario, fecha = excluded.fecha, estado = excluded.estado").bind(s.id, s.nombre, s.usuario ?? null, s.fecha.getTime(), s.estado).run();
+  }
+  async borrarSolicitud(id) {
+    await this.db.prepare("DELETE FROM solicitudes WHERE id = ?").bind(id).run();
+  }
+  async listarSolicitudes(estado) {
+    const r = estado ? await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes WHERE estado = ? ORDER BY fecha").bind(estado).all() : await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes ORDER BY fecha").all();
+    return r.results.map((f) => this.solicitudDesde(f));
   }
   async getHoroscopo(signoId) {
     const f = await this.db.prepare("SELECT datos FROM horoscopos WHERE signo = ?").bind(signoId).first();
@@ -1969,16 +2013,16 @@ function leerRss(xml) {
   return noticias;
 }
 __name(leerRss, "leerRss");
-function enlaceReal(enlace) {
+function enlaceReal(enlace2) {
   try {
-    const u = new URL(enlace);
+    const u = new URL(enlace2);
     if (/(^|\.)bing\.com$/.test(u.hostname)) {
       const destino = u.searchParams.get("url");
       if (destino) return destino;
     }
   } catch {
   }
-  return enlace;
+  return enlace2;
 }
 __name(enlaceReal, "enlaceReal");
 var urlGoogleNews = /* @__PURE__ */ __name((consulta, idioma = "es", pais = "ES") => `https://news.google.com/rss/search?q=${encodeURIComponent(consulta)}&hl=${idioma}&gl=${pais}&ceid=${pais}:${idioma}`, "urlGoogleNews");
@@ -2480,6 +2524,289 @@ async function construirContenido(id, ctx) {
 }
 __name(construirContenido, "construirContenido");
 
+// ../firebase/functions/src/bot/ctx.ts
+var Ctx = class {
+  constructor(deps, u, entrada) {
+    this.deps = deps;
+    this.u = u;
+    this.entrada = entrada;
+  }
+  deps;
+  u;
+  entrada;
+  static {
+    __name(this, "Ctx");
+  }
+  get ahora() {
+    return this.deps.ahora();
+  }
+  /** Quien escribe es el administrador del bot. */
+  get esAdmin() {
+    return !!this.deps.adminId && this.u.id === this.deps.adminId;
+  }
+  get almacen() {
+    return this.deps.almacen;
+  }
+  get texto() {
+    return (this.entrada.texto ?? "").trim();
+  }
+  /** Responde editando el mensaje del botón pulsado; si el usuario escribió, envía uno nuevo. */
+  async responder(html, teclado) {
+    const cb = this.entrada.callback;
+    if (cb) await this.deps.canal.editar(this.u.id, cb.mensajeId, html, teclado);
+    else await this.deps.canal.enviar(this.u.id, html, teclado);
+  }
+  /** Envía siempre un mensaje nuevo (para no perder el menú anterior). */
+  async nuevo(html, teclado) {
+    await this.deps.canal.enviar(this.u.id, html, teclado);
+  }
+  async guardar() {
+    await this.almacen.guardarUsuario(this.u);
+  }
+  /** Pone al usuario a la espera de un texto en [flujo]/[paso]. */
+  async esperar(flujo, paso, datos2 = {}) {
+    this.u.estado = { flujo, paso, datos: datos2 };
+    await this.guardar();
+  }
+  async terminarFlujo() {
+    this.u.estado = null;
+    await this.guardar();
+  }
+  get estado() {
+    return this.u.estado;
+  }
+};
+var BTN_MENU = { texto: "\u{1F3E0} Men\xFA", datos: "m:menu" };
+var BTN_CANCELAR = { texto: "\u274C Cancelar", datos: "x:cancelar" };
+
+// ../firebase/functions/src/bot/acceso.ts
+var DIAS_INVITACION = 7;
+var ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+var nuevoCodigo = /* @__PURE__ */ __name(() => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(14)), (b) => ALFABETO[b % ALFABETO.length]).join(""), "nuevoCodigo");
+var quien = /* @__PURE__ */ __name((nombre, usuario, id) => `${esc(nombre || "Sin nombre")}${usuario ? ` (@${esc(usuario)})` : ""} \xB7 <code>${esc(id)}</code>`, "quien");
+async function enlace(deps, codigo) {
+  const bot = await deps.canal.nombreUsuario?.().catch(() => void 0);
+  return bot ? `https://t.me/${bot}?start=inv_${codigo}` : null;
+}
+__name(enlace, "enlace");
+async function avisarAdmin(deps, html, teclado) {
+  if (!deps.adminId) return;
+  try {
+    await deps.canal.enviar(deps.adminId, html, teclado);
+  } catch {
+  }
+}
+__name(avisarAdmin, "avisarAdmin");
+async function puerta(deps, e) {
+  const ahora = deps.ahora();
+  const id = e.chatId;
+  const texto4 = (e.texto ?? "").trim();
+  if (/^\/miid(@\w+)?$/i.test(texto4)) {
+    await deps.canal.enviar(id, [cabecera("\u{1F194}", "Tu ID de Telegram"), "", `<code>${esc(id)}</code>`, "", "<i>Es un n\xFAmero, no un dato secreto. El due\xF1o del bot lo usa para darte permisos.</i>"].join("\n"));
+    return false;
+  }
+  if (!deps.adminId) return true;
+  let acceso = await deps.almacen.getAcceso(id);
+  if (id === deps.adminId && acceso?.rol !== "admin") {
+    acceso = { id, rol: "admin", nombre: e.nombre, desde: acceso?.desde ?? ahora };
+    await deps.almacen.guardarAcceso(acceso);
+  }
+  if (acceso) return true;
+  const cb = e.callback;
+  if (cb) await deps.canal.responderCallback(cb.id).catch(() => void 0);
+  const inv = /^\/start(?:@\w+)?\s+inv_([A-Za-z0-9_-]{8,40})$/.exec(texto4);
+  if (inv) {
+    const usada = await deps.almacen.consumirInvitacion(inv[1], id, ahora);
+    if (usada) {
+      await deps.almacen.guardarAcceso({ id, rol: "usuario", nombre: e.nombre, desde: ahora });
+      await deps.almacen.borrarSolicitud(id);
+      await avisarAdmin(deps, `\u2705 <b>${quien(e.nombre, e.usuario, id)}</b> ha entrado con una invitaci\xF3n.`);
+      return true;
+    }
+    await deps.canal.enviar(id, [cabecera("\u{1F512}", "Invitaci\xF3n no v\xE1lida", "Ha caducado, ya se us\xF3 o no es para ti"), "", "Si quieres usar el bot, puedes pedir acceso al due\xF1o.", "", "<i>Pulsa el bot\xF3n \u{1F447}</i>"].join("\n"), [[{ texto: "\u{1F64B} Pedir acceso", datos: "acc:pedir" }]]);
+    return false;
+  }
+  const previa = await deps.almacen.getSolicitud(id);
+  if (cb?.datos === "acc:pedir" && !previa) {
+    await deps.almacen.guardarSolicitud({ id, nombre: e.nombre, usuario: e.usuario, fecha: ahora, estado: "pendiente" });
+    await avisarAdmin(
+      deps,
+      [cabecera("\u{1F64B}", "Solicitud de acceso", "Alguien quiere usar el bot"), "", bloque("\u{1F464}", "Qui\xE9n", quien(e.nombre, e.usuario, id)), "", "<i>Si la apruebas, le llegar\xE1 una invitaci\xF3n personal \u{1F447}</i>"].join("\n"),
+      [[{ texto: "\u2705 Aprobar", datos: `acc:ok:${id}` }, { texto: "\u{1F6AB} Rechazar", datos: `acc:no:${id}` }]]
+    );
+    await deps.canal.enviar(id, [cabecera("\u{1F4E8}", "Solicitud enviada", "Ahora decide el due\xF1o"), "", "Te avisar\xE9 aqu\xED en cuanto responda.", "", "<i>No hace falta que hagas nada m\xE1s.</i>"].join("\n"));
+    return false;
+  }
+  if (previa?.estado === "rechazada") {
+    await deps.canal.enviar(id, [cabecera("\u{1F512}", "Bot privado", "Tu solicitud no ha sido aprobada"), "", "Si crees que es un error, habla directamente con el due\xF1o del bot."].join("\n"));
+  } else if (previa) {
+    await deps.canal.enviar(id, [cabecera("\u23F3", "Solicitud pendiente", "Ahora decide el due\xF1o"), "", "Te avisar\xE9 aqu\xED en cuanto responda."].join("\n"));
+  } else {
+    await deps.canal.enviar(id, [cabecera("\u{1F512}", "Bot privado", "Solo pueden usarlo personas invitadas"), "", "Si quieres usarlo, pide acceso: el due\xF1o decidir\xE1 si te env\xEDa una invitaci\xF3n.", "", "<i>Pulsa el bot\xF3n \u{1F447}</i>"].join("\n"), [[{ texto: "\u{1F64B} Pedir acceso", datos: "acc:pedir" }]]);
+  }
+  return false;
+}
+__name(puerta, "puerta");
+var plural = /* @__PURE__ */ __name((n, uno, varios) => `${n} ${n === 1 ? uno : varios}`, "plural");
+async function panel(c) {
+  const pendientes = (await c.almacen.listarSolicitudes("pendiente")).length;
+  const personas = (await c.almacen.listarAccesos()).length;
+  await c.responder([
+    cabecera("\u{1F510}", "Acceso", "Qui\xE9n puede usar tu bot"),
+    "",
+    bloque("\u{1F64B}", "Solicitudes pendientes", String(pendientes)),
+    "",
+    bloque("\u{1F465}", "Personas con acceso", `${personas} (cont\xE1ndote a ti)`),
+    "",
+    "<i>Elige qu\xE9 hacer \u{1F447}</i>"
+  ].join("\n"), [
+    [{ texto: "\u2795 Invitar", datos: "acc:inv" }, { texto: `\u{1F64B} Solicitudes (${pendientes})`, datos: "acc:sol" }],
+    [{ texto: "\u{1F465} Usuarios", datos: "acc:usr" }, BTN_MENU]
+  ]);
+}
+__name(panel, "panel");
+async function invitar(c) {
+  const codigo = nuevoCodigo();
+  await c.almacen.guardarInvitacion({ codigo, caduca: new Date(c.ahora.getTime() + DIAS_INVITACION * 864e5), creadaPor: c.u.id });
+  const url = await enlace(c.deps, codigo);
+  await c.nuevo([
+    cabecera("\u{1F517}", "Invitaci\xF3n creada", `Vale para una persona \xB7 caduca en ${DIAS_INVITACION} d\xEDas`),
+    "",
+    url ? `Reenv\xEDa este enlace a quien quieras invitar:
+${url}` : `No conozco el nombre del bot. La persona debe abrirlo y escribir:
+<code>/start inv_${codigo}</code>`,
+    "",
+    "<i>Cuando alguien entre te aviso.</i>"
+  ].join("\n"), [[{ texto: "\u{1F510} Acceso", datos: "acc:menu" }, BTN_MENU]]);
+}
+__name(invitar, "invitar");
+async function solicitudes(c) {
+  const lista2 = await c.almacen.listarSolicitudes("pendiente");
+  if (lista2.length === 0) {
+    await c.nuevo([cabecera("\u{1F64B}", "Solicitudes", "No hay ninguna pendiente")].join("\n"), [[{ texto: "\u{1F510} Acceso", datos: "acc:menu" }, BTN_MENU]]);
+    return;
+  }
+  await c.nuevo(cabecera("\u{1F64B}", "Solicitudes pendientes", plural(lista2.length, "persona espera", "personas esperan") + " tu respuesta"));
+  for (const s of lista2.slice(0, 15)) {
+    await c.nuevo(bloque("\u{1F464}", "Qui\xE9n", quien(s.nombre, s.usuario, s.id)), [[{ texto: "\u2705 Aprobar", datos: `acc:ok:${s.id}` }, { texto: "\u{1F6AB} Rechazar", datos: `acc:no:${s.id}` }]]);
+  }
+}
+__name(solicitudes, "solicitudes");
+async function usuarios(c) {
+  const lista2 = await c.almacen.listarAccesos();
+  const filas = lista2.filter((a) => a.rol !== "admin").slice(0, 20).map((a) => [{ texto: `\u{1F5D1} Quitar a ${a.nombre || a.id}`.slice(0, 40), datos: `acc:del:${a.id}` }]);
+  await c.responder([
+    cabecera("\u{1F465}", "Personas con acceso", plural(lista2.length, "persona", "personas")),
+    "",
+    ...lista2.map((a) => `${a.rol === "admin" ? "\u{1F451}" : "\u{1F464}"} ${quien(a.nombre, void 0, a.id)}${a.rol === "admin" ? " \xB7 t\xFA" : ""}`),
+    "",
+    "<i>Pulsa para quitar el acceso a alguien (se borran tambi\xE9n sus datos).</i>"
+  ].join("\n"), [...filas, [{ texto: "\u{1F510} Acceso", datos: "acc:menu" }, BTN_MENU]]);
+}
+__name(usuarios, "usuarios");
+async function callback(c, p) {
+  if (!c.esAdmin) return;
+  const acc = p[1], id = p[2];
+  switch (acc) {
+    case "menu":
+      await panel(c);
+      return;
+    case "inv":
+      await invitar(c);
+      return;
+    case "sol":
+      await solicitudes(c);
+      return;
+    case "usr":
+      await usuarios(c);
+      return;
+    case "ok": {
+      const s = id ? await c.almacen.getSolicitud(id) : null;
+      if (!s || s.estado !== "pendiente") {
+        await c.responder("Esa solicitud ya no est\xE1 pendiente.", [[{ texto: "\u{1F510} Acceso", datos: "acc:menu" }]]);
+        return;
+      }
+      const codigo = nuevoCodigo();
+      await c.almacen.guardarInvitacion({ codigo, caduca: new Date(c.ahora.getTime() + DIAS_INVITACION * 864e5), creadaPor: c.u.id, para: s.id });
+      await c.almacen.borrarSolicitud(s.id);
+      const url = await enlace(c.deps, codigo);
+      const aviso = [cabecera("\u{1F389}", "\xA1Solicitud aprobada!", "Ya puedes usar el bot"), "", `Tienes una invitaci\xF3n personal (solo vale para ti, caduca en ${DIAS_INVITACION} d\xEDas).`, "", url ? "<i>Pulsa el bot\xF3n para entrar \u{1F447}</i>" : `Escribe:
+<code>/start inv_${codigo}</code>`].join("\n");
+      let enviado = true;
+      try {
+        await c.deps.canal.enviar(s.id, aviso, url ? [[{ texto: "\u{1F680} Entrar", url }]] : void 0);
+      } catch {
+        enviado = false;
+      }
+      await c.responder([cabecera(enviado ? "\u2705" : "\u26A0\uFE0F", enviado ? "Invitaci\xF3n enviada" : "No he podido avisar", quien(s.nombre, s.usuario, s.id)), "", enviado ? "<i>Te aviso cuando entre.</i>" : "<i>Puede que haya bloqueado el bot.</i>"].join("\n"), [[{ texto: "\u{1F64B} Solicitudes", datos: "acc:sol" }, { texto: "\u{1F510} Acceso", datos: "acc:menu" }]]);
+      return;
+    }
+    case "no": {
+      const s = id ? await c.almacen.getSolicitud(id) : null;
+      if (!s || s.estado !== "pendiente") {
+        await c.responder("Esa solicitud ya no est\xE1 pendiente.", [[{ texto: "\u{1F510} Acceso", datos: "acc:menu" }]]);
+        return;
+      }
+      await c.almacen.guardarSolicitud({ ...s, estado: "rechazada" });
+      try {
+        await c.deps.canal.enviar(s.id, [cabecera("\u{1F512}", "Solicitud no aprobada", "El due\xF1o no ha podido darte acceso"), "", "Si crees que es un error, habla directamente con \xE9l."].join("\n"));
+      } catch {
+      }
+      await c.responder([cabecera("\u{1F6AB}", "Solicitud rechazada", quien(s.nombre, s.usuario, s.id)), "", "<i>No podr\xE1 volver a pedirlo, pero puedes invitarle cuando quieras.</i>"].join("\n"), [[{ texto: "\u{1F510} Acceso", datos: "acc:menu" }]]);
+      return;
+    }
+    case "del": {
+      const a = id ? await c.almacen.getAcceso(id) : null;
+      if (!a || a.rol === "admin") {
+        await usuarios(c);
+        return;
+      }
+      await c.responder(
+        [cabecera("\u{1F5D1}", "\xBFQuitar el acceso?", esc(a.nombre || a.id)), "", "Se borrar\xE1n tambi\xE9n sus datos, alarmas, citas y tareas, y dejar\xE1 de recibir mensajes.", "<i>No se puede deshacer.</i>"].join("\n"),
+        [[{ texto: "\u{1F5D1} S\xED, quitar", datos: `acc:delok:${a.id}` }, { texto: "Cancelar", datos: "acc:usr" }]]
+      );
+      return;
+    }
+    case "delok": {
+      const a = id ? await c.almacen.getAcceso(id) : null;
+      if (a && a.rol !== "admin") {
+        await c.almacen.borrarAcceso(a.id);
+        await c.almacen.borrarInvitacionesPara(a.id);
+        await c.almacen.borrarUsuario(a.id);
+        try {
+          await c.deps.canal.enviar(a.id, cabecera("\u{1F512}", "Acceso retirado", "Ya no puedes usar este bot"));
+        } catch {
+        }
+      }
+      await usuarios(c);
+      return;
+    }
+    default:
+      return;
+  }
+}
+__name(callback, "callback");
+async function comando(c, cmd) {
+  if (!c.esAdmin) return false;
+  switch (cmd) {
+    case "/acceso":
+      await panel(c);
+      return true;
+    case "/invitar":
+      await invitar(c);
+      return true;
+    case "/solicitudes":
+      await solicitudes(c);
+      return true;
+    case "/usuarios":
+      await usuarios(c);
+      return true;
+    default:
+      return false;
+  }
+}
+__name(comando, "comando");
+
 // ../firebase/functions/src/geocoding.ts
 async function buscarLugares(http, consulta) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(consulta.trim())}&count=5&language=es&format=json`;
@@ -2531,57 +2858,6 @@ function separarIntereses(texto4) {
 __name(separarIntereses, "separarIntereses");
 var slug = /* @__PURE__ */ __name((t) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tema", "slug");
 
-// ../firebase/functions/src/bot/ctx.ts
-var Ctx = class {
-  constructor(deps, u, entrada) {
-    this.deps = deps;
-    this.u = u;
-    this.entrada = entrada;
-  }
-  deps;
-  u;
-  entrada;
-  static {
-    __name(this, "Ctx");
-  }
-  get ahora() {
-    return this.deps.ahora();
-  }
-  get almacen() {
-    return this.deps.almacen;
-  }
-  get texto() {
-    return (this.entrada.texto ?? "").trim();
-  }
-  /** Responde editando el mensaje del botón pulsado; si el usuario escribió, envía uno nuevo. */
-  async responder(html, teclado) {
-    const cb = this.entrada.callback;
-    if (cb) await this.deps.canal.editar(this.u.id, cb.mensajeId, html, teclado);
-    else await this.deps.canal.enviar(this.u.id, html, teclado);
-  }
-  /** Envía siempre un mensaje nuevo (para no perder el menú anterior). */
-  async nuevo(html, teclado) {
-    await this.deps.canal.enviar(this.u.id, html, teclado);
-  }
-  async guardar() {
-    await this.almacen.guardarUsuario(this.u);
-  }
-  /** Pone al usuario a la espera de un texto en [flujo]/[paso]. */
-  async esperar(flujo, paso, datos2 = {}) {
-    this.u.estado = { flujo, paso, datos: datos2 };
-    await this.guardar();
-  }
-  async terminarFlujo() {
-    this.u.estado = null;
-    await this.guardar();
-  }
-  get estado() {
-    return this.u.estado;
-  }
-};
-var BTN_MENU = { texto: "\u{1F3E0} Men\xFA", datos: "m:menu" };
-var BTN_CANCELAR = { texto: "\u274C Cancelar", datos: "x:cancelar" };
-
 // ../firebase/functions/src/bot/vistas.ts
 function textoMenu(u) {
   const activas = seccionesActivas(u).length;
@@ -2604,6 +2880,7 @@ var tecladoMenu = [
   [{ texto: "\u{1F9E9} Mis secciones", datos: "s:lista" }, { texto: "\u{1F464} Mi perfil", datos: "p:ver" }],
   [{ texto: "\u2753 Ayuda", datos: "m:ayuda" }]
 ];
+var tecladoMenuPara = /* @__PURE__ */ __name((admin) => admin ? [...tecladoMenu.slice(0, 3), [{ texto: "\u{1F510} Acceso", datos: "acc:menu" }], tecladoMenu[3]] : tecladoMenu, "tecladoMenuPara");
 var textoAyuda = [
   cabecera("\u2753", "Ayuda", "C\xF3mo funciona tu agenda"),
   "",
@@ -2744,7 +3021,7 @@ async function activarPendiente(c, ref2) {
   }
 }
 __name(activarPendiente, "activarPendiente");
-async function callback(c, p) {
+async function callback2(c, p) {
   const [ns, acc] = p;
   const ref2 = p.slice(2).join(":");
   if (ns === "s") {
@@ -2833,7 +3110,7 @@ async function callback(c, p) {
       return true;
   }
 }
-__name(callback, "callback");
+__name(callback2, "callback");
 async function crearTema(c, consulta) {
   const titulo = String(c.estado?.datos.titulo ?? "").trim();
   if (!titulo) return true;
@@ -3109,7 +3386,7 @@ async function leerCuando(c, texto4) {
 }
 __name(leerCuando, "leerCuando");
 var ATAJOS = { "1h": "en 60 min", m9: "ma\xF1ana 9:00", m18: "ma\xF1ana 18:00" };
-async function callback2(c, p) {
+async function callback3(c, p) {
   const [ns, acc, a1, a2] = p;
   if (ns === "n") {
     if (acc === "menu") {
@@ -3225,7 +3502,7 @@ async function callback2(c, p) {
       return true;
   }
 }
-__name(callback2, "callback");
+__name(callback3, "callback");
 async function texto2(c) {
   const est = c.estado;
   if (!est) return false;
@@ -3411,10 +3688,10 @@ async function terminar(c, omitido) {
   c.u.estado = null;
   await c.guardar();
   await sincronizarSecciones(c.almacen, c.u, ahora);
-  await c.responder(textoMenu(c.u), tecladoMenu);
+  await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
 }
 __name(terminar, "terminar");
-async function callback3(c, p) {
+async function callback4(c, p) {
   if (p[0] !== "o") return false;
   if (p[1] === "omitir") {
     await terminar(c, true);
@@ -3463,7 +3740,7 @@ async function callback3(c, p) {
   }
   return true;
 }
-__name(callback3, "callback");
+__name(callback4, "callback");
 async function texto3(c) {
   if (c.estado?.flujo !== FLUJO) return false;
   const d = datos(c);
@@ -3512,7 +3789,7 @@ __name(texto3, "texto");
 
 // ../firebase/functions/src/bot/bot.ts
 async function menu(c) {
-  await c.responder(textoMenu(c.u), tecladoMenu);
+  await c.responder(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
 }
 __name(menu, "menu");
 async function mostrarSeccion(c, ref2, editar = false) {
@@ -3562,21 +3839,22 @@ async function cancelar(c) {
     await terminar(c, true);
     return;
   }
-  await c.nuevo(habia ? "Cancelado." : "No hab\xEDa nada que cancelar.", tecladoMenu);
+  await c.nuevo(habia ? "Cancelado." : "No hab\xEDa nada que cancelar.", tecladoMenuPara(c.esAdmin));
 }
 __name(cancelar, "cancelar");
-async function comando(c, texto4) {
+async function comando2(c, texto4) {
   const cmd = texto4.split(/[\s@]/)[0].toLowerCase();
+  if (await comando(c, cmd)) return true;
   switch (cmd) {
     case "/start":
       if (c.u.onboardingHecho) {
         await c.terminarFlujo();
-        await c.nuevo(textoMenu(c.u), tecladoMenu);
+        await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
       } else await iniciar(c);
       return true;
     case "/menu":
       await c.terminarFlujo();
-      await c.nuevo(textoMenu(c.u), tecladoMenu);
+      await c.nuevo(textoMenu(c.u), tecladoMenuPara(c.esAdmin));
       return true;
     case "/hoy":
       await c.terminarFlujo();
@@ -3596,7 +3874,7 @@ async function comando(c, texto4) {
       return true;
     case "/perfil":
       await c.terminarFlujo();
-      await callback(c, ["p", "ver"]);
+      await callback2(c, ["p", "ver"]);
       return true;
     case "/ayuda":
     case "/help":
@@ -3606,9 +3884,10 @@ async function comando(c, texto4) {
       await cancelar(c);
       return true;
     case "/borrar":
-      await callback(c, ["p", "borrar"]);
+      await callback2(c, ["p", "borrar"]);
       return true;
     case "/diagnostico":
+      if (!c.esAdmin && c.deps.adminId) return false;
       await diagnostico(c);
       return true;
     // no sale en el menú: es para encontrar fallos
@@ -3616,7 +3895,7 @@ async function comando(c, texto4) {
       return false;
   }
 }
-__name(comando, "comando");
+__name(comando2, "comando");
 async function despachar(c) {
   const cb = c.entrada.callback;
   if (cb) {
@@ -3633,13 +3912,13 @@ async function despachar(c) {
 }
 __name(despachar, "despachar");
 async function atenderBoton(c, p) {
-  if (!c.u.onboardingHecho && p[0] !== "o" && p[0] !== "x") {
+  if (!c.u.onboardingHecho && p[0] !== "o" && p[0] !== "x" && p[0] !== "acc") {
     await iniciar(c);
     return;
   }
   switch (p[0]) {
     case "o":
-      await callback3(c, p);
+      await callback4(c, p);
       return;
     case "m":
       if (p[1] === "hoy") await resumenHoy(c);
@@ -3658,14 +3937,17 @@ async function atenderBoton(c, p) {
       return;
     case "n":
     case "e":
-      await callback2(c, p);
+      await callback3(c, p);
       return;
     case "s":
     case "p":
-      await callback(c, p);
+      await callback2(c, p);
       return;
     case "x":
       await cancelar(c);
+      return;
+    case "acc":
+      await callback(c, p);
       return;
     default:
       return;
@@ -3675,18 +3957,19 @@ __name(atenderBoton, "atenderBoton");
 async function atenderTexto(c) {
   const t = c.texto;
   if (!t) return;
-  if (t.startsWith("/") && await comando(c, t)) return;
+  if (t.startsWith("/") && await comando2(c, t)) return;
   if (!c.u.onboardingHecho && !c.u.estado) {
     await iniciar(c);
     return;
   }
   if (c.u.estado && (await texto3(c) || await texto2(c) || await texto(c))) return;
-  await c.nuevo("Usa el men\xFA para moverte por la agenda \u{1F447}", tecladoMenu);
+  await c.nuevo("Usa el men\xFA para moverte por la agenda \u{1F447}", tecladoMenuPara(c.esAdmin));
 }
 __name(atenderTexto, "atenderTexto");
 async function manejarEntrada(deps, entrada) {
   const { almacen, canal } = deps;
   const ahora = deps.ahora();
+  if (!entrada.bloqueado && !await puerta(deps, entrada)) return;
   let u = await almacen.getUsuario(entrada.chatId);
   if (entrada.bloqueado) {
     if (u) {
@@ -3792,6 +4075,16 @@ var CanalTelegram = class {
       await this.enviar(chatId, html, teclado);
     }
   }
+  alias;
+  async nombreUsuario() {
+    if (!this.alias) {
+      try {
+        this.alias = (await this.llamar("getMe", {}))?.result?.username;
+      } catch {
+      }
+    }
+    return this.alias;
+  }
   async responderCallback(callbackId, texto4) {
     try {
       await this.llamar("answerCallbackQuery", { callback_query_id: callbackId, text: texto4 });
@@ -3812,13 +4105,14 @@ function leerActualizacion(u) {
     return {
       chatId: String(chat.id),
       nombre: c.from?.first_name ?? "",
+      ...c.from?.username ? { usuario: String(c.from.username) } : {},
       updateId: u.update_id,
       callback: { id: String(c.id), datos: c.data, mensajeId: c.message.message_id }
     };
   }
   const m = u.message;
   if (m && m.chat?.type === "private" && typeof m.text === "string") {
-    return { chatId: String(m.chat.id), nombre: m.from?.first_name ?? "", updateId: u.update_id, texto: m.text };
+    return { chatId: String(m.chat.id), nombre: m.from?.first_name ?? "", ...m.from?.username ? { usuario: String(m.from.username) } : {}, updateId: u.update_id, texto: m.text };
   }
   return null;
 }
@@ -3943,6 +4237,10 @@ async function procesarProgramacion(dep, p) {
       await dep.almacen.borrarProgramacion(p.id);
       return r;
     }
+    if (dep.adminId && p.uid !== dep.adminId && !await dep.almacen.getAcceso(p.uid)) {
+      await dep.almacen.borrarProgramacion(p.id);
+      return r;
+    }
     if (p.tipo === "seccion") await enviarSeccion(dep, u, p, ahora, r);
     else await enviarEvento(dep, u, p, ahora, r);
   } catch (e) {
@@ -4010,6 +4308,7 @@ function dependencias(env2, s, remoto) {
     ahora: /* @__PURE__ */ __name(() => /* @__PURE__ */ new Date(), "ahora"),
     horoscopoCfg: horoscopoCfg(env2),
     podcastFeed: env2.PODCAST_FEED ?? FEED_PODCAST,
+    adminId: env2.ADMIN_CHAT_ID?.trim() || void 0,
     construirRemoto: remoto && env2.SELF ? async (p) => {
       const r = await llamarInterno(env2, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");

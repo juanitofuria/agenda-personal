@@ -1,5 +1,5 @@
 import { Almacen } from "../../firebase/functions/src/almacen";
-import { Evento, HoroscopoDoc, Programacion, Usuario } from "../../firebase/functions/src/modelo";
+import { Acceso, Evento, HoroscopoDoc, Invitacion, Programacion, Solicitud, Usuario } from "../../firebase/functions/src/modelo";
 import { Repeticion } from "../../firebase/functions/src/fechas";
 
 /** Subconjunto de la API de D1 que usamos (así se puede probar con SQLite en los tests). */
@@ -100,6 +100,50 @@ export class AlmacenD1 implements Almacen {
     const r = await this.db.prepare("UPDATE programaciones SET proximo = ? WHERE id = ? AND proximo = ?")
       .bind(nuevo.getTime(), id, esperado.getTime()).run();
     return (r.meta?.changes ?? 0) === 1;
+  }
+
+  async getAcceso(id: string) {
+    const f = await this.db.prepare("SELECT rol, nombre, desde FROM acceso WHERE id = ?").bind(id).first<{ rol: string; nombre: string; desde: number }>();
+    return f ? { id, rol: f.rol === "admin" ? "admin" : "usuario", nombre: f.nombre, desde: new Date(f.desde) } as Acceso : null;
+  }
+  async guardarAcceso(a: Acceso) {
+    await this.db.prepare("INSERT INTO acceso (id, rol, nombre, desde) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET rol = excluded.rol, nombre = excluded.nombre")
+      .bind(a.id, a.rol, a.nombre, a.desde.getTime()).run();
+  }
+  async borrarAcceso(id: string) { await this.db.prepare("DELETE FROM acceso WHERE id = ?").bind(id).run(); }
+  async listarAccesos() {
+    const r = await this.db.prepare("SELECT id, rol, nombre, desde FROM acceso ORDER BY desde").all<{ id: string; rol: string; nombre: string; desde: number }>();
+    return r.results.map((f) => ({ id: f.id, rol: f.rol === "admin" ? "admin" : "usuario", nombre: f.nombre, desde: new Date(f.desde) }) as Acceso);
+  }
+  async guardarInvitacion(i: Invitacion) {
+    await this.db.prepare("INSERT INTO invitaciones (codigo, caduca, creada_por, para) VALUES (?, ?, ?, ?) ON CONFLICT(codigo) DO UPDATE SET caduca = excluded.caduca, para = excluded.para")
+      .bind(i.codigo, i.caduca.getTime(), i.creadaPor, i.para ?? null).run();
+  }
+  /** Atómico: un único DELETE condicionado; solo quien lo borra (1 fila) puede usar la invitación. */
+  async consumirInvitacion(codigo: string, uid: string, ahora: Date) {
+    const f = await this.db.prepare("SELECT caduca, creada_por, para FROM invitaciones WHERE codigo = ?").bind(codigo).first<{ caduca: number; creada_por: string; para: string | null }>();
+    if (!f || f.caduca <= ahora.getTime() || (f.para && f.para !== uid)) return null;
+    const r = await this.db.prepare("DELETE FROM invitaciones WHERE codigo = ?").bind(codigo).run();
+    return (r.meta?.changes ?? 0) === 1 ? { codigo, caduca: new Date(f.caduca), creadaPor: f.creada_por, para: f.para ?? undefined } as Invitacion : null;
+  }
+  async borrarInvitacionesPara(uid: string) { await this.db.prepare("DELETE FROM invitaciones WHERE para = ?").bind(uid).run(); }
+  private solicitudDesde(f: { id: string; nombre: string; usuario: string | null; fecha: number; estado: string }): Solicitud {
+    return { id: f.id, nombre: f.nombre, usuario: f.usuario ?? undefined, fecha: new Date(f.fecha), estado: f.estado === "rechazada" ? "rechazada" : "pendiente" };
+  }
+  async getSolicitud(id: string) {
+    const f = await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes WHERE id = ?").bind(id).first<{ id: string; nombre: string; usuario: string | null; fecha: number; estado: string }>();
+    return f ? this.solicitudDesde(f) : null;
+  }
+  async guardarSolicitud(s: Solicitud) {
+    await this.db.prepare("INSERT INTO solicitudes (id, nombre, usuario, fecha, estado) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET nombre = excluded.nombre, usuario = excluded.usuario, fecha = excluded.fecha, estado = excluded.estado")
+      .bind(s.id, s.nombre, s.usuario ?? null, s.fecha.getTime(), s.estado).run();
+  }
+  async borrarSolicitud(id: string) { await this.db.prepare("DELETE FROM solicitudes WHERE id = ?").bind(id).run(); }
+  async listarSolicitudes(estado?: Solicitud["estado"]) {
+    const r = estado
+      ? await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes WHERE estado = ? ORDER BY fecha").bind(estado).all<any>()
+      : await this.db.prepare("SELECT id, nombre, usuario, fecha, estado FROM solicitudes ORDER BY fecha").all<any>();
+    return r.results.map((f: any) => this.solicitudDesde(f));
   }
 
   async getHoroscopo(signoId: string): Promise<HoroscopoDoc | null> {

@@ -28,6 +28,9 @@ export const tecladoMenu: Teclado = [
   [{ texto: "❓ Ayuda", datos: "m:ayuda" }],
 ];
 
+/** El menú de siempre; el administrador tiene además el botón «Acceso» (invitaciones, solicitudes y usuarios). */
+export const tecladoMenuPara = (admin: boolean): Teclado => (admin ? [...tecladoMenu.slice(0, 3), [{ texto: "🔐 Acceso", datos: "acc:menu" }], tecladoMenu[3]] : tecladoMenu);
+
 export const textoAyuda = [
   cabecera("❓", "Ayuda", "Cómo funciona tu agenda"),
   "",

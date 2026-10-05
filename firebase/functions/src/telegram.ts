@@ -57,6 +57,12 @@ export class CanalTelegram implements Canal {
     }
   }
 
+  private alias?: string;
+  async nombreUsuario() {
+    if (!this.alias) { try { this.alias = (await this.llamar("getMe", {}))?.result?.username; } catch { /* sin enlace */ } }
+    return this.alias;
+  }
+
   async responderCallback(callbackId: string, texto?: string) {
     try { await this.llamar("answerCallbackQuery", { callback_query_id: callbackId, text: texto }); } catch { /* no es crítico */ }
   }
@@ -74,13 +80,13 @@ export function leerActualizacion(u: any): Entrada | null {
     const chat = c.message?.chat;
     if (!chat || chat.type !== "private" || typeof c.data !== "string") return null;
     return {
-      chatId: String(chat.id), nombre: c.from?.first_name ?? "", updateId: u.update_id,
+      chatId: String(chat.id), nombre: c.from?.first_name ?? "", ...(c.from?.username ? { usuario: String(c.from.username) } : {}), updateId: u.update_id,
       callback: { id: String(c.id), datos: c.data, mensajeId: c.message.message_id },
     };
   }
   const m = u.message;
   if (m && m.chat?.type === "private" && typeof m.text === "string") {
-    return { chatId: String(m.chat.id), nombre: m.from?.first_name ?? "", updateId: u.update_id, texto: m.text };
+    return { chatId: String(m.chat.id), nombre: m.from?.first_name ?? "", ...(m.from?.username ? { usuario: String(m.from.username) } : {}), updateId: u.update_id, texto: m.text };
   }
   return null;
 }

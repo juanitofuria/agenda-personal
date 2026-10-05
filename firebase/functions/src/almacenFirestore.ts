@@ -1,6 +1,6 @@
 import { Firestore, Timestamp } from "firebase-admin/firestore";
 import { Almacen } from "./almacen";
-import { Evento, HoroscopoDoc, Programacion, Usuario } from "./modelo";
+import { Acceso, Evento, HoroscopoDoc, Invitacion, Programacion, Solicitud, Usuario } from "./modelo";
 import { Repeticion } from "./fechas";
 
 const aFecha = (v: unknown): Date | null => (v instanceof Timestamp ? v.toDate() : v instanceof Date ? v : null);
@@ -87,6 +87,30 @@ export class AlmacenFirestore implements Almacen {
   }
 
   async guardarHoroscopo(signoId: string, doc: HoroscopoDoc) { await this.db.collection("horoscopos").doc(signoId).set(doc); }
+
+  private accesos() { return this.db.collection("acceso"); }
+  async getAcceso(id: string) { const s = await this.accesos().doc(id).get(); const d = s.data(); return d ? { id, rol: d.rol, nombre: d.nombre ?? "", desde: aFecha(d.desde) ?? new Date(0) } as Acceso : null; }
+  async guardarAcceso(a: Acceso) { await this.accesos().doc(a.id).set({ rol: a.rol, nombre: a.nombre, desde: Timestamp.fromDate(a.desde) }); }
+  async borrarAcceso(id: string) { await this.accesos().doc(id).delete(); }
+  async listarAccesos() { return (await this.accesos().get()).docs.map((s) => ({ id: s.id, rol: s.data().rol, nombre: s.data().nombre ?? "", desde: aFecha(s.data().desde) ?? new Date(0) }) as Acceso); }
+  async guardarInvitacion(i: Invitacion) { await this.db.collection("invitaciones").doc(i.codigo).set({ caduca: Timestamp.fromDate(i.caduca), creadaPor: i.creadaPor, para: i.para ?? null }); }
+  async consumirInvitacion(codigo: string, uid: string, ahora: Date) {
+    const ref = this.db.collection("invitaciones").doc(codigo);
+    return this.db.runTransaction(async (tx) => {
+      const s = await tx.get(ref); const d = s.data();
+      const caduca = d ? aFecha(d.caduca) : null;
+      if (!d || !caduca || caduca.getTime() <= ahora.getTime() || (d.para && d.para !== uid)) return null;
+      tx.delete(ref);
+      return { codigo, caduca, creadaPor: d.creadaPor, para: d.para ?? undefined } as Invitacion;
+    });
+  }
+  async borrarInvitacionesPara(uid: string) { for (const d of (await this.db.collection("invitaciones").where("para", "==", uid).get()).docs) await d.ref.delete(); }
+  private solicitudes() { return this.db.collection("solicitudes"); }
+  private solicitudDesde(id: string, d: Record<string, any>): Solicitud { return { id, nombre: d.nombre ?? "", usuario: d.usuario ?? undefined, fecha: aFecha(d.fecha) ?? new Date(0), estado: d.estado === "rechazada" ? "rechazada" : "pendiente" }; }
+  async getSolicitud(id: string) { const s = await this.solicitudes().doc(id).get(); return s.exists ? this.solicitudDesde(id, s.data()!) : null; }
+  async guardarSolicitud(s: Solicitud) { await this.solicitudes().doc(s.id).set({ nombre: s.nombre, usuario: s.usuario ?? null, fecha: Timestamp.fromDate(s.fecha), estado: s.estado }); }
+  async borrarSolicitud(id: string) { await this.solicitudes().doc(id).delete(); }
+  async listarSolicitudes(estado?: Solicitud["estado"]) { return (await this.solicitudes().get()).docs.map((d) => this.solicitudDesde(d.id, d.data())).filter((s) => !estado || s.estado === estado).sort((x, y) => x.fecha.getTime() - y.fecha.getTime()); }
 
   async cacheGet(clave: string, ahora: Date) {
     const s = await this.db.collection("cache").doc(claveCache(clave)).get();
