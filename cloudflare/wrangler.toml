@@ -19,5 +19,8 @@ database_name = "agenda-personal"
 database_id = "8365b814-ff49-4946-b802-2809f951abbf"   # id de tu base de datos D1 (no es secreto: solo vale con tu sesión de Cloudflare)
 
 [vars]
+# Administrador del bot (tu número de Telegram, el que da /miid). Con él el bot es privado: solo entran tú y quien invites o apruebes.
+# No es un secreto. Si prefieres un secreto, bórralo de aquí y usa `wrangler secret put ADMIN_CHAT_ID` (nunca los dos a la vez).
+ADMIN_CHAT_ID = "483702644"
 HOROSCOPO_BASE_URL = "https://horoscopefree.fly.dev"
 HOROSCOPO_IDIOMA = "es"

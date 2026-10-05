@@ -101,11 +101,13 @@ Telegram no tiene «bots privados»: cualquiera que encuentre el nombre del bot 
 al definir quién es el administrador:
 
 1. **Averigua tu número de Telegram**: escribe `/miid` a tu bot (lo contesta a cualquiera, también con el bot abierto). Es un número, no un secreto.
-2. **Actívalo** guardando ese número como secreto (en la carpeta `cloudflare/`; pega el número cuando lo pida):
+2. **Actívalo** guardando ese número. Lo más simple es la variable `ADMIN_CHAT_ID` de `cloudflare/wrangler.toml` (no es un secreto; es lo que está configurado
+   en este repositorio, que es privado). Si prefieres que no figure en el repositorio, bórrala de ahí y guárdalo como secreto (en `cloudflare/`; pega el número cuando lo pida),
+   pero nunca las dos cosas a la vez:
    ```bash
    npx wrangler@4.147.0 secret put ADMIN_CHAT_ID
    ```
-   Es inmediato y no hace falta desplegar. **Si te equivocas de número** y te quedas fuera, repite el comando con el correcto
+   Como secreto es inmediato y no hace falta desplegar; como variable se activa con el siguiente despliegue. **Si te equivocas de número** y te quedas fuera, repite el comando con el correcto
    (o `npx wrangler@4.147.0 secret delete ADMIN_CHAT_ID` para volver a dejar el bot abierto).
 3. A partir de ahí, quien no esté autorizado solo ve «Bot privado» con un botón **🙋 Pedir acceso**. Tú recibes el aviso con **✅ Aprobar / 🚫 Rechazar**:
    si apruebas, el bot le envía una **invitación personal** (un botón/enlace `t.me/<bot>?start=inv_…` que solo vale para esa persona, una vez, y caduca a los 7 días).
