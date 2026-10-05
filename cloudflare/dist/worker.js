@@ -935,7 +935,7 @@ function usuarioDesdeJson(id, d) {
     id,
     nombre: d.nombre ?? "",
     estilo: d.estilo === "formal" ? "formal" : "informal",
-    modo: d.modo === "oscuro" ? "oscuro" : "claro",
+    modo: d.modo === "oscuro" || d.modo === "auto" ? d.modo : "claro",
     nacimiento: d.nacimiento ?? null,
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
@@ -1365,14 +1365,14 @@ var MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep
 var DIAS_CORTOS = ["dom", "lun", "mar", "mi\xE9", "jue", "vie", "s\xE1b"];
 function formatearFechaHora(fecha, zona, ahora) {
   const p = partesEnZona(fecha, zona);
-  const hora = formatoHHMM(p.h, p.mi);
+  const hora2 = formatoHHMM(p.h, p.mi);
   if (ahora) {
     const a = partesEnZona(ahora, zona);
     const dif = Math.round((Date.UTC(p.y, p.m - 1, p.d) - Date.UTC(a.y, a.m - 1, a.d)) / 864e5);
-    if (dif === 0) return `hoy \xB7 ${hora}`;
-    if (dif === 1) return `ma\xF1ana \xB7 ${hora}`;
+    if (dif === 0) return `hoy \xB7 ${hora2}`;
+    if (dif === 1) return `ma\xF1ana \xB7 ${hora2}`;
   }
-  return `${DIAS_CORTOS[p.dow]} ${p.d} ${MESES_CORTOS[p.m - 1]} \xB7 ${hora}`;
+  return `${DIAS_CORTOS[p.dow]} ${p.d} ${MESES_CORTOS[p.m - 1]} \xB7 ${hora2}`;
 }
 __name(formatearFechaHora, "formatearFechaHora");
 var sinTildes = /* @__PURE__ */ __name((s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim(), "sinTildes");
@@ -1387,7 +1387,7 @@ function parseFechaHora(texto4, ahora, zona) {
     const utc2 = new Date(ahora.getTime() + ms);
     return { utc: utc2, horaPorDefecto: false, pasada: false };
   }
-  let hora = null;
+  let hora2 = null;
   let m = /\b(\d{1,2})[:.](\d{2})\b ?(am|pm|de la manana|de la tarde|de la noche)?/.exec(t) ?? /\b(\d{1,2}) ?h\b ?(am|pm)?/.exec(t);
   if (!m) {
     m = /\b(?:a las|a la|sobre las) (\d{1,2})\b ?(am|pm|de la manana|de la tarde|de la noche)?/.exec(t) ?? /\b(\d{1,2}) ?(am|pm|de la manana|de la tarde|de la noche)\b/.exec(t);
@@ -1399,7 +1399,7 @@ function parseFechaHora(texto4, ahora, zona) {
     if (suf && (suf === "pm" || suf.includes("tarde") || suf.includes("noche")) && h2 < 12) h2 += 12;
     if (suf && (suf === "am" || suf.includes("manana")) && h2 === 12) h2 = 0;
     if (h2 > 23 || mi2 > 59) return null;
-    hora = [h2, mi2];
+    hora2 = [h2, mi2];
     t = t.replace(m[0], " ").replace(/\s+/g, " ").trim();
   }
   const p = partesEnZona(ahora, zona);
@@ -1428,17 +1428,17 @@ function parseFechaHora(texto4, ahora, zona) {
     const wd = DIAS_SEMANA.findIndex((n) => new RegExp(`\\b${n}\\b`).test(t));
     if (wd >= 0) {
       let dias = (wd - p.dow + 7) % 7;
-      if (dias === 0 && hora && localAUtc(p.y, p.m, p.d, hora[0], hora[1], zona) <= ahora) dias = 7;
+      if (dias === 0 && hora2 && localAUtc(p.y, p.m, p.d, hora2[0], hora2[1], zona) <= ahora) dias = 7;
       dia = sumarDias(p.y, p.m, p.d, dias);
-    } else if (t.replace(/\b(a las|a la|sobre las|sobre la|de|el|la|del)\b/g, "").trim() !== "" && hora === null) {
+    } else if (t.replace(/\b(a las|a la|sobre las|sobre la|de|el|la|del)\b/g, "").trim() !== "" && hora2 === null) {
       return null;
     } else if (t.replace(/\b(a las|a la|sobre las|sobre la|de|el|la|del)\b/g, "").trim() !== "") {
       return null;
     }
   }
-  if (!dia && !hora) return null;
-  const horaPorDefecto = hora === null;
-  const [h, mi] = hora ?? [9, 0];
+  if (!dia && !hora2) return null;
+  const horaPorDefecto = hora2 === null;
+  const [h, mi] = hora2 ?? [9, 0];
   if (!dia) {
     let utc2 = localAUtc(p.y, p.m, p.d, h, mi, zona);
     if (utc2 <= ahora) {
@@ -2830,6 +2830,49 @@ async function buscarLugares(http, consulta) {
 }
 __name(buscarLugares, "buscarLugares");
 
+// ../firebase/functions/src/apariencia.ts
+var LAT_DEFECTO = 40.4;
+var LON_DEFECTO = -3.7;
+var RAD = Math.PI / 180;
+function solDelDia(y, m, d, lat, lon) {
+  const base = Date.UTC(y, m - 1, d);
+  const doy = Math.round((base - Date.UTC(y, 0, 1)) / 864e5) + 1;
+  const g = 2 * Math.PI / 365 * (doy - 1);
+  const eq = 229.18 * (75e-6 + 1868e-6 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 6918e-6 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 6758e-6 * Math.cos(2 * g) + 907e-6 * Math.sin(2 * g) - 2697e-6 * Math.cos(3 * g) + 148e-5 * Math.sin(3 * g);
+  const c = Math.cos(90.833 * RAD) / (Math.cos(lat * RAD) * Math.cos(dec)) - Math.tan(lat * RAD) * Math.tan(dec);
+  if (c > 1) return { amanece: null, anochece: null, polar: "noche" };
+  if (c < -1) return { amanece: null, anochece: null, polar: "dia" };
+  const ha = Math.acos(c) / RAD;
+  const en = /* @__PURE__ */ __name((min) => new Date(base + Math.round(min) * 6e4), "en");
+  return { amanece: en(720 - 4 * (lon + ha) - eq), anochece: en(720 - 4 * (lon - ha) - eq), polar: null };
+}
+__name(solDelDia, "solDelDia");
+var coords = /* @__PURE__ */ __name((u) => ({ lat: u.ciudad?.lat ?? LAT_DEFECTO, lon: u.ciudad?.lon ?? LON_DEFECTO }), "coords");
+function solDeUsuario(u, ahora) {
+  const p = partesEnZona(ahora, u.zona), { lat, lon } = coords(u);
+  return solDelDia(p.y, p.m, p.d, lat, lon);
+}
+__name(solDeUsuario, "solDeUsuario");
+function modoEfectivo(u, ahora) {
+  if (u.modo !== "auto") return u.modo;
+  const s = solDeUsuario(u, ahora);
+  if (s.polar) return s.polar === "dia" ? "claro" : "oscuro";
+  return ahora < s.amanece || ahora >= s.anochece ? "oscuro" : "claro";
+}
+__name(modoEfectivo, "modoEfectivo");
+var hora = /* @__PURE__ */ __name((f, zona) => {
+  const p = partesEnZona(f, zona);
+  return `${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`;
+}, "hora");
+function textoSol(u, ahora) {
+  const s = solDeUsuario(u, ahora);
+  if (s.polar) return s.polar === "dia" ? "hoy el sol no se pone" : "hoy el sol no sale";
+  return `amanece ${hora(s.amanece, u.zona)} \xB7 anochece ${hora(s.anochece, u.zona)}`;
+}
+__name(textoSol, "textoSol");
+var textoModo = /* @__PURE__ */ __name((u) => u.modo === "auto" ? "Autom\xE1tico \xB7 oscuro del anochecer al amanecer" : u.modo === "oscuro" ? "Oscuro" : "Claro", "textoModo");
+
 // ../firebase/functions/src/bot/catalogo.ts
 var TEMAS = [
   { emoji: "\u26BD", titulo: "F\xFAtbol", consulta: "f\xFAtbol" },
@@ -2867,8 +2910,9 @@ var ICONOS = {
   informal: { resumen: "\u{1F4CB}", nueva: "\u23F0", eventos: "\u{1F4C5}", secciones: "\u{1F9E9}", perfil: "\u{1F464}", ayuda: "\u2753", ajustes: "\u2699\uFE0F", acceso: "\u{1F510}" },
   formal: { resumen: "\u{1F7E6}", nueva: "\u{1F7EA}", eventos: "\u{1F7E7}", secciones: "\u{1F7E9}", perfil: "\u{1F7E6}", ayuda: "\u{1F7E5}", ajustes: "\u{1F7E9}", acceso: "\u{1F7EB}" }
 };
-function menuPrincipal(u, admin, urlBase) {
+function menuPrincipal(u, admin, urlBase, ahora = /* @__PURE__ */ new Date()) {
   const ic = ICONOS[u.estilo];
+  const modo = modoEfectivo(u, ahora);
   const activas = seccionesActivas(u).length;
   const ajustes = activas ? `${activas} ${activas === 1 ? "secci\xF3n" : "secciones"} activa${activas === 1 ? "" : "s"} \xB7 tu perfil` : "Activa tus secciones y completa tu perfil";
   const filas = [
@@ -2882,9 +2926,9 @@ function menuPrincipal(u, admin, urlBase) {
   const resumen = b(ic.resumen, "Resumen de hoy", "m:hoy", "primary"), nueva = b(ic.nueva, "Nueva alarma, cita o tarea", "n:menu");
   const eventos = b(ic.eventos, "Mis eventos", "e:lista"), secciones = b(ic.secciones, "Mis secciones", "s:lista", "success");
   const perfil = b(ic.perfil, "Mi perfil", "p:ver", "primary"), ayuda = b(ic.ayuda, "Ayuda", "m:ayuda", "danger");
-  const teclado = u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]] : u.modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]] : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
+  const teclado = u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]] : modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]] : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
   if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
-  return { html, teclado, ...urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${u.modo}.png` } : {} };
+  return { html, teclado, ...urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` } : {} };
 }
 __name(menuPrincipal, "menuPrincipal");
 var textoAyuda = [
@@ -2938,7 +2982,7 @@ function textoPerfil(u) {
     "",
     bloque("\u{1F550}", "Zona horaria", esc(u.zona)),
     "",
-    bloque("\u{1F3A8}", "Apariencia", `${u.estilo === "formal" ? "Formal" : "Informal"} \xB7 ${u.modo === "oscuro" ? "oscuro" : "claro"}`),
+    bloque("\u{1F3A8}", "Apariencia", `${u.estilo === "formal" ? "Formal" : "Informal"} \xB7 ${textoModo(u).toLowerCase()}`),
     "",
     "<i>Solo guardo esto para prepararte los res\xFAmenes. Puedes borrarlo cuando quieras con /borrar.</i>"
   ].join("\n");
@@ -3117,7 +3161,7 @@ async function callback2(c, p) {
       await apariencia(c);
       return true;
     case "modo":
-      c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro";
+      c.u.modo = p[2] === "oscuro" ? "oscuro" : p[2] === "auto" ? "auto" : "claro";
       await c.guardar();
       await apariencia(c);
       return true;
@@ -3133,22 +3177,29 @@ async function callback2(c, p) {
   }
 }
 __name(callback2, "callback");
-async function apariencia(c) {
+async function apariencia(c, nuevo = false) {
   const { estilo, modo } = c.u;
   const marca = /* @__PURE__ */ __name((on2) => on2 ? "\u2705 " : "", "marca");
-  await c.responder([
+  const ahora = modoEfectivo(c.u, c.ahora);
+  const texto4 = [
     cabecera("\u{1F3A8}", "Apariencia", "C\xF3mo se ve el men\xFA"),
     "",
     bloque("\u{1F60A}", "Estilo", estilo === "formal" ? "Formal \xB7 sobrio y profesional" : "Informal \xB7 cercano y colorido"),
     "",
-    bloque("\u{1F317}", "Modo", modo === "oscuro" ? "Oscuro" : "Claro"),
+    bloque("\u{1F317}", "Modo", modo === "auto" ? `${textoModo(c.u)}
+${esc(textoSol(c.u, c.ahora))}
+Ahora toca: ${ahora}${c.u.ciudad ? "" : "\n(sin ciudad guardada uso el centro de Espa\xF1a)"}` : textoModo(c.u)),
     "",
-    "<i>Elige tu estilo y el modo que usas en Telegram. Se aplica al men\xFA principal \u{1F447}</i>"
-  ].join("\n"), [
+    "<i>Un bot no puede ver el tema de tu dispositivo: \xABAutom\xE1tico\xBB cambia con el sol: oscuro desde el anochecer hasta el amanecer de tu ciudad. Se aplica al men\xFA principal \u{1F447}</i>"
+  ].join("\n");
+  const teclado = [
     [{ texto: `${marca(estilo === "informal")}\u{1F60A} Informal`, datos: "p:est:informal" }, { texto: `${marca(estilo === "formal")}\u{1F454} Formal`, datos: "p:est:formal" }],
     [{ texto: `${marca(modo === "claro")}\u2600\uFE0F Claro`, datos: "p:modo:claro" }, { texto: `${marca(modo === "oscuro")}\u{1F319} Oscuro`, datos: "p:modo:oscuro" }],
+    [{ texto: `${marca(modo === "auto")}\u{1F504} Autom\xE1tico`, datos: "p:modo:auto" }],
     [{ texto: "\u{1F464} Mi perfil", datos: "p:ver" }, BTN_MENU]
-  ]);
+  ];
+  if (nuevo) await c.nuevo(texto4, teclado);
+  else await c.responder(texto4, teclado);
 }
 __name(apariencia, "apariencia");
 async function crearTema(c, consulta) {
@@ -3620,7 +3671,7 @@ __name(mensajeAviso, "mensajeAviso");
 
 // ../firebase/functions/src/bot/menu.ts
 async function mostrarMenu(c) {
-  const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase);
+  const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase, c.ahora);
   const cb = c.entrada.callback;
   if (m.foto && c.deps.canal.enviarFoto) {
     if (cb) await c.deps.canal.borrar?.(c.u.id, cb.mensajeId);
@@ -3669,7 +3720,7 @@ function tecladoTemas(d) {
 }
 __name(tecladoTemas, "tecladoTemas");
 var TEXTO_ESTILO = [cabecera("\u{1F3A8}", "\xBFQu\xE9 estilo prefieres?", "Paso 1 de 8"), "", bloque("\u{1F60A}", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("\u{1F454}", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
-var TEXTO_MODO = [cabecera("\u{1F317}", "\xBFClaro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
+var TEXTO_MODO = [cabecera("\u{1F317}", "\xBFClaro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", bloque("\u{1F504}", "Autom\xE1tico", "Si tu dispositivo cambia solo entre claro y oscuro, el\xEDgelo: el bot cambia solo: oscuro desde el anochecer hasta el amanecer de tu ciudad."), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
 async function vistaPrevia(c, opciones) {
   if (!c.deps.urlBase || !c.deps.canal.enviarFoto) return;
   for (const o of opciones) await c.deps.canal.enviarFoto(c.u.id, `${c.deps.urlBase.replace(/\/+$/, "")}/menu-${o.archivo}.png`, o.pie).catch(() => void 0);
@@ -3689,7 +3740,7 @@ async function mostrarPaso(c, paso) {
       break;
     case "modo":
       await vistaPrevia(c, [{ archivo: `${c.u.estilo}-claro`, pie: "\u2600\uFE0F <b>Claro</b>" }, { archivo: `${c.u.estilo}-oscuro`, pie: "\u{1F319} <b>Oscuro</b>" }]);
-      await c.nuevo(TEXTO_MODO, [[{ texto: "\u2600\uFE0F Claro", datos: "o:modo:claro" }, { texto: "\u{1F319} Oscuro", datos: "o:modo:oscuro" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.nuevo(TEXTO_MODO, [[{ texto: "\u2600\uFE0F Claro", datos: "o:modo:claro" }, { texto: "\u{1F319} Oscuro", datos: "o:modo:oscuro" }], [{ texto: "\u{1F504} Autom\xE1tico", datos: "o:modo:auto" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "secciones":
       d.tocoIntereses = true;
@@ -3808,7 +3859,9 @@ async function callback4(c, p) {
     return true;
   }
   if (p[1] === "modo") {
-    c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro";
+    c.u.modo = p[2] === "oscuro" ? "oscuro" : p[2] === "auto" ? "auto" : "claro";
+    if (c.u.modo === "auto") await c.nuevo(`\u{1F504} <b>Autom\xE1tico</b>: oscuro del anochecer al amanecer.
+<i>Hoy ${esc(textoSol(c.u, c.ahora))}. Se ajusta con tu ciudad.</i>`);
     await mostrarPaso(c, "secciones");
     return true;
   }

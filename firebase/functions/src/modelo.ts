@@ -25,13 +25,17 @@ export interface Estado { flujo: string; paso: string; datos: Record<string, unk
 
 /** Aspecto del bot: el estilo (informal o formal) y el modo (claro u oscuro) que usa en Telegram, para elegir las cabeceras y los colores. */
 export type Estilo = "informal" | "formal";
-export type Modo = "claro" | "oscuro";
+/** `auto`: cambia solo según la hora (de claro a oscuro y al revés), como lo hace el sistema de muchos dispositivos. */
+export type Modo = "claro" | "oscuro" | "auto";
+
+/** Franja en la que el dispositivo está en oscuro (modo `auto`), en la hora local del usuario. Puede cruzar la medianoche: 22:00 → 08:00. */
 
 export interface Usuario {
   id: string;                 // id del chat
   nombre: string;
   estilo: Estilo;
   modo: Modo;
+  /** Solo se usa con el modo `auto`. */
   nacimiento: string | null;  // yyyy-MM-dd
   zona: string;               // zona horaria IANA
   ciudad: Ciudad | null;

@@ -106,6 +106,7 @@ un cuadrado de color como acento (🟦 🟪 🟧 🟩 🟥), como el filo de col
 de cada persona; un bot solo puede mandar texto, emojis e imágenes. Por eso la parte «de diseño» (icono, tipografía, ilustración, letra manuscrita) va **dentro de la imagen
 de cabecera**, y los botones usan emojis. Los botones llevan además un color (azul, verde o rojo) que solo se ve si la versión de Telegram lo admite; si la API lo rechaza, el
 bot lo detecta y sigue sin colores. Un bot tampoco puede saber si la persona usa tema claro u oscuro: de ahí la pregunta.
+También hay modo **🔄 automático**: el bot calcula el amanecer y el anochecer de tu ciudad (sin red, a partir de sus coordenadas) y usa el modo oscuro desde el anochecer hasta el amanecer.
 
 Las cuatro cabeceras son PNG en `cloudflare/publico/` (se sirven desde la propia dirección del Worker; Telegram las descarga de ahí). Se regeneran con
 `cd tools/banners && npm install && npm run generar` (necesita Chromium; la ilustración y las tipografías están en `tools/banners/generar.mjs`).

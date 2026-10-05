@@ -2,6 +2,7 @@ import { Teclado } from "../canal";
 import { esc } from "../canal";
 import { formatearFechaHora } from "../fechas";
 import { ORDEN_SECCIONES, SECCIONES, Usuario } from "../modelo";
+import { modoEfectivo, textoModo } from "../apariencia";
 import { signoDe } from "../signos";
 import { bloque, cabecera } from "../util";
 import { BTN_MENU } from "./ctx";
@@ -18,8 +19,9 @@ const ICONOS = {
   formal: { resumen: "🟦", nueva: "🟪", eventos: "🟧", secciones: "🟩", perfil: "🟦", ayuda: "🟥", ajustes: "🟩", acceso: "🟫" },
 } as const;
 
-export function menuPrincipal(u: Usuario, admin: boolean, urlBase?: string): MenuPrincipal {
+export function menuPrincipal(u: Usuario, admin: boolean, urlBase?: string, ahora: Date = new Date()): MenuPrincipal {
   const ic = ICONOS[u.estilo];
+  const modo = modoEfectivo(u, ahora); // con el modo automático, el que toca a esta hora
   const activas = seccionesActivas(u).length;
   const ajustes = activas ? `${activas} ${activas === 1 ? "sección" : "secciones"} activa${activas === 1 ? "" : "s"} · tu perfil` : "Activa tus secciones y completa tu perfil";
   const filas = [
@@ -38,10 +40,10 @@ export function menuPrincipal(u: Usuario, admin: boolean, urlBase?: string): Men
   const perfil = b(ic.perfil, "Mi perfil", "p:ver", "primary"), ayuda = b(ic.ayuda, "Ayuda", "m:ayuda", "danger");
   const teclado: Teclado =
     u.estilo === "formal" ? [[resumen, eventos], [nueva, secciones], [perfil, ayuda]]
-      : u.modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]]
+      : modo === "oscuro" ? [[resumen], [nueva, eventos], [secciones, perfil], [ayuda]]
         : [[resumen, eventos], [nueva, secciones], [perfil], [ayuda]];
   if (admin) teclado.splice(teclado.length - 1, 0, [b(ic.acceso, "Acceso", "acc:menu")]);
-  return { html, teclado, ...(urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${u.modo}.png` } : {}) };
+  return { html, teclado, ...(urlBase ? { foto: `${urlBase.replace(/\/+$/, "")}/menu-${u.estilo}-${modo}.png` } : {}) };
 }
 
 export const textoAyuda = [
@@ -92,7 +94,7 @@ export function textoPerfil(u: Usuario): string {
     "",
     bloque("🕐", "Zona horaria", esc(u.zona)),
     "",
-    bloque("🎨", "Apariencia", `${u.estilo === "formal" ? "Formal" : "Informal"} · ${u.modo === "oscuro" ? "oscuro" : "claro"}`),
+    bloque("🎨", "Apariencia", `${u.estilo === "formal" ? "Formal" : "Informal"} · ${textoModo(u).toLowerCase()}`),
     "",
     "<i>Solo guardo esto para prepararte los resúmenes. Puedes borrarlo cuando quieras con /borrar.</i>",
   ].join("\n");

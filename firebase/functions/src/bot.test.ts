@@ -4,6 +4,7 @@ import { idProgramacion } from "./almacen";
 import { Banco, crearBanco, geocodingFalso, previsionFalsa, rssFalso } from "./arnes";
 import { contenidoDeSeccion, manejarEntrada } from "./bot/bot";
 import { menuPrincipal } from "./bot/vistas";
+import { modoEfectivo, solDelDia, textoSol } from "./apariencia";
 import { usuarioNuevo } from "./modelo";
 import { episodioDeSigno, fechaDeTitulo } from "./podcast";
 import { SIGNOS } from "./horoscopo";
@@ -658,4 +659,68 @@ test("asistente: pregunta estilo y modo con ejemplos (si hay imágenes); omitir 
   const u2 = (await b2.almacen.getUsuario("8"))!; assert.deepEqual([u2.estilo, u2.modo, u2.onboardingHecho], ["informal", "claro", true]);
   const b3 = crearBanco(AHORA); await b3.escribir("9", "/start"); await b3.pulsar("9", "o:sig"); await b3.pulsar("9", "o:sig"); await b3.pulsar("9", "o:sig"); // saltar estilo y modo
   assert.match(b3.canal.ultimo("9").html, /¿Qué quieres recibir\?/); assert.equal((await b3.almacen.getUsuario("9"))!.estilo, "informal");
+});
+
+// ---------- Modo automático (anochecer → amanecer) ----------
+const CORDOBA = { nombre: "Córdoba", provincia: "Córdoba", lat: 37.89, lon: -4.78 };
+const hl = (d: Date | null, zona: string) => { const p = new Intl.DateTimeFormat("es-ES", { timeZone: zona, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d!); return p; };
+
+test("solDelDia: horas de amanecer/anochecer razonables y casos polares", () => {
+  const oct = solDelDia(2026, 10, 5, CORDOBA.lat, CORDOBA.lon); // Europa/Madrid = UTC+2
+  const am = hl(oct.amanece, "Europe/Madrid"), an = hl(oct.anochece, "Europe/Madrid");
+  assert.ok(am >= "08:00" && am <= "08:25", am); assert.ok(an >= "19:35" && an <= "20:05", an);
+  const jun = solDelDia(2026, 6, 21, CORDOBA.lat, CORDOBA.lon);
+  assert.ok(hl(jun.amanece, "Europe/Madrid") <= "07:15" && hl(jun.anochece, "Europe/Madrid") >= "21:35");
+  assert.equal(solDelDia(2026, 6, 21, 78.2, 15.6).polar, "dia"); assert.equal(solDelDia(2026, 12, 21, 78.2, 15.6).polar, "noche"); // Svalbard
+  const sur = solDelDia(2026, 12, 21, -34.6, -58.4); // hemisferio sur: días largos en diciembre
+  assert.ok(sur.anochece!.getTime() - sur.amanece!.getTime() > 14 * 3600e3);
+});
+
+test("modoEfectivo auto: oscuro entre anochecer y amanecer de la ciudad, en su zona", () => {
+  const u = { modo: "auto" as const, ciudad: CORDOBA, zona: "Europe/Madrid" };
+  const a = (iso: string, x: object = {}) => modoEfectivo({ ...u, ...x }, new Date(iso));
+  assert.equal(a("2026-10-05T12:00:00Z"), "claro");  // 14:00
+  assert.equal(a("2026-10-05T17:00:00Z"), "claro");  // 19:00, aún hay sol (anochece ~19:50)
+  assert.equal(a("2026-10-05T18:30:00Z"), "oscuro"); // 20:30
+  assert.equal(a("2026-10-05T23:30:00Z"), "oscuro"); // 01:30 del día siguiente
+  assert.equal(a("2026-10-06T05:30:00Z"), "oscuro"); // 07:30 aún de noche
+  assert.equal(a("2026-10-06T07:00:00Z"), "claro");  // 09:00
+  assert.equal(a("2026-06-21T18:30:00Z"), "claro");  // en junio 20:30 aún es de día
+  assert.equal(a("2026-06-21T22:00:00Z", { ciudad: { ...CORDOBA, lat: 78.2, lon: 15.6 } }), "claro"); // sol de medianoche
+  assert.equal(a("2026-12-21T12:00:00Z", { ciudad: { ...CORDOBA, lat: 78.2, lon: 15.6 } }), "oscuro"); // noche polar
+  assert.equal(a("2026-10-05T12:00:00Z", { ciudad: null }), "claro"); // sin ciudad: centro de España
+  assert.equal(modoEfectivo({ ...u, modo: "oscuro" }, new Date("2026-10-05T12:00:00Z")), "oscuro");
+  assert.match(textoSol(u, new Date("2026-10-05T12:00:00Z")), /^amanece 08:\d\d · anochece 19:\d\d$/);
+});
+
+test("el menú automático usa la cabecera y el reparto que tocan a esa hora", () => {
+  const u = usuarioNuevo("1", "Ana", new Date()); u.modo = "auto"; u.zona = "Europe/Madrid"; u.ciudad = CORDOBA;
+  const noche = menuPrincipal(u, false, BASE, new Date("2026-10-05T21:00:00Z"));
+  const dia = menuPrincipal(u, false, BASE, new Date("2026-10-06T10:00:00Z"));
+  assert.equal(noche.foto, `${BASE}/menu-informal-oscuro.png`); assert.equal(dia.foto, `${BASE}/menu-informal-claro.png`);
+  assert.deepEqual(noche.teclado.map((f) => f.length), [1, 2, 2, 1]); assert.deepEqual(dia.teclado.map((f) => f.length), [2, 2, 1, 1]);
+  assert.equal(menuPrincipal({ ...u, modo: "oscuro" }, false, BASE, new Date("2026-10-06T10:00:00Z")).foto, `${BASE}/menu-informal-oscuro.png`);
+});
+
+test("apariencia: Automático desde el perfil muestra amanecer/anochecer y el menú lo aplica", async () => {
+  const b = await usuarioListo(); b.deps.urlBase = BASE;
+  await b.pulsar(U, "p:apar"); assert.ok(hayBoton(b, "🔄 Automático"));
+  await b.pulsar(U, "p:modo:auto");
+  assert.match(textoUltimo(b), /oscuro del anochecer al amanecer/); assert.match(textoUltimo(b), /amanece \d\d:\d\d · anochece \d\d:\d\d/); assert.match(textoUltimo(b), /Ahora toca: (claro|oscuro)/);
+  assert.ok(hayBoton(b, "✅ 🔄 Automático") && !hayBoton(b, "Horario"));
+  b.canal.limpiar(); b.reloj.ahora = new Date("2026-10-04T22:30:00Z"); await b.escribir(U, "/menu"); // 00:30 en Madrid
+  assert.equal(fotos(b)[0].foto, `${BASE}/menu-informal-oscuro.png`);
+  b.canal.limpiar(); b.reloj.ahora = new Date("2026-10-05T10:00:00Z"); await b.escribir(U, "/menu"); // 12:00
+  assert.equal(fotos(b)[0].foto, `${BASE}/menu-informal-claro.png`);
+  await b.pulsar(U, "p:ver"); assert.match(textoUltimo(b), /Apariencia[\s\S]*automático/i);
+});
+
+test("asistente: la opción Automático explica que sigue al sol", async () => {
+  const b = crearBanco(AHORA); await b.escribir(U, "/start"); await b.pulsarTexto(U, "Empezar"); await b.pulsar(U, "o:est:informal");
+  assert.ok(hayBoton(b, "🔄 Automático")); assert.match(textoUltimo(b), /anochecer hasta el amanecer/);
+  await b.pulsar(U, "o:modo:auto");
+  assert.ok(b.canal.textos(U).some((x) => /Automático<\/b>: oscuro del anochecer al amanecer/.test(x))); assert.match(textoUltimo(b), /¿Qué quieres recibir\?/);
+  assert.equal((await b.almacen.getUsuario(U))!.modo, "auto");
+  const { usuarioDesdeDoc } = await import("./almacenFirestore");
+  assert.equal(usuarioDesdeDoc("9", { modo: "auto" }).modo, "auto"); assert.equal(usuarioDesdeDoc("9", { modo: "otra" }).modo, "claro");
 });

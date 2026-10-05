@@ -1,3 +1,4 @@
+import { textoSol } from "../apariencia";
 import { esc, Teclado } from "../canal";
 import { buscarLugares, Lugar } from "../geocoding";
 import { parseNacimiento } from "../fechas";
@@ -53,7 +54,7 @@ function tecladoTemas(d: Datos): Teclado {
 }
 
 const TEXTO_ESTILO = [cabecera("🎨", "¿Qué estilo prefieres?", "Paso 1 de 8"), "", bloque("😊", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("👔", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
-const TEXTO_MODO = [cabecera("🌗", "¿Claro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
+const TEXTO_MODO = [cabecera("🌗", "¿Claro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", bloque("🔄", "Automático", "Si tu dispositivo cambia solo entre claro y oscuro, elígelo: el bot cambia solo: oscuro desde el anochecer hasta el amanecer de tu ciudad."), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
 
 /** Cabeceras de ejemplo (si el bot sabe su dirección pública): una por opción, para que se vea qué se elige. */
 async function vistaPrevia(c: Ctx, opciones: { archivo: string; pie: string }[]): Promise<void> {
@@ -76,7 +77,7 @@ async function mostrarPaso(c: Ctx, paso: (typeof PASOS)[number]): Promise<void> 
       await c.nuevo(TEXTO_ESTILO, [[{ texto: "😊 Informal", datos: "o:est:informal" }, { texto: "👔 Formal", datos: "o:est:formal" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "modo":
       await vistaPrevia(c, [{ archivo: `${c.u.estilo}-claro`, pie: "☀️ <b>Claro</b>" }, { archivo: `${c.u.estilo}-oscuro`, pie: "🌙 <b>Oscuro</b>" }]);
-      await c.nuevo(TEXTO_MODO, [[{ texto: "☀️ Claro", datos: "o:modo:claro" }, { texto: "🌙 Oscuro", datos: "o:modo:oscuro" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.nuevo(TEXTO_MODO, [[{ texto: "☀️ Claro", datos: "o:modo:claro" }, { texto: "🌙 Oscuro", datos: "o:modo:oscuro" }], [{ texto: "🔄 Automático", datos: "o:modo:auto" }], [SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "secciones":
       d.tocoIntereses = true;
       await c.responder(TEXTO_SECCIONES, tecladoIntereses(d)); break;
@@ -161,7 +162,11 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     await mostrarPaso(c, "fin"); return true;
   }
   if (p[1] === "est") { c.u.estilo = p[2] === "formal" ? "formal" : "informal"; await mostrarPaso(c, "modo"); return true; }
-  if (p[1] === "modo") { c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro"; await mostrarPaso(c, "secciones"); return true; }
+  if (p[1] === "modo") {
+    c.u.modo = p[2] === "oscuro" ? "oscuro" : p[2] === "auto" ? "auto" : "claro";
+    if (c.u.modo === "auto") await c.nuevo(`🔄 <b>Automático</b>: oscuro del anochecer al amanecer.\n<i>Hoy ${esc(textoSol(c.u, c.ahora))}. Se ajusta con tu ciudad.</i>`);
+    await mostrarPaso(c, "secciones"); return true;
+  }
   if (p[1] === "sig") {
     const i = PASOS.indexOf((c.estado!.paso as (typeof PASOS)[number]));
     await mostrarPaso(c, PASOS[Math.min(i + 1, PASOS.length - 1)]);

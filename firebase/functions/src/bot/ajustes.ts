@@ -4,6 +4,7 @@ import { parseHoraHHMM, parseNacimiento } from "../fechas";
 import { ORDEN_SECCIONES, SECCIONES, SeccionId, Tema } from "../modelo";
 import { programarSeccion, sincronizarSecciones } from "../programar";
 import { bloque, cabecera } from "../util";
+import { modoEfectivo, textoModo, textoSol } from "../apariencia";
 import { slug } from "./catalogo";
 import { BTN_CANCELAR, BTN_MENU, Ctx } from "./ctx";
 import { tecladoPerfil, textoPerfil } from "./vistas";
@@ -117,30 +118,34 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     }
     case "apar": await apariencia(c); return true;
     case "est": c.u.estilo = p[2] === "formal" ? "formal" : "informal"; await c.guardar(); await apariencia(c); return true;
-    case "modo": c.u.modo = p[2] === "oscuro" ? "oscuro" : "claro"; await c.guardar(); await apariencia(c); return true;
+    case "modo": c.u.modo = p[2] === "oscuro" ? "oscuro" : p[2] === "auto" ? "auto" : "claro"; await c.guardar(); await apariencia(c); return true;
     case "borrar": await c.responder([cabecera("⚠️", "¿Borrar todos tus datos?", "No se puede deshacer"), "", bloque("🗑", "Se eliminará", "• tu perfil", "• tus secciones y temas", "• tus alarmas, citas y tareas"), "", "<i>Y dejaré de enviarte mensajes.</i>"].join("\n"), [[{ texto: "🗑 Sí, borrar todo", datos: "p:borrarok" }, { texto: "Cancelar", datos: "p:ver" }]]); return true;
     case "borrarok": await c.almacen.borrarUsuario(c.u.id); await c.responder([cabecera("🗑", "Datos borrados"), "", "No te enviaré más mensajes.", "", "<i>Si quieres volver, escribe /start.</i>"].join("\n")); return true;
     default: return true;
   }
 }
 
-/** Cambiar el estilo (informal/formal) y el modo (claro/oscuro) del menú. */
-async function apariencia(c: Ctx): Promise<void> {
+/** Cambiar el estilo (informal/formal) y el modo (claro/oscuro/automático) del menú. `nuevo`: enviar como mensaje nuevo en vez de editar (cuando se llega por un texto). */
+async function apariencia(c: Ctx, nuevo = false): Promise<void> {
   const { estilo, modo } = c.u;
   const marca = (on: boolean) => (on ? "✅ " : "");
-  await c.responder([
+  const ahora = modoEfectivo(c.u, c.ahora);
+  const texto = [
     cabecera("🎨", "Apariencia", "Cómo se ve el menú"),
     "",
     bloque("😊", "Estilo", estilo === "formal" ? "Formal · sobrio y profesional" : "Informal · cercano y colorido"),
     "",
-    bloque("🌗", "Modo", modo === "oscuro" ? "Oscuro" : "Claro"),
+    bloque("🌗", "Modo", modo === "auto" ? `${textoModo(c.u)}\n${esc(textoSol(c.u, c.ahora))}\nAhora toca: ${ahora}${c.u.ciudad ? "" : "\n(sin ciudad guardada uso el centro de España)"}` : textoModo(c.u)),
     "",
-    "<i>Elige tu estilo y el modo que usas en Telegram. Se aplica al menú principal 👇</i>",
-  ].join("\n"), [
+    "<i>Un bot no puede ver el tema de tu dispositivo: «Automático» cambia con el sol: oscuro desde el anochecer hasta el amanecer de tu ciudad. Se aplica al menú principal 👇</i>",
+  ].join("\n");
+  const teclado: Teclado = [
     [{ texto: `${marca(estilo === "informal")}😊 Informal`, datos: "p:est:informal" }, { texto: `${marca(estilo === "formal")}👔 Formal`, datos: "p:est:formal" }],
     [{ texto: `${marca(modo === "claro")}☀️ Claro`, datos: "p:modo:claro" }, { texto: `${marca(modo === "oscuro")}🌙 Oscuro`, datos: "p:modo:oscuro" }],
+    [{ texto: `${marca(modo === "auto")}🔄 Automático`, datos: "p:modo:auto" }],
     [{ texto: "👤 Mi perfil", datos: "p:ver" }, BTN_MENU],
-  ]);
+  ];
+  if (nuevo) await c.nuevo(texto, teclado); else await c.responder(texto, teclado);
 }
 
 async function crearTema(c: Ctx, consulta: string | undefined): Promise<boolean> {

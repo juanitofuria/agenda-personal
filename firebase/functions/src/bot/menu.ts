@@ -6,7 +6,7 @@ import { menuPrincipal } from "./vistas";
  * Un mensaje de texto no se puede convertir en foto, así que, si se llega desde un botón, se borra el mensaje anterior y se envía el menú nuevo.
  */
 export async function mostrarMenu(c: Ctx): Promise<void> {
-  const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase);
+  const m = menuPrincipal(c.u, c.esAdmin, c.deps.urlBase, c.ahora);
   const cb = c.entrada.callback;
   if (m.foto && c.deps.canal.enviarFoto) {
     if (cb) await c.deps.canal.borrar?.(c.u.id, cb.mensajeId);
