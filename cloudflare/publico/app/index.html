@@ -19,15 +19,17 @@ body{margin:0;font-family:var(--fuente);color:var(--tinta);background:linear-gra
 button,input,select{font:inherit;color:inherit}
 .app{max-width:560px;margin:0 auto;padding:14px 16px}
 /* ===== Cabecera ===== */
-.cab{display:flex;align-items:center;gap:14px;padding:18px 16px;border-radius:var(--radio);background:var(--tarjeta);box-shadow:var(--sombra);border:1px solid var(--linea);position:relative;overflow:hidden}
+.cab{padding:18px 16px 14px;border-radius:var(--radio);background:var(--tarjeta);box-shadow:var(--sombra);border:1px solid var(--linea);position:relative;overflow:hidden}
+.cab .fila1{display:flex;align-items:center;gap:14px}
 .cab .logo{flex:none;width:58px;height:58px}
-.cab h1{margin:0;font:800 21px/1.1 var(--titulo);letter-spacing:-.3px}
-html[data-estilo=formal] .cab h1{font-weight:700;font-size:24px}
+.cab h1{margin:0;font:800 23px/1.1 var(--titulo);letter-spacing:-.3px}
+html[data-estilo=formal] .cab h1{font-weight:700;font-size:23px}
 .cab p{margin:4px 0 0;font-weight:700;font-size:13px;color:var(--suave)}
 html[data-estilo=formal] .cab p{text-transform:uppercase;letter-spacing:2.4px;font-size:10.5px}
-.mano{font:700 19px/1 var(--mano);color:var(--azul2);transform:rotate(-6deg);margin-left:auto;text-align:center;flex:none}
-html[data-estilo=formal] .mano{display:none}
-html[data-estilo=formal] .cab::after{content:"";position:absolute;left:16px;bottom:0;width:76px;height:4px;border-radius:2px 2px 0 0;background:var(--azul)}
+.frase{margin:14px 4px 2px;font:700 25px/1.15 var(--mano);color:var(--azul2);text-align:center;transform:rotate(-1.5deg)}
+.frase::after{content:"";display:block;height:5px;width:46%;margin:8px auto 0;border-radius:3px;background:var(--azul2);opacity:.75;transform:rotate(1deg)}
+html[data-estilo=formal] .frase{font:italic 700 16px/1.35 var(--titulo);color:var(--suave);transform:none;text-align:left;margin:14px 2px 2px}
+html[data-estilo=formal] .frase::after{width:76px;height:4px;margin:10px 0 0;background:var(--azul);opacity:1;transform:none;border-radius:2px}
 .saludo{margin:18px 4px 10px;font:800 20px var(--titulo)}
 .saludo small{display:block;font:600 13px var(--fuente);color:var(--suave);margin-top:2px}
 /* ===== Tarjetas del menú ===== */
@@ -47,7 +49,7 @@ html[data-estilo=formal] .c1{--acento:#2f6fd6}html[data-estilo=formal] .c2{--ace
 html[data-estilo=formal] .ico[class*=c]{background:color-mix(in srgb,var(--acento) 12%,transparent);color:var(--acento)}
 /* ===== Pantallas interiores ===== */
 .barra{display:flex;align-items:center;gap:10px;margin:4px 0 14px}
-.barra h2{margin:0;font:800 21px var(--titulo);flex:1}
+.barra h2{margin:0;font:800 19px var(--titulo);flex:1}
 .atras{border:0;background:var(--tarjeta);border:1px solid var(--linea);width:38px;height:38px;border-radius:12px;display:grid;place-items:center;cursor:pointer;box-shadow:var(--sombra)}
 .atras svg{width:20px;height:20px;fill:none;stroke:var(--tinta);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .lista{display:flex;flex-direction:column;gap:10px}
@@ -85,6 +87,9 @@ html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
 .doc blockquote{margin:6px 0;padding-left:10px;border-left:3px solid var(--azul)}.doc .err{color:var(--rojo);font-weight:800}
 .doc .botones{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;white-space:normal}
 .esq{height:14px;width:60%;border-radius:7px;background:var(--linea);margin:10px 0;animation:pulso 1.1s infinite alternate}@keyframes pulso{to{opacity:.4}}
+.caja{width:28px;height:28px;border-radius:9px;border:2px solid var(--suave);background:transparent;display:grid;place-items:center;font-weight:800;color:#fff;cursor:pointer;flex:none;padding:0}
+.caja.on{background:var(--ok);border-color:var(--ok)}
+.anadir{display:flex;gap:8px}.anadir .btn{padding:0 18px;font-size:20px}
 .cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
 </style>
 </head>
@@ -96,6 +101,7 @@ html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
 <symbol id="i-sec" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
 <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1-4 4-6 7.5-6s6.500 2 7.5 6"/></symbol>
 <symbol id="i-pal" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.600 0 2.200-1.100 1.600-2.300-.6-1.300.2-2.700 1.700-2.700H18a3 3 0 0 0 3-3C21 6.800 17 3 12 3z"/><circle cx="8" cy="11" r="1"/><circle cx="11.500" cy="7.5" r="1"/><circle cx="16" cy="9" r="1"/></symbol>
+<symbol id="i-cesta" viewBox="0 0 24 24"><path d="M3 4h2.5l2.2 10.500a1.500 1.500 0 0 0 1.500 1.200h7.600a1.500 1.500 0 0 0 1.500-1.100L20 8H6.200"/><circle cx="9.500" cy="19.500" r="1.400"/><circle cx="17" cy="19.500" r="1.400"/></symbol>
 <symbol id="i-atras" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
 <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></symbol>
@@ -170,28 +176,28 @@ function botonAtras() {
 }
 if (TG && TG.BackButton) TG.BackButton.onClick(volver);
 
-const cabecera = () => {
-  const u = S.datos.usuario;
-  return `<div class="cab"><svg class="logo"><use href="#i-logo"/></svg><div><h1>Agenda Personal</h1><p>${u.estilo === "formal" ? "Tu tiempo, tus planes" : "Organiza · Disfruta · Avanza"}</p></div><div class="mano">Tu tiempo,<br>tus planes</div></div>`;
-};
+const FRASES = ["Hoy es un buen día para avanzar un paso más.", "Lo pequeño, hecho cada día, se vuelve grande.", "Empieza donde estás, con lo que tienes.", "Respira hondo: vas mejor de lo que crees.", "Un día a la vez, y siempre hacia delante.", "Tu constancia de hoy es tu tranquilidad de mañana.", "No hace falta correr: basta con no parar.", "Cada tarea hecha es una victoria.", "Hazlo con calma, hazlo con ganas.", "Lo que hoy cuesta, mañana se agradece.", "Organiza tu día y disfruta de tu tiempo.", "El mejor momento para empezar es ahora.", "Sonríe: ya has dado el primer paso.", "Haz hoy algo de lo que tu yo de mañana se alegre.", "Los grandes planes empiezan con una pequeña lista.", "Paso a paso se llega lejos.", "Cuida tu tiempo: es lo más valioso que tienes.", "Hoy puedes más de lo que imaginas.", "Con orden, todo parece más fácil.", "Date permiso para descansar y volver con fuerza.", "Lo importante primero, lo demás después.", "Cada mañana es una página en blanco.", "Tú marcas el ritmo de tu día.", "Haz lo que puedas, con lo que tengas, donde estés.", "La paciencia también es avanzar.", "Un buen plan hoy, un día tranquilo mañana.", "Celebra lo pequeño: también cuenta.", "Que tu agenda sea ligera y tu día, bonito.", "Hoy toca lo que toca, y a tu manera.", "No lo dejes para luego: tu futuro te lo agradecerá.", "Disfruta del camino, no solo de la meta.", "Lo estás haciendo mejor de lo que piensas.", "Un día bien organizado es un día ganado.", "Ten un plan, pero déjale sitio a lo bonito.", "Tu energía de hoy empieza con una buena decisión.", "Piensa en grande, empieza en pequeño.", "Termina lo que empezaste, y empieza lo que sueñas.", "Mereces un día sin prisas.", "Lo bueno llega a quien se organiza.", "Cada paso cuenta, también el de hoy."];
+S.frase = FRASES[Math.floor(Math.random() * FRASES.length)];
+const cabecera = () => `<div class="cab"><div class="fila1"><svg class="logo"><use href="#i-logo"/></svg><div><h1>Mi Agenda Personal</h1><p>${S.datos.usuario.estilo === "formal" ? "Organiza · Disfruta · Avanza" : "Organiza · Disfruta · Avanza"}</p></div></div><div class="frase">${esc(S.frase)}</div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
 const EMO = { alarma: "⏰", cita: "📅", tarea: "✅" };
 const vistas = {
   inicio() {
-    const u = S.datos.usuario, n = S.datos.secciones.filter((s) => s.activa).length, pend = S.datos.eventos.filter((e) => !e.hecho).length;
+    const u = S.datos.usuario, n = S.datos.secciones.filter((s) => s.activa).length, pend = S.datos.eventos.filter((e) => !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
     const t = (c, i, titulo, d, v, cls = "") => `<button class="tarjeta ${cls}" data-ir="${v}"><div class="ico ${c}">${ic(i)}</div><div><b>${titulo}</b><span class="d">${d}</span></div></button>`;
     return `${cabecera()}
       <div class="saludo">${u.nombre ? `¡Hola, ${esc(u.nombre)}! 👋` : "¿Qué quieres hacer?"}<small>${u.estilo === "formal" ? "Seleccione una opción" : "Elige una opción"}</small></div>
       <div class="rejilla">
         ${t("c1", "resumen", "Resumen de hoy", "Lo que tienes activado", "resumen", "ancha")}
         ${t("c2", "cal", "Mis eventos", pend ? `${pend} pendiente${pend === 1 ? "" : "s"}` : "Alarmas, citas y tareas", "eventos")}
+        ${t("c5", "cesta", "Lista de la compra", cp ? `${cp} por comprar` : "Todo al día", "compra")}
         ${t("c3", "sec", "Mis secciones", `${n} activa${n === 1 ? "" : "s"}`, "secciones")}
         ${t("c4", "pal", "Apariencia", "Estilo y tema", "apariencia")}
-        ${t("c6", "user", "Mi perfil", u.ciudad ? esc(u.ciudad) : "Ciudad y datos", "perfil")}
+        ${t("c6", "user", "Mi perfil", u.ciudad ? esc(u.ciudad) : "Ciudad y datos", "perfil", "ancha")}
       </div>
-      <p class="nota" style="text-align:center;margin-top:18px">🌗 ${u.modo === "auto" ? "Tema automático: sigue el de tu dispositivo" : "Tema " + u.modo + " fijo"}</p>`;
+      `;
   },
   resumen() {
     const act = S.datos.secciones.filter((s) => s.activa);
@@ -199,6 +205,21 @@ const vistas = {
       <p class="nota">Toca una sección y se abre aquí mismo, preparada al momento.</p>
       <div class="lista">${S.datos.secciones.map((s) => `<div class="fila"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div><button class="btn chico ${s.activa ? "" : "sec"}" data-ver="${esc(s.ref)}">Ver</button></div>`).join("")}</div>
       <button class="btn ancho" data-ver="todo" ${act.length ? "" : "disabled style=opacity:.5"}>📋 Todo lo activado (${act.length})</button>`;
+  },
+  compra() {
+    const l = S.datos.compra, pend = l.items.filter((x) => !x.hecho), hechos = l.items.filter((x) => x.hecho);
+    const fila = (x) => `<div class="fila ${x.hecho ? "hecho" : ""}"><button class="caja ${x.hecho ? "on" : ""}" data-marcar="${x.id}" aria-label="Marcar">${x.hecho ? "✓" : ""}</button><div class="t" data-marcar="${x.id}"><b>${esc(x.texto)}</b></div><button class="btn chico peligro" data-quitar="${x.id}" aria-label="Quitar">✕</button></div>`;
+    return `${barra("Lista de la compra", `<button class="btn chico sec" data-ir="historial">🕘 Historial</button>`)}
+      <div class="anadir"><input type="text" id="nuevo-art" maxlength="60" placeholder="Añadir (varios, con comas)" autocomplete="off"><button class="btn" data-anadir="1">＋</button></div>
+      <div class="lista" style="margin-top:12px">${pend.map(fila).join("") || (hechos.length ? "" : `<div class="vacio">Tu lista está vacía.<br>Añade lo que necesitas comprar.</div>`)}</div>
+      ${hechos.length ? `<label>Comprado (${hechos.length})</label><div class="lista">${hechos.map(fila).join("")}</div><button class="btn ancho" data-terminar="1">✓ Compra hecha</button>` : ""}
+      ${l.items.length ? `<button class="btn peligro ancho" data-vaciar="1">Vaciar la lista</button>` : ""}`;
+  },
+  historial() {
+    const h = S.datos.compra.historial, fecha = (iso) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+    return `${barra("Compras terminadas")}
+      <p class="nota">Aquí quedan guardadas las compras que terminaste, con su fecha.</p>
+      <div class="lista">${h.length ? h.map((c) => `<div class="doc" style="white-space:normal"><b>🛒 ${fecha(c.fecha)}</b><div style="margin-top:6px;font-weight:600;color:var(--suave)">${c.items.map(esc).join(" · ")}</div><div class="botones"><button class="btn chico sec" data-repetir="${c.id}">↻ Volver a añadir</button><button class="btn chico peligro" data-olvidar="${c.id}">🗑 Eliminar</button></div></div>`).join("") : `<div class="vacio">Todavía no has guardado ninguna compra.</div>`}</div>`;
   },
   ver() {
     const v = S.ver;
@@ -275,6 +296,22 @@ function hojaNuevo() {
   });
 }
 
+function hojaTerminar() {
+  const n = S.datos.compra.items.filter((x) => x.hecho).length;
+  const h = document.createElement("div"); h.className = "hoja";
+  h.innerHTML = `<div><h3>Compra hecha</h3><p class="nota">${n} artículo${n === 1 ? "" : "s"} comprado${n === 1 ? "" : "s"}. ¿Qué hacemos con ${n === 1 ? "él" : "ellos"}?</p>
+    <button class="btn ancho" data-f="guardar">📅 Guardar en el historial (con la fecha de hoy)</button>
+    <button class="btn peligro ancho" data-f="eliminar">🗑 Eliminar sin guardar</button>
+    <button class="btn sec ancho" data-f="no">Cancelar</button></div>`;
+  document.body.appendChild(h);
+  h.addEventListener("click", async (e) => {
+    const f = e.target.closest("[data-f]")?.dataset.f;
+    if (e.target === h || f === "no") return h.remove();
+    if (!f) return;
+    h.remove(); hacer(() => api("/api/compra", { accion: "terminar", guardar: f === "guardar" }), f === "guardar" ? "✅ Guardada en el historial" : "🗑 Eliminada");
+  });
+}
+
 /* ---------- Eventos de la página ---------- */
 document.addEventListener("click", async (e) => {
   const q = (s) => e.target.closest(s);
@@ -282,6 +319,14 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-ir]"))) return ir(el.dataset.ir);
   if (q("[data-a=volver]")) return volver();
   if ((el = q("[data-ver]"))) return abrirVer(el.dataset.ver);
+  const compra = (cuerpo, ok) => hacer(() => api("/api/compra", cuerpo), ok);
+  if (q("[data-anadir]")) { const t = $("#nuevo-art").value.trim(); if (t) compra({ accion: "anadir", texto: t }); return; }
+  if ((el = q("[data-marcar]"))) return compra({ accion: "marcar", id: el.dataset.marcar });
+  if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
+  if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
+  if (q("[data-terminar]")) return hojaTerminar();
+  if ((el = q("[data-repetir]"))) return compra({ accion: "repetir", id: el.dataset.repetir }, "↻ Añadido a la lista");
+  if ((el = q("[data-olvidar]"))) { if (confirm("¿Eliminar esta compra del historial?")) compra({ accion: "olvidar", id: el.dataset.olvidar }); return; }
   if ((el = q("[data-url]"))) { e.preventDefault(); const u = el.dataset.url; return TG && TG.openLink ? TG.openLink(u) : window.open(u, "_blank"); }
   if ((el = q("[data-chat]"))) { el.disabled = true; try { await api("/api/enviar", { ref: el.dataset.chat }); aviso("📨 Enviado al chat"); } catch (err) { aviso(err.message); } el.disabled = false; return; }
   if (q("[data-tema]")) { const t = $("#tema").value.trim(); if (!t) return; return hacer(() => api("/api/tema", { titulo: t }), "⭐ Tema añadido"); }
@@ -313,10 +358,16 @@ function demo(ruta, c) {
   const d = (window.__demo ||= {
     usuario: { nombre: "Ana", estilo: new URLSearchParams(location.search).get("estilo") || "informal", modo: new URLSearchParams(location.search).get("modo") || "auto", ciudad: "Córdoba", zona: "Europe/Madrid", sol: "amanece 08:12 · anochece 19:41", admin: true },
     secciones: [["tiempo", "🌤", "Tiempo", "Previsión por horas, lluvia, sol, viento, UV y luna", 1], ["noticias", "📰", "Noticias", "Economía, política y noticias de tu zona", 1], ["agenda", "🗓", "Agenda", "Tus citas y tareas de hoy y mañana", 0], ["horoscopo", "🔮", "Horóscopo", "El horóscopo del día de tu signo", 1], ["mercados", "📈", "Mercados", "Premercado de Wall Street y cierre de ayer", 0]].map(([ref, emoji, titulo, descripcion, a]) => ({ ref, emoji, titulo, descripcion, activa: !!a, hora: "07:30" })),
+    compra: { items: [{ id: "a", texto: "Leche", hecho: false }, { id: "b", texto: "Pan", hecho: true }, { id: "c", texto: "Huevos", hecho: false }], historial: [{ id: "h1", fecha: "2026-10-01T10:00:00Z", items: ["Arroz", "Tomates", "Café"] }] },
     eventos: [{ id: "1", tipo: "cita", titulo: "Cardiología", lugar: "Hospital", texto: "mañana · 10:30", hecho: false, repeticion: "ninguna" }, { id: "2", tipo: "alarma", titulo: "Tomar la pastilla", lugar: "", texto: "hoy · 21:00", hecho: false, repeticion: "diaria" }, { id: "3", tipo: "tarea", titulo: "Llamar al fontanero", lugar: "", texto: "sin fecha", hecho: true, repeticion: "ninguna" }],
   });
   if (ruta === "/api/apariencia") Object.assign(d.usuario, { ...(c.estilo && { estilo: c.estilo }), ...(c.modo && { modo: c.modo }) });
   if (ruta === "/api/seccion") { const s = d.secciones.find((x) => x.ref === c.ref); if (typeof c.activa === "boolean") s.activa = c.activa; if (c.hora) s.hora = c.hora; }
+  if (ruta === "/api/compra") { const l = d.compra; const it = l.items.find((x) => x.id === c.id);
+    if (c.accion === "anadir") c.texto.split(",").forEach((t, i) => l.items.push({ id: "n" + Date.now() + i, texto: t.trim(), hecho: false }));
+    if (c.accion === "marcar") it.hecho = !it.hecho; if (c.accion === "quitar") l.items = l.items.filter((x) => x !== it);
+    if (c.accion === "terminar") { const ok = l.items.filter((x) => x.hecho); if (c.guardar) l.historial.unshift({ id: "h" + Date.now(), fecha: new Date().toISOString(), items: ok.map((x) => x.texto) }); l.items = l.items.filter((x) => !x.hecho); }
+    return Promise.resolve({ ok: true }); }
   if (ruta === "/api/ver") return new Promise((ok) => setTimeout(() => ok({ secciones: (c.ref === "todo" ? ["tiempo", "noticias"] : [c.ref]).map((ref) => ({ ref, html: ref === "tiempo" ? "🌤 <b>Tiempo · Córdoba</b>\nHoy: 24° / 11°, sol y algunas nubes.\n\n🕐 Mañana: <b>soleado</b>\n<i>Fuente: Open-Meteo</i>" : "📰 <b>Noticias del día</b>\n• Titular de ejemplo <a href=\"https://example.com\">enlace</a>\n• Otro titular de ejemplo", botones: ref === "tiempo" ? [{ texto: "🕐 Hora a hora", ref: "tiempo:horas" }, { texto: "🌙 Calendario lunar", ref: "tiempo:luna" }] : [] })) }), 600));
   if (ruta === "/api/ciudad") return Promise.resolve({ lugares: [{ i: 0, etiqueta: "Córdoba, Andalucía, España" }] });
   return Promise.resolve(ruta === "/api/estado" ? structuredClone(d) : { ok: true });

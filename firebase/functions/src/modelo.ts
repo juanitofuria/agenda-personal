@@ -30,6 +30,11 @@ export type Modo = "claro" | "oscuro" | "auto";
 
 /** Franja en la que el dispositivo está en oscuro (modo `auto`), en la hora local del usuario. Puede cruzar la medianoche: 22:00 → 08:00. */
 
+/** Lista de la compra: lo pendiente y el historial de compras terminadas (con su fecha de finalización). */
+export interface ArticuloCompra { id: string; texto: string; hecho: boolean }
+export interface CompraTerminada { id: string; fecha: string /* ISO */; items: string[] }
+export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTerminada[] }
+
 export interface Usuario {
   id: string;                 // id del chat
   nombre: string;
@@ -39,6 +44,7 @@ export interface Usuario {
   nacimiento: string | null;  // yyyy-MM-dd
   zona: string;               // zona horaria IANA
   ciudad: Ciudad | null;
+  compra: ListaCompra;
   secciones: Record<SeccionId, ConfigSeccion>;
   temas: Tema[];
   estado: Estado | null;
@@ -96,7 +102,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [] }, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }

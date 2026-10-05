@@ -99,3 +99,26 @@ test("mini app: perfil y temas de noticias se editan desde la app", async () => 
   assert.ok(![...b.almacen.programaciones.values()].some((p) => p.ref === "tema:ajedrez"));
   assert.equal((await api("/api/tema", { titulo: " " })).estado, 400);
 });
+
+test("mini app: lista de la compra (añadir varias, marcar, terminar guardando con fecha o eliminando, historial)", async () => {
+  const { b, api } = await banco();
+  const c = (cuerpo: Record<string, unknown>) => api("/api/compra", cuerpo);
+  assert.equal((await c({ accion: "anadir", texto: "  " })).estado, 400);
+  await c({ accion: "anadir", texto: "Leche, Pan\nHuevos; " });
+  let l = (await b.almacen.getUsuario("1"))!.compra; assert.deepEqual(l.items.map((x) => x.texto), ["Leche", "Pan", "Huevos"]);
+  assert.equal((await c({ accion: "terminar", guardar: true })).estado, 409); // nada marcado
+  await c({ accion: "marcar", id: l.items[0].id }); await c({ accion: "marcar", id: l.items[1].id });
+  assert.equal((await c({ accion: "marcar", id: "nada" })).estado, 404);
+  await c({ accion: "terminar", guardar: true });
+  l = (await b.almacen.getUsuario("1"))!.compra;
+  assert.deepEqual(l.items.map((x) => x.texto), ["Huevos"]); // lo no comprado se queda
+  assert.equal(l.historial.length, 1); assert.deepEqual(l.historial[0].items, ["Leche", "Pan"]); assert.equal(l.historial[0].fecha, AHORA.toISOString());
+  await c({ accion: "anadir", texto: "Sal" }); await c({ accion: "marcar", id: (await b.almacen.getUsuario("1"))!.compra.items[1].id });
+  await c({ accion: "terminar", guardar: false }); // eliminar sin guardar
+  l = (await b.almacen.getUsuario("1"))!.compra; assert.equal(l.historial.length, 1); assert.deepEqual(l.items.map((x) => x.texto), ["Huevos"]);
+  await c({ accion: "repetir", id: l.historial[0].id }); assert.deepEqual((await b.almacen.getUsuario("1"))!.compra.items.map((x) => x.texto), ["Huevos", "Leche", "Pan"]);
+  await c({ accion: "quitar", id: (await b.almacen.getUsuario("1"))!.compra.items[0].id });
+  await c({ accion: "olvidar", id: l.historial[0].id }); assert.equal((await b.almacen.getUsuario("1"))!.compra.historial.length, 0);
+  await c({ accion: "vaciar" }); assert.deepEqual((await b.almacen.getUsuario("1"))!.compra.items, []);
+  assert.deepEqual(((await api("/api/estado")).cuerpo as any).compra.items, []);
+});

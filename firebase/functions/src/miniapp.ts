@@ -57,7 +57,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
   ];
   return ok({
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
-    secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
+    compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
 }
 
@@ -166,6 +166,41 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
       }));
       return ok({ secciones: hechas });
+    }
+
+    case "/api/compra": {
+      const l = u.compra;
+      const id = () => globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10);
+      switch (c.accion) {
+        case "anadir": {
+          const nuevos = String(c.texto ?? "").split(/[\n,;]+/).map((t) => t.trim().slice(0, 60)).filter(Boolean);
+          if (!nuevos.length) return error(400, "Escribe lo que quieres comprar");
+          if (l.items.length + nuevos.length > 150) return error(409, "La lista es demasiado larga: termina la compra primero");
+          for (const t of nuevos) l.items.push({ id: id(), texto: t, hecho: false });
+          break;
+        }
+        case "marcar": { const a = l.items.find((x) => x.id === c.id); if (!a) return error(404, "Ya no está en la lista"); a.hecho = !a.hecho; break; }
+        case "quitar": l.items = l.items.filter((x) => x.id !== c.id); break;
+        case "terminar": {
+          // Lo marcado como comprado sale de la lista: se guarda en el historial con la fecha de hoy («guardar») o se borra («eliminar»).
+          const comprados = l.items.filter((x) => x.hecho);
+          if (!comprados.length) return error(409, "Marca primero lo que has comprado");
+          if (c.guardar) l.historial.unshift({ id: id(), fecha: ahora.toISOString(), items: comprados.map((x) => x.texto) });
+          l.items = l.items.filter((x) => !x.hecho);
+          l.historial = l.historial.slice(0, 30);
+          break;
+        }
+        case "vaciar": l.items = []; break;
+        case "olvidar": l.historial = l.historial.filter((x) => x.id !== c.id); break;
+        case "repetir": {
+          const h = l.historial.find((x) => x.id === c.id); if (!h) return error(404, "Esa compra ya no está");
+          for (const t of h.items) if (!l.items.some((x) => !x.hecho && x.texto.toLowerCase() === t.toLowerCase())) l.items.push({ id: id(), texto: t, hecho: false });
+          break;
+        }
+        default: return error(400, "Acción desconocida");
+      }
+      await deps.almacen.guardarUsuario(u);
+      return ok({ compra: l });
     }
 
     case "/api/perfil": {

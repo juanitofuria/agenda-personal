@@ -939,6 +939,7 @@ function usuarioDesdeJson(id, d) {
     nacimiento: d.nacimiento ?? null,
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
+    compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [] },
     secciones: d.secciones ?? {},
     temas: d.temas ?? [],
     estado: d.estado ?? null,
@@ -1257,6 +1258,7 @@ function usuarioNuevo(id, nombre, ahora) {
     nacimiento: null,
     zona: "Europe/Madrid",
     ciudad: null,
+    compra: { items: [], historial: [] },
     secciones,
     temas: [],
     estado: null,
@@ -4497,6 +4499,7 @@ async function estado(deps, u) {
   ];
   return ok({
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    compra: u.compra,
     secciones,
     eventos: eventos.map((e) => eventoJson(e, u, ahora)),
     ahora: ahora.toISOString()
@@ -4603,6 +4606,52 @@ async function manejarApi(deps, u, ruta, c) {
         }
       }));
       return ok({ secciones: hechas });
+    }
+    case "/api/compra": {
+      const l = u.compra;
+      const id = /* @__PURE__ */ __name(() => globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 10), "id");
+      switch (c.accion) {
+        case "anadir": {
+          const nuevos = String(c.texto ?? "").split(/[\n,;]+/).map((t) => t.trim().slice(0, 60)).filter(Boolean);
+          if (!nuevos.length) return error3(400, "Escribe lo que quieres comprar");
+          if (l.items.length + nuevos.length > 150) return error3(409, "La lista es demasiado larga: termina la compra primero");
+          for (const t of nuevos) l.items.push({ id: id(), texto: t, hecho: false });
+          break;
+        }
+        case "marcar": {
+          const a = l.items.find((x) => x.id === c.id);
+          if (!a) return error3(404, "Ya no est\xE1 en la lista");
+          a.hecho = !a.hecho;
+          break;
+        }
+        case "quitar":
+          l.items = l.items.filter((x) => x.id !== c.id);
+          break;
+        case "terminar": {
+          const comprados = l.items.filter((x) => x.hecho);
+          if (!comprados.length) return error3(409, "Marca primero lo que has comprado");
+          if (c.guardar) l.historial.unshift({ id: id(), fecha: ahora.toISOString(), items: comprados.map((x) => x.texto) });
+          l.items = l.items.filter((x) => !x.hecho);
+          l.historial = l.historial.slice(0, 30);
+          break;
+        }
+        case "vaciar":
+          l.items = [];
+          break;
+        case "olvidar":
+          l.historial = l.historial.filter((x) => x.id !== c.id);
+          break;
+        case "repetir": {
+          const h = l.historial.find((x) => x.id === c.id);
+          if (!h) return error3(404, "Esa compra ya no est\xE1");
+          for (const t of h.items) if (!l.items.some((x) => !x.hecho && x.texto.toLowerCase() === t.toLowerCase())) l.items.push({ id: id(), texto: t, hecho: false });
+          break;
+        }
+        default:
+          return error3(400, "Acci\xF3n desconocida");
+      }
+      await deps.almacen.guardarUsuario(u);
+      return ok({ compra: l });
     }
     case "/api/perfil": {
       if (typeof c.nombre === "string") u.nombre = c.nombre.trim().slice(0, 40);
