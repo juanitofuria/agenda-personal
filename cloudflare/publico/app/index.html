@@ -110,6 +110,10 @@ html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
 .caja{width:28px;height:28px;border-radius:9px;border:2px solid var(--suave);background:transparent;display:grid;place-items:center;font-weight:800;color:#fff;cursor:pointer;flex:none;padding:0}
 .caja.on{background:var(--ok);border-color:var(--ok)}
 .anadir{display:flex;gap:8px}.anadir .btn{padding:0 18px;font-size:20px}
+.pasos{margin-top:14px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);padding:14px;box-shadow:var(--sombra);position:relative}
+.pasos b{display:block;font:800 15px var(--titulo);margin-bottom:4px;padding-right:26px}.pasos p{margin:0 0 10px;color:var(--suave);font-weight:600;font-size:13px}
+.pasos .x{position:absolute;right:8px;top:8px;border:0;background:none;color:var(--suave);font-size:18px;cursor:pointer;padding:4px 8px}
+.pasos .btn{width:100%}
 .cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
 </style>
 </head>
@@ -221,6 +225,19 @@ function burbuja(tam) {
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
 const botonAvatar = (tam = 58) => `<button class="avw" data-avatar="1" aria-label="Cambiar avatar" style="border:0;background:none;padding:0">${burbuja(tam)}<span class="lapiz">✎</span></button>`;
+/* Invitación a instalar la app y activar los avisos, en la pantalla de inicio (solo fuera de Telegram, y se puede descartar una semana). */
+const modoApp = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function bannerApp() {
+  if (enTelegram() || DEMO) return "";
+  try { if (Date.now() < +localStorage.getItem("bannerOff")) return ""; } catch (e) {}
+  const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const aqui = S.aqui && S.aqui.suscrito, cierre = `<button class="x" data-cerrar-banner="1" aria-label="Ahora no">✕</button>`;
+  if (!modoApp() && S.instalacion) return `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`;
+  if (!modoApp() && esIOS()) return `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`;
+  if (soportaPush && !aqui && (modoApp() || !esIOS()) && Notification.permission !== "denied") return `<div class="pasos">${cierre}<b>🔔 Activa los avisos</b><p>Recibe tus resúmenes y recordatorios como notificaciones de esta app.</p><button class="btn" data-activar-ya="1">🔔 Activar notificaciones</button></div>`;
+  return "";
+}
 const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}! 👋` : "¡Hola! 👋"}</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
@@ -230,7 +247,7 @@ const vistas = {
   inicio() {
     const u = S.datos.usuario, n = S.datos.secciones.filter((s) => s.activa).length, pend = S.datos.eventos.filter((e) => !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
     const t = (c, i, titulo, d, v, cls = "") => `<button class="tarjeta ${cls}" data-ir="${v}"><div class="ico ${c}">${ic(i)}</div><div><b>${titulo}</b><span class="d">${d}</span></div></button>`;
-    return `${cabecera()}
+    return `${cabecera()}${bannerApp()}
       <div class="rejilla">
         ${t("c1", "resumen", "Resumen de hoy", "Lo que tienes activado", "resumen", "ancha")}
         ${t("c2", "cal", "Mis eventos", pend ? `${pend} pendiente${pend === 1 ? "" : "s"}` : "Alarmas, citas y tareas", "eventos")}
@@ -472,7 +489,7 @@ function hojaTerminar() {
 
 /* ---------- App instalable y notificaciones ---------- */
 let peticionInstalar = null;
-window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); peticionInstalar = e; S.instalacion = true; if (S.vista === "dispositivos") pintar(); });
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); peticionInstalar = e; S.instalacion = true; if (S.vista === "dispositivos" || S.vista === "inicio") pintar(); });
 window.addEventListener("appinstalled", () => { peticionInstalar = null; S.instalacion = false; if (S.vista === "dispositivos") pintar(); });
 const deB64u = (s) => Uint8Array.from(atob((s + "=".repeat((4 - (s.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 function nombreDispositivo() {
@@ -540,8 +557,10 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
+  if (q("[data-cerrar-banner]")) { try { localStorage.setItem("bannerOff", Date.now() + 7 * 864e5); } catch (err) {} return pintar(); }
+  if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, "🔔 Notificaciones activadas");
   if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
-  if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); await peticionInstalar.userChoice.catch(() => {}); peticionInstalar = null; S.instalacion = false; pintar(); } return; }
+  if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); const r = await peticionInstalar.userChoice.catch(() => ({})); peticionInstalar = null; S.instalacion = false; if (r.outcome === "accepted") aviso("✅ Instalada: ábrela desde su icono y activa los avisos"); pintar(); } return; }
   if ((el = q("[data-canal]"))) return hacer(() => api("/api/notificaciones", { canal: el.dataset.canal }));
   if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? "🔔 Notificaciones activadas" : "🔕 Desactivadas");
   if ((el = q("[data-pushquitar]"))) return hacer(() => api("/api/push/quitar", { id: el.dataset.pushquitar }), "Dispositivo quitado");
@@ -616,7 +635,7 @@ const MENSAJE_ENTRADA = `<div class="cargando" style="line-height:1.6">Para usar
       }
       if (!leerSesion()) { $("#app").innerHTML = MENSAJE_ENTRADA; registrarSW(); return; }
     }
-    await cargar(); registrarSW();
+    await cargar(); registrarSW(); if (!enTelegram() && !DEMO) await refrescarDispositivos();
     const ver = url.searchParams.get("ver"), ir_ = url.searchParams.get("ir");
     if (ver || ir_) history.replaceState(null, "", url.pathname);
     if (ir_ && vistas[ir_]) { S.vista = ir_; pintar(); } else pintar();
