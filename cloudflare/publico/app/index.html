@@ -45,7 +45,7 @@ html[data-estilo=formal] .frase::after{width:76px;height:4px;margin:10px 0 0;bac
 .saludo{margin:18px 4px 10px;font:800 20px var(--titulo)}
 .saludo small{display:block;font:600 13px var(--fuente);color:var(--suave);margin-top:2px}
 /* ===== Tarjetas del menú ===== */
-.rejilla{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rejilla{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .tarjeta{position:relative;text-align:left;border:1px solid var(--linea);background:var(--tarjeta);border-radius:var(--radio);padding:14px;box-shadow:var(--sombra);cursor:pointer;display:flex;flex-direction:column;gap:10px;min-height:118px;transition:transform .12s}
 .tarjeta:active{transform:scale(.97)}
 .tarjeta.ancha{grid-column:1/-1;min-height:0;flex-direction:row;align-items:center}
@@ -206,7 +206,7 @@ function burbuja(tam) {
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
 const botonAvatar = (tam = 58) => `<button class="avw" data-avatar="1" aria-label="Cambiar avatar" style="border:0;background:none;padding:0">${burbuja(tam)}<span class="lapiz">✎</span></button>`;
-const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>Mi Agenda Personal</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
+const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}! 👋` : "¡Hola! 👋"}</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -216,7 +216,6 @@ const vistas = {
     const u = S.datos.usuario, n = S.datos.secciones.filter((s) => s.activa).length, pend = S.datos.eventos.filter((e) => !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
     const t = (c, i, titulo, d, v, cls = "") => `<button class="tarjeta ${cls}" data-ir="${v}"><div class="ico ${c}">${ic(i)}</div><div><b>${titulo}</b><span class="d">${d}</span></div></button>`;
     return `${cabecera()}
-      <div class="saludo">${u.nombre ? `¡Hola, ${esc(u.nombre)}! 👋` : "¿Qué quieres hacer?"}<small>${u.estilo === "formal" ? "Seleccione una opción" : "Elige una opción"}</small></div>
       <div class="rejilla">
         ${t("c1", "resumen", "Resumen de hoy", "Lo que tienes activado", "resumen", "ancha")}
         ${t("c2", "cal", "Mis eventos", pend ? `${pend} pendiente${pend === 1 ? "" : "s"}` : "Alarmas, citas y tareas", "eventos")}
