@@ -80,8 +80,11 @@ export function comoErrorApi(e: unknown): ErrorApi {
 }
 
 /** Fecha yyyy-MM-dd en la zona horaria indicada (la de los usuarios, no la del servidor). */
+const FORMATOS_FECHA = new Map<string, Intl.DateTimeFormat>(); // un formateador por zona (crearlos es lo caro)
 export function fechaEnZona(fecha: Date, zona: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: zona, year: "numeric", month: "2-digit", day: "2-digit" }).format(fecha);
+  let f = FORMATOS_FECHA.get(zona);
+  if (!f) { f = new Intl.DateTimeFormat("en-CA", { timeZone: zona, year: "numeric", month: "2-digit", day: "2-digit" }); FORMATOS_FECHA.set(zona, f); }
+  return f.format(fecha);
 }
 
 /** "https://www.20minutos.es/horoscopo/aries/" -> "20minutos.es"; si no es una URL se devuelve tal cual. */

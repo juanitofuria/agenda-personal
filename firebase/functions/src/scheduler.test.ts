@@ -303,3 +303,36 @@ test("no se programan avisos para eventos ya pasados (aunque se creen a mano)", 
   const unica = await programarEvento(b.almacen, { ...base, id: "y", repeticion: "ninguna" }, MAD, b.reloj.ahora);
   assert.equal(prog(b, "evento", unica.id), undefined);
 });
+
+test("si la ejecución muere a medias, el resumen no se pierde: queda alquilado 10 min y se reintenta", async () => {
+  const b = await usuarioListo();
+  avanzar(b, "2026-10-04T05:10:00Z"); // 07:10
+  const original = b.canal.enviar.bind(b.canal);
+  b.canal.enviar = () => new Promise<void>(() => undefined); // «se cuelga»: es como si Cloudflare matara la ejecución aquí
+  void correr(b);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(local(prog(b, "seccion", "noticias")!.proximo), "2026-10-04 07:20"); // alquilado, no perdido hasta mañana
+  b.canal.enviar = original;
+  avanzar(b, "2026-10-04T05:19:00Z");
+  assert.deepEqual(await correr(b), { enviados: 0, omitidos: 0, fallidos: 0 }); // todavía alquilado: nadie lo duplica
+  avanzar(b, "2026-10-04T05:21:00Z");
+  const r = await correr(b);
+  assert.equal(r.enviados >= 1, true); assert.ok(b.canal.textos(U).some((t) => t.includes("Noticia")));
+  assert.equal(local(prog(b, "seccion", "noticias")!.proximo), "2026-10-05 07:10"); // y vuelve a su hora
+});
+
+test("si la ejecución muere a medias, la alarma tampoco se pierde", async () => {
+  const b = await usuarioListo(); await sinResumenes(b);
+  const e = await nuevaAlarma(b, "Pastilla", "hoy 9:00");
+  avanzar(b, "2026-10-04T07:00:30Z"); // 09:00:30
+  const original = b.canal.enviar.bind(b.canal);
+  b.canal.enviar = () => new Promise<void>(() => undefined);
+  void correr(b);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(prog(b, "evento", e.id), "el aviso sigue programado"); assert.equal(local(prog(b, "evento", e.id)!.proximo), "2026-10-04 09:10");
+  b.canal.enviar = original;
+  avanzar(b, "2026-10-04T07:11:00Z");
+  await correr(b);
+  assert.ok(b.canal.textos(U).some((t) => t.includes("Pastilla")));
+  assert.equal(prog(b, "evento", e.id), undefined); // enviado: se borra
+});

@@ -1,31 +1,65 @@
-import { XMLParser } from "fast-xml-parser";
 import { esc, escAttr } from "./canal";
 
 export interface Noticia { titulo: string; fuente: string; enlace: string; fecha: number }
 
-const parser = new XMLParser({ ignoreAttributes: true, textNodeName: "#text", processEntities: true });
+const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0" };
 
-const texto = (v: unknown): string => {
-  if (v === undefined || v === null) return "";
-  if (typeof v === "object") return texto((v as Record<string, unknown>)["#text"]);
-  return String(v).trim();
-};
+/** &amp; &lt; &#39; &#x27;… → carácter. Lo desconocido se deja tal cual. */
+function decodificar(s: string): string {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === "#") {
+      const n = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      try { return String.fromCodePoint(n); } catch { return m; }
+    }
+    return ENTIDADES[e.toLowerCase()] ?? m;
+  });
+}
 
-/** Lee un RSS 2.0 (Google News) y devuelve las noticias; los títulos "Titular - Medio" se separan. */
+/** Texto de la primera etiqueta `<nombre …>texto</nombre>` del bloque (admite CDATA); "" si no está. */
+function etiqueta(bloque: string, nombre: string): string {
+  let desde = 0;
+  for (;;) {
+    const ini = bloque.indexOf(`<${nombre}`, desde);
+    if (ini < 0) return "";
+    const c = bloque[ini + nombre.length + 1];
+    if (c !== ">" && c !== " " && c !== "/" && c !== "\n" && c !== "\t" && c !== "\r") { desde = ini + 1; continue; } // otra etiqueta que empieza igual
+    const finApertura = bloque.indexOf(">", ini);
+    if (finApertura < 0) return "";
+    if (bloque[finApertura - 1] === "/") return ""; // <nombre/>
+    const cierre = bloque.indexOf(`</${nombre}>`, finApertura);
+    if (cierre < 0) return "";
+    const crudo = bloque.slice(finApertura + 1, cierre).trim();
+    const cdata = /^<!\[CDATA\[([\s\S]*)\]\]>$/.exec(crudo);
+    return (cdata ? cdata[1] : decodificar(crudo)).trim();
+  }
+}
+
+/**
+ * Lee un RSS 2.0 (Google News) y devuelve las noticias; los títulos "Titular - Medio" se separan.
+ * No usa un analizador XML completo: recorre los `<item>` y extrae solo lo necesario. Un RSS de 100 noticias costaba ~10–50 ms de CPU
+ * con la librería; aquí es una fracción, lo que importa con el límite de 10 ms por ejecución de Cloudflare (plan gratuito).
+ */
 export function leerRss(xml: string): Noticia[] {
-  let doc: any;
-  try { doc = parser.parse(xml); } catch { return []; }
-  const items = doc?.rss?.channel?.item;
-  const lista: any[] = Array.isArray(items) ? items : items ? [items] : [];
-  return lista.flatMap((it) => {
-    let titulo = texto(it.title);
-    if (!titulo) return [];
-    let fuente = texto(it.source);
+  const noticias: Noticia[] = [];
+  let pos = 0;
+  for (;;) {
+    const ini = xml.indexOf("<item", pos);
+    if (ini < 0) break;
+    const c = xml[ini + 5];
+    if (c !== ">" && c !== " " && c !== "\n") { pos = ini + 5; continue; }
+    const fin = xml.indexOf("</item>", ini);
+    if (fin < 0) break;
+    pos = fin + 7;
+    const it = xml.slice(ini, fin);
+    let titulo = etiqueta(it, "title");
+    if (!titulo) continue;
+    let fuente = etiqueta(it, "source");
     const i = titulo.lastIndexOf(" - ");
     if (i > 0 && (!fuente || titulo.endsWith(` - ${fuente}`))) { if (!fuente) fuente = titulo.slice(i + 3); titulo = titulo.slice(0, i); }
-    const fecha = Date.parse(texto(it.pubDate));
-    return [{ titulo, fuente, enlace: texto(it.link), fecha: Number.isNaN(fecha) ? 0 : fecha }];
-  });
+    const fecha = Date.parse(etiqueta(it, "pubDate"));
+    noticias.push({ titulo, fuente, enlace: etiqueta(it, "link"), fecha: Number.isNaN(fecha) ? 0 : fecha });
+  }
+  return noticias;
 }
 
 export const urlGoogleNews = (consulta: string, idioma = "es", pais = "ES") =>

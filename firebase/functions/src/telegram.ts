@@ -7,7 +7,11 @@ export interface HttpPost {
 /** Error de la API de Telegram (p. ej. 403 si el usuario bloqueó el bot). */
 export class ErrorTelegram extends Error {
   constructor(mensaje: string, readonly codigo?: number) { super(mensaje); }
-  get bloqueado() { return this.codigo === 403; }
+  /**
+   * El usuario ha bloqueado el bot, ha borrado su cuenta o lo ha expulsado. Telegram lo dice en la descripción del 403
+   * («Forbidden: bot was blocked by the user», «user is deactivated»…); un 403 sin eso (un proxy, un cortafuegos) no cuenta.
+   */
+  get bloqueado() { return this.codigo === 403 && /blocked|deactivated|kicked|initiate|not a member|chat not found/i.test(this.message); }
 }
 
 function aMarkup(teclado?: Teclado) {

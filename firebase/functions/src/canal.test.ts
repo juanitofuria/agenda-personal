@@ -69,7 +69,7 @@ test("CanalTelegram.editar: si no hay cambios no hace nada; si no se puede edita
   const b = httpTelegram((url) => (url.endsWith("editMessageText") && n++ === 0 ? errTg(400, "message can't be edited") : { ok: true }));
   await new CanalTelegram("T", b.http).editar("1", 5, "x");
   assert.deepEqual(b.llamadas.map((l) => l.url.split("/").pop()), ["editMessageText", "sendMessage"]);
-  const c = httpTelegram(() => errTg(403, "Forbidden"));
+  const c = httpTelegram(() => errTg(403, "Forbidden: bot was blocked by the user"));
   await assert.rejects(new CanalTelegram("T", c.http).editar("1", 5, "x"), (e: ErrorTelegram) => e.bloqueado);
 });
 
@@ -134,4 +134,12 @@ test("conversores de Firestore: valores por defecto y claves seguras", () => {
   assert.equal(programacionDesdeDoc("p", { uid: "7", tipo: "seccion", ref: "tiempo", proximo: new Date(5) }).proximo.getTime(), 5);
   assert.ok(!/[\/]/.test(claveCache("mercados:2026-10-04/1")) && claveCache("a b/c").length > 0);
   assert.ok(claveCache("x".repeat(1000)).length <= 400);
+});
+
+test("un 403 solo cuenta como «usuario bloqueado» si Telegram lo dice; el de un proxy o cortafuegos no", () => {
+  for (const msg of ["Forbidden: bot was blocked by the user", "Forbidden: user is deactivated", "Forbidden: bot was kicked from the group chat", "Forbidden: bot can't initiate conversation with a user"]) assert.equal(new ErrorTelegram(msg, 403).bloqueado, true, msg);
+  assert.equal(new ErrorTelegram("Forbidden", 403).bloqueado, false); // un 403 genérico (proxy, cortafuegos) no es un bloqueo
+  assert.equal(new ErrorTelegram("Access denied by network policy", 403).bloqueado, false);
+  assert.equal(new ErrorTelegram("Bad Request: chat not found", 400).bloqueado, false);
+  assert.equal(new ErrorTelegram("Too Many Requests", 429).bloqueado, false);
 });

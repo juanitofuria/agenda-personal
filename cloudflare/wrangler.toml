@@ -3,13 +3,15 @@ main = "dist/worker.js"   # Worker ya empaquetado (se genera con `npm run empaqu
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]   # necesario para `node:crypto` y `Buffer` (comparación segura del secreto)
 
-# El código común de ../firebase/functions importa esta librería: se busca en las dependencias de esta carpeta.
-[alias]
-"fast-xml-parser" = "./node_modules/fast-xml-parser"
-
 [triggers]
 # Hora UTC. El primero es el planificador (cada minuto); el segundo descarga el horóscopo (ver CRON_HOROSCOPO en worker.ts).
 crons = ["* * * * *", "*/10 4-10 * * *"]
+
+# El Worker se llama a sí mismo para repartir el trabajo: cada sección y cada aviso se atiende en una ejecución propia
+# (el plan gratuito limita a 10 ms de CPU y 50 peticiones por ejecución).
+[[services]]
+binding = "SELF"
+service = "agenda-personal"
 
 [[d1_databases]]
 binding = "DB"

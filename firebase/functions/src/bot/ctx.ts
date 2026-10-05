@@ -3,7 +3,15 @@ import { Canal, Entrada, Teclado } from "../canal";
 import { Estado, Usuario } from "../modelo";
 import { HttpGet } from "../util";
 
-export interface Deps { almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date }
+export interface Deps {
+  almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date;
+  /**
+   * Opcional. Si la plataforma limita el trabajo por ejecución (Cloudflare gratuito: 10 ms de CPU y 50 peticiones), puede construir y enviar
+   * cada sección en una ejecución propia. Devuelve true si la delegó; false (o error) y el bot la construye él mismo.
+   * `editar`: id del mensaje a sustituir (navegación dentro de una sección).
+   */
+  delegarSeccion?: (p: { uid: string; ref: string; editar?: number }) => Promise<boolean>;
+}
 
 /** Contexto de una interacción: quién escribe, qué ha pulsado/escrito y cómo responderle. */
 export class Ctx {

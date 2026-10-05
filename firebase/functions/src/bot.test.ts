@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { idProgramacion } from "./almacen";
 import { Banco, crearBanco, geocodingFalso, previsionFalsa, rssFalso } from "./arnes";
-import { manejarEntrada } from "./bot/bot";
+import { enviarSeccionDirecta, manejarEntrada } from "./bot/bot";
 import { localAUtc, partesEnZona } from "./fechas";
 
 const MAD = "Europe/Madrid";
@@ -453,4 +453,45 @@ test("fechas del bot usan la zona del usuario", async () => {
   const u = (await b.almacen.getUsuario(U))!; u.zona = "America/New_York"; await b.almacen.guardarUsuario(u);
   await b.pulsar(U, "n:tipo:alarma"); await b.escribir(U, "x"); await b.escribir(U, "mañana 9:00"); await b.pulsar(U, "n:rep:ninguna");
   assert.equal((await evs(b))[0].fechaHora!.toISOString(), localAUtc(2026, 10, 5, 9, 0, "America/New_York").toISOString());
+});
+
+test("delegación: «Todo lo activado» pide cada sección a otra ejecución, en orden; si no se puede delegar, el bot la construye él", async () => {
+  const b = await usuarioListo();
+  b.http.añadir("news.google.com", rssFalso("Noticia", 5));
+  const pedidas: { ref: string; editar?: number }[] = [];
+  b.deps.delegarSeccion = async (p) => { pedidas.push({ ref: p.ref, editar: p.editar }); return true; };
+  b.canal.limpiar();
+  await b.pulsar(U, "sec:todo");
+  assert.deepEqual(pedidas.map((p) => p.ref), ["noticias", "agenda", "mercados"]); // en el orden de la lista
+  assert.equal(b.canal.mensajes.length, 1); // solo la tarjeta de resumen: el resto lo envían las otras ejecuciones
+  // una sección suelta y la navegación dentro de una sección (editar el mensaje)
+  pedidas.length = 0; b.canal.limpiar();
+  await b.pulsar(U, "sec:noticias"); await b.pulsar(U, "sev:tiempo");
+  assert.equal(pedidas[0].editar, undefined); assert.equal(pedidas[1].ref, "tiempo"); assert.ok(pedidas[1].editar);
+  // si la delegación falla o dice que no, se construye aquí mismo
+  b.canal.limpiar();
+  b.deps.delegarSeccion = async () => { throw new Error("sin conexión interna"); };
+  await b.pulsar(U, "sec:noticias");
+  assert.match(textoUltimo(b), /Noticias del día/);
+  b.deps.delegarSeccion = async () => false;
+  await b.pulsar(U, "sec:agenda");
+  assert.match(textoUltimo(b), /Tu agenda/);
+});
+
+test("enviarSeccionDirecta construye y envía (o edita el mensaje) sin volver a delegar; un fallo ofrece «Reintentar»", async () => {
+  const b = await usuarioListo();
+  b.http.añadir("news.google.com", rssFalso("Noticia", 5));
+  let delegaciones = 0;
+  const deps = { ...b.deps, delegarSeccion: async () => { delegaciones++; return true; } };
+  const u = (await b.almacen.getUsuario(U))!;
+  b.canal.limpiar();
+  await enviarSeccionDirecta(deps, u, "noticias");
+  assert.match(textoUltimo(b), /Noticias del día/); assert.equal(b.canal.mensajes[0].editado, undefined);
+  await enviarSeccionDirecta(deps, u, "agenda", 777);
+  assert.equal(b.canal.ultimo(U).editado, 777);
+  assert.equal(delegaciones, 0);
+  b.http.añadir("news.google.com", new Error("caído")); b.reloj.ahora = new Date(b.reloj.ahora.getTime() + 31 * 60_000);
+  await enviarSeccionDirecta(deps, u, "noticias");
+  assert.match(textoUltimo(b), /No he podido obtener/); assert.ok(hayBoton(b, "Reintentar"));
+  assert.ok(b.canal.botones(U).some((x) => x.datos === "sec:noticias"));
 });

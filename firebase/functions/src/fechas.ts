@@ -5,11 +5,22 @@
 
 export interface Partes { y: number; m: number; d: number; h: number; mi: number; dow: number /* 0=domingo */ }
 
+/** Crear un Intl.DateTimeFormat es lo más caro de estas funciones (y se llama muchas veces): se reutiliza uno por zona. */
+const FORMATOS = new Map<string, Intl.DateTimeFormat>();
+function formatoPartes(zona: string): Intl.DateTimeFormat {
+  let f = FORMATOS.get(zona);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone: zona, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", weekday: "short",
+    });
+    FORMATOS.set(zona, f);
+  }
+  return f;
+}
+
 /** Componentes de un instante en una zona horaria. */
 export function partesEnZona(fecha: Date, zona: string): Partes {
-  const f = new Intl.DateTimeFormat("en-US", {
-    timeZone: zona, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", weekday: "short",
-  }).formatToParts(fecha);
+  const f = formatoPartes(zona).formatToParts(fecha);
   const g = (t: string) => f.find((p) => p.type === t)!.value;
   const dow = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(g("weekday"));
   return { y: +g("year"), m: +g("month"), d: +g("day"), h: +g("hour"), mi: +g("minute"), dow };

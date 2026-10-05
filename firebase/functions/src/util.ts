@@ -6,7 +6,8 @@ const NF0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
 export const num1 = (v: number) => NF1.format(v);
 export const num0 = (v: number) => NF0.format(v);
 export const grados = (v: number) => `${Math.round(v)}º`;
-export const pct = (v: number) => `${v >= 0 ? "+" : "−"}${new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v))} %`;
+const NF2 = new Intl.NumberFormat("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const pct = (v: number) => `${v >= 0 ? "+" : "−"}${NF2.format(Math.abs(v))} %`;
 
 const BARRAS = "▁▂▃▄▅▆▇█";
 /** Gráfica de una línea con bloques: ▁▂▃▅▇█… (una barra por valor, escalada entre el mínimo y el máximo). */

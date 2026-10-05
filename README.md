@@ -138,8 +138,8 @@ Fuente: [límites de Workers](https://developers.cloudflare.com/workers/platform
 | Límite (gratuito) | Valor | Qué hace el código |
 |---|---|---|
 | Solicitudes | 100.000/día | El cron gasta 1.440 al día; sobra margen |
-| CPU por ejecución | 10 ms | Esperar a la red no cuenta; ver «Pendiente de medir» |
-| Subpeticiones | 50 por ejecución | `HttpFetch` cuenta (tope 45); el planificador procesa una programación cada vez mientras queden 22 de margen y el resto va en el minuto siguiente; el horóscopo pide 4 signos por ejecución |
+| CPU por ejecución | 10 ms | Esperar a la red no cuenta. Cada sección y cada aviso se atiende en **su propia ejecución** (el Worker se llama a sí mismo con un *service binding*); el lector de RSS es ligero (~1 ms frente a ~50 ms de una librería XML) y los formateadores de fechas se reutilizan |
+| Subpeticiones | 50 por ejecución | `HttpFetch` cuenta (tope 45). Como cada sección se hace en su propia ejecución, cada una tiene sus 50; el horóscopo pide 4 signos por ejecución |
 | Conexiones salientes simultáneas | 6 | `HttpFetch` limita a 5 a la vez |
 | Cron Triggers | 5 por cuenta | Se usan 2 |
 | D1 | 5 millones de lecturas y 100.000 escrituras al día, 5 GB | Uso personal: muy por debajo |
@@ -160,9 +160,10 @@ Para probar el Worker en local (workerd): `npx wrangler dev --test-scheduled`, c
 
 ## Límites y cosas a tener en cuenta
 
-* **Pendiente de medir en producción:** el CPU real (10 ms) de las secciones más pesadas (noticias con muchos temas, mercados) y
-  si las consultas a D1 cuentan como subpeticiones. En local no se puede medir. Si ocurre, `npx wrangler@4.147.0 tail` mostrará
-  «Worker exceeded CPU time limit»; la salida es reducir fuentes por sección o pasar al plan de pago.
+* **CPU en producción:** una sección en frío cuesta del orden de 2–7 ms de CPU en pruebas locales (mercados, la más pesada, ~10), así que
+  caben de una en una pero no todas juntas: por eso se reparten en ejecuciones propias. Lo real solo se ve en Cloudflare:
+  `npx wrangler@4.147.0 tail` mostrará «Worker exceeded CPU time limit» si alguna se pasa; la salida sería simplificar esa sección o pasar al plan de pago.
+* **Avisos que no se pierden:** si una ejecución muere a medias, el resumen o la alarma quedan «alquilados» 10 minutos y se reintentan solos.
 * **No comprobado en el entorno de desarrollo** (sin red hacia estos servicios): la API real de Telegram, las respuestas reales
   de Open-Meteo, Google News, Yahoo Finance y horoscopefree, y el despliegue en tu cuenta. Las pruebas usan dobles.
 * **Yahoo Finance** no es una API oficial y puede bloquear o limitar IPs de Cloudflare; si falla, la sección de mercados avisa y

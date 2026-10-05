@@ -11,6 +11,7 @@ Los datos se guardan en **D1** (SQLite de Cloudflare).
 | Lógica de webhook, planificador y horóscopo | `src/app.ts` |
 | Almacenamiento en D1 (implementa `Almacen`) | `src/almacenD1.ts` · esquema en `schema.sql` |
 | Cliente HTTP sobre `fetch` con presupuesto de peticiones | `src/http.ts` |
+| Reparto del trabajo: `/interno/seccion` y `/interno/programacion` (solo con el secreto), vía el binding `SELF` | `src/app.ts` |
 
 ## Puesta en marcha y despliegue
 

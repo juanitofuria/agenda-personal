@@ -10,7 +10,7 @@ import { manejarEntrada } from "../../firebase/functions/src/bot/bot";
 import { Deps } from "../../firebase/functions/src/bot/ctx";
 import { idProgramacion } from "../../firebase/functions/src/almacen";
 import { tick } from "../../firebase/functions/src/scheduler";
-import { Env, manejarFetch, manejarHoroscopo, manejarTick } from "./app";
+import { Env, Fabrica, manejarFetch, manejarHoroscopo, manejarTick } from "./app";
 
 // El esquema se lee del fichero real (desde lib/cloudflare/src hasta cloudflare/).
 const ESQUEMA = readFileSync(join(__dirname, "..", "..", "..", "schema.sql"), "utf8");
@@ -138,6 +138,94 @@ test("dist/worker.js existe, está empaquetado (sin imports sueltos de librería
   const f = join(__dirname, "..", "..", "..", "dist", "worker.js");
   const js = readFileSync(f, "utf8");
   assert.match(js, /export\s*\{[^}]*as default/); // handlers fetch y scheduled
-  assert.doesNotMatch(js, /from\s+["']fast-xml-parser["']/); // la librería va dentro
+  assert.doesNotMatch(js, /from\s+["'](?!node:)[^"']+["']/); // no importa nada de fuera (solo módulos node:): todo va dentro
   assert.match(js, /\/telegram/); assert.match(js, /\*\/10 4-10 \* \* \*/); // ruta del webhook y cron del horóscopo
+});
+
+// ---------- Reparto del trabajo en ejecuciones propias (SELF) ----------
+const SECRETO = "secreto-largo-1234567890";
+function entorno() {
+  const { d1 } = nuevo();
+  const canal = new CanalFalso(), http = new HttpFalso();
+  http.añadir("news.google.com", rssFalso("Noticia", 5));
+  const fabrica: Fabrica = () => ({ canal, http });
+  const llamadas: { ruta: string; cuerpo: any }[] = [];
+  const env: Env = {
+    DB: d1, TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_WEBHOOK_SECRET: SECRETO,
+    SELF: { fetch: async (req: Request) => { llamadas.push({ ruta: new URL(req.url).pathname, cuerpo: await req.clone().json() }); return manejarFetch(req, env, undefined, fabrica); } },
+  };
+  const pendientes: Promise<unknown>[] = [];
+  const ctx = { waitUntil: (p: Promise<unknown>) => { pendientes.push(p); } };
+  let upd = 0;
+  const enviar = (u: any) => manejarFetch(new Request("https://x.workers.dev/telegram", { method: "POST", headers: { "x-telegram-bot-api-secret-token": SECRETO }, body: JSON.stringify({ update_id: ++upd, ...u }) }), env, ctx, fabrica);
+  const escribir = (texto: string) => enviar({ message: { chat: { id: 42, type: "private" }, from: { first_name: "Ana" }, text: texto } });
+  const pulsar = (data: string) => enviar({ callback_query: { id: "cb", data, from: { first_name: "Ana" }, message: { message_id: 9, chat: { id: 42, type: "private" } } } });
+  const esperar = async () => { while (pendientes.length) await pendientes.shift(); };
+  return { env, canal, http, fabrica, llamadas, escribir, pulsar, esperar, ctx };
+}
+
+test("el webhook responde 200 al instante y «Todo lo activado» reparte cada sección en una ejecución propia, en orden", async () => {
+  const e = entorno();
+  const r0 = await e.escribir("/start"); assert.equal(r0.status, 200); await e.esperar();
+  await e.pulsar("o:omitir"); await e.esperar(); // por defecto: noticias, agenda y mercados
+  e.canal.limpiar(); e.llamadas.length = 0;
+  const r = await e.pulsar("sec:todo");
+  assert.equal(r.status, 200); assert.equal(await r.text(), "ok"); // respuesta inmediata; el resto sigue en segundo plano
+  await e.esperar();
+  assert.deepEqual(e.llamadas.map((l) => `${l.ruta}:${l.cuerpo.ref}`), ["/interno/seccion:noticias", "/interno/seccion:agenda", "/interno/seccion:mercados"]);
+  const t = e.canal.textos("42");
+  assert.match(t[0], /Tu resumen de hoy/); assert.match(t[1], /Noticias del día/); assert.match(t[2], /Tu agenda/); assert.match(t[3], /No he podido obtener/); // mercados: Yahoo no definido en el test
+  assert.equal(e.canal.violaciones.length, 0);
+});
+
+test("una sección suelta y la navegación dentro de ella (editar el mensaje) también van a su propia ejecución", async () => {
+  const e = entorno();
+  await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
+  e.canal.limpiar(); e.llamadas.length = 0;
+  await e.pulsar("sec:agenda"); await e.esperar();
+  await e.pulsar("sev:agenda"); await e.esperar();
+  assert.equal(e.llamadas.length, 2); assert.equal(e.llamadas[0].cuerpo.editar, undefined); assert.equal(e.llamadas[1].cuerpo.editar, 9);
+  assert.equal(e.canal.mensajes[0].editado, undefined); assert.equal(e.canal.mensajes[1].editado, 9);
+});
+
+test("las rutas internas exigen el secreto: sin él (o por GET) no hacen nada", async () => {
+  const e = entorno();
+  const llamar = (ruta: string, cab: Record<string, string>, metodo = "POST") => manejarFetch(new Request(`https://x.workers.dev${ruta}`, { method: metodo, headers: cab, body: metodo === "POST" ? JSON.stringify({ uid: "42", ref: "agenda" }) : undefined }), e.env, undefined, e.fabrica);
+  assert.equal((await llamar("/interno/seccion", {})).status, 403);
+  assert.equal((await llamar("/interno/seccion", { "x-interno": "otro" })).status, 403);
+  assert.equal((await llamar("/interno/programacion", { "x-interno": "otro" })).status, 403);
+  assert.equal((await llamar("/interno/seccion", { "x-interno": SECRETO }, "GET")).status, 403);
+  assert.equal((await llamar("/interno/otra", { "x-interno": SECRETO })).status, 404);
+  assert.equal(e.canal.mensajes.length, 0);
+  // un usuario que no existe se ignora sin error
+  assert.equal((await llamar("/interno/seccion", { "x-interno": SECRETO })).status, 200); assert.equal(e.canal.mensajes.length, 0);
+});
+
+test("el cron reparte cada programación vencida en su propia ejecución y se rearman; sin SELF las procesa una a una", async () => {
+  for (const conSelf of [true, false]) {
+    const e = entorno();
+    if (!conSelf) delete e.env.SELF;
+    await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
+    e.canal.limpiar(); e.llamadas.length = 0;
+    const almacen = new AlmacenD1(e.env.DB);
+    const primera = (await almacen.programacionesVencidas(new Date(8.64e15), 1))[0];
+    const ahora = new Date(primera.proximo.getTime() + 60_000); // un minuto después de que toque la primera
+    const r = await manejarTick(e.env, () => ahora, e.fabrica);
+    assert.equal(r.enviados >= 1 && r.fallidos === 0, true, `${conSelf}: ${JSON.stringify(r)}`);
+    assert.equal(e.llamadas.filter((l) => l.ruta === "/interno/programacion").length > 0, conSelf);
+    assert.ok(e.canal.mensajes.length >= 1, "se envió el resumen");
+    const quedan = await almacen.programacionesVencidas(ahora, 50);
+    assert.equal(quedan.length, 0, `${conSelf}: quedan ${JSON.stringify(quedan)} (ahora ${ahora.toISOString()}; r=${JSON.stringify(r)})`);
+    assert.deepEqual(await manejarTick(e.env, () => ahora, e.fabrica), { enviados: 0, omitidos: 0, fallidos: 0 }); // y no se repite
+  }
+});
+
+test("si falla la llamada interna, el cron lo cuenta y la programación sigue vencida para el minuto siguiente", async () => {
+  const e = entorno();
+  await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
+  e.env.SELF = { fetch: async () => { throw new Error("sin conexión interna"); } };
+  const manana = new Date(Date.now() + 36 * 3_600_000);
+  const r = await manejarTick(e.env, () => manana, e.fabrica);
+  assert.ok(r.fallidos >= 1 && r.enviados === 0);
+  assert.ok((await new AlmacenD1(e.env.DB).programacionesVencidas(manana, 50)).length >= 1);
 });
