@@ -29,10 +29,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: cloudflare/package-lock.json
+          cache-dependency-path: |
+            cloudflare/package-lock.json
+            firebase/functions/package-lock.json
       - run: npm ci
-      - name: Tests
+      - name: Tests del Worker
         run: npm test
+      - name: Tests de la lógica común (bot, secciones, planificador)
+        working-directory: firebase/functions
+        run: |
+          npm ci
+          npm test
       - name: Empaquetar el Worker desde el código
         run: npm run empaquetar
       - name: Comprobar credenciales de Cloudflare
