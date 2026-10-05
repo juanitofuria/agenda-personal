@@ -164,7 +164,7 @@ function entorno() {
   return { env, canal, http, fabrica, llamadas, escribir, pulsar, esperar, ctx };
 }
 
-test("el webhook responde 200 al instante y «Todo lo activado» reparte cada sección en una ejecución propia, en orden", async () => {
+test("el webhook responde 200 al instante y «Todo lo activado» construye cada sección en una ejecución propia y las envía en orden", async () => {
   const e = entorno();
   const r0 = await e.escribir("/start"); assert.equal(r0.status, 200); await e.esperar();
   await e.pulsar("o:omitir"); await e.esperar(); // por defecto: noticias, agenda y mercados
@@ -172,20 +172,44 @@ test("el webhook responde 200 al instante y «Todo lo activado» reparte cada se
   const r = await e.pulsar("sec:todo");
   assert.equal(r.status, 200); assert.equal(await r.text(), "ok"); // respuesta inmediata; el resto sigue en segundo plano
   await e.esperar();
-  assert.deepEqual(e.llamadas.map((l) => `${l.ruta}:${l.cuerpo.ref}`), ["/interno/seccion:noticias", "/interno/seccion:agenda", "/interno/seccion:mercados"]);
+  assert.deepEqual(e.llamadas.map((l) => `${l.ruta}:${l.cuerpo.ref}`).sort(), ["/interno/seccion:agenda", "/interno/seccion:mercados", "/interno/seccion:noticias"]);
   const t = e.canal.textos("42");
   assert.match(t[0], /Tu resumen de hoy/); assert.match(t[1], /Noticias del día/); assert.match(t[2], /Tu agenda/); assert.match(t[3], /No he podido obtener/); // mercados: Yahoo no definido en el test
   assert.equal(e.canal.violaciones.length, 0);
 });
 
-test("una sección suelta y la navegación dentro de ella (editar el mensaje) también van a su propia ejecución", async () => {
+test("una sección suelta y la navegación dentro de ella (editar el mensaje) también se construyen en su propia ejecución", async () => {
   const e = entorno();
   await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
   e.canal.limpiar(); e.llamadas.length = 0;
   await e.pulsar("sec:agenda"); await e.esperar();
   await e.pulsar("sev:agenda"); await e.esperar();
-  assert.equal(e.llamadas.length, 2); assert.equal(e.llamadas[0].cuerpo.editar, undefined); assert.equal(e.llamadas[1].cuerpo.editar, 9);
+  assert.equal(e.llamadas.length, 2);
   assert.equal(e.canal.mensajes[0].editado, undefined); assert.equal(e.canal.mensajes[1].editado, 9);
+});
+
+test("si la ejecución interna falla o se cuelga, la sección avisa con el motivo y el resto sigue", async () => {
+  const e = entorno();
+  await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
+  const buena = e.env.SELF!;
+  e.env.SELF = { fetch: async (req: Request) => { const c = await req.clone().json() as any; if (c.ref === "agenda") throw new Error("sin conexión interna"); return buena.fetch(req); } };
+  e.canal.limpiar();
+  await e.pulsar("sec:todo"); await e.esperar();
+  const t = e.canal.textos("42");
+  assert.match(t[1], /Noticias del día/); assert.match(t[2], /No he podido obtener[\s\S]*no se pudo contactar/);
+  assert.ok(e.canal.mensajes[2].teclado!.flat().some((x) => x.datos === "sec:agenda"));
+});
+
+test("el horóscopo se trae al momento con la URL configurada del Worker", async () => {
+  const e = entorno();
+  await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
+  await e.escribir("/perfil"); await e.esperar();
+  const almacen = new AlmacenD1(e.env.DB); const u = (await almacen.getUsuario("42"))!; u.nacimiento = "1990-04-05"; await almacen.guardarUsuario(u);
+  e.http.añadir("horoscopefree.fly.dev", { sign: "aries", date: "2026-10-05", language: "es", text: "Hoy toca empezar algo.", source: "https://www.20minutos.es/horoscopo/aries/" });
+  e.canal.limpiar();
+  await e.pulsar("sec:horoscopo"); await e.esperar();
+  assert.match(e.canal.textos("42").join("\n"), /Hoy toca empezar algo/);
+  assert.ok((await almacen.getHoroscopo("aries"))?.prediccion.includes("empezar"));
 });
 
 test("las rutas internas exigen el secreto: sin él (o por GET) no hacen nada", async () => {

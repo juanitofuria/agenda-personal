@@ -86,6 +86,8 @@ export class AlmacenFirestore implements Almacen {
     return s.exists ? (s.data() as HoroscopoDoc) : null;
   }
 
+  async guardarHoroscopo(signoId: string, doc: HoroscopoDoc) { await this.db.collection("horoscopos").doc(signoId).set(doc); }
+
   async cacheGet(clave: string, ahora: Date) {
     const s = await this.db.collection("cache").doc(claveCache(clave)).get();
     const d = s.data();

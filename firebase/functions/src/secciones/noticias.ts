@@ -6,7 +6,7 @@ import { Contenido, Contexto, NAV_MENU } from "./tipos";
 /** Pide un RSS de Google News y devuelve las noticias más recientes (cacheado 30 min para todos los usuarios). */
 export async function noticiasDe(ctx: Contexto, consulta: string): Promise<Noticia[]> {
   return cacheado(ctx.almacen, `rss:${consulta}`, 30 * 60_000, ctx.ahora, async () => {
-    const r = await conReintentos(() => ctx.http.get(urlGoogleNews(consulta), { timeout: 20000 }));
+    const r = await conReintentos(() => ctx.http.get(urlGoogleNews(consulta), { timeout: 8000 }), 2, 400);
     return leerRss(String(r.data)).sort((a, b) => b.fecha - a.fecha).slice(0, 12);
   });
 }

@@ -21,6 +21,7 @@ export interface Almacen {
   reclamarProgramacion(id: string, esperado: Date, nuevo: Date): Promise<boolean>;
 
   getHoroscopo(signoId: string): Promise<HoroscopoDoc | null>;
+  guardarHoroscopo(signoId: string, doc: HoroscopoDoc): Promise<void>;
 
   cacheGet(clave: string, ahora: Date): Promise<string | null>;
   cacheSet(clave: string, valor: string, ttlMs: number, ahora: Date): Promise<void>;
@@ -70,6 +71,7 @@ export class AlmacenMemoria implements Almacen {
     return true;
   }
   async getHoroscopo(signoId: string) { return this.horoscopos.get(signoId) ?? null; }
+  async guardarHoroscopo(signoId: string, doc: HoroscopoDoc) { this.horoscopos.set(signoId, structuredClone(doc)); }
   async cacheGet(clave: string, ahora: Date) {
     const c = this.cache.get(clave);
     return c && c.expira > ahora.getTime() ? c.valor : null;

@@ -1119,6 +1119,53 @@ var HttpFetch = class {
   }
 };
 
+// ../firebase/functions/src/canal.ts
+var esc = /* @__PURE__ */ __name((s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), "esc");
+var escAttr = /* @__PURE__ */ __name((s) => esc(s).replace(/"/g, "&quot;"), "escAttr");
+function trocear(html, max = 3800) {
+  if (html.length <= max) return [html];
+  const partes = [];
+  let actual = "";
+  const empujar = /* @__PURE__ */ __name(() => {
+    if (actual.trim()) partes.push(actual.trimEnd());
+    actual = "";
+  }, "empujar");
+  for (const bloque2 of html.split(/\n\n/)) {
+    const candidato = actual ? `${actual}
+
+${bloque2}` : bloque2;
+    if (candidato.length <= max) {
+      actual = candidato;
+      continue;
+    }
+    empujar();
+    if (bloque2.length <= max) {
+      actual = bloque2;
+      continue;
+    }
+    for (const linea of bloque2.split("\n")) {
+      const c = actual ? `${actual}
+${linea}` : linea;
+      if (c.length <= max) {
+        actual = c;
+        continue;
+      }
+      empujar();
+      let resto = linea;
+      while (resto.length > max) {
+        const corte = resto.lastIndexOf(" ", max);
+        const n = corte > max / 2 ? corte : max;
+        partes.push(resto.slice(0, n).trimEnd());
+        resto = resto.slice(n).trimStart();
+      }
+      actual = resto;
+    }
+  }
+  empujar();
+  return partes;
+}
+__name(trocear, "trocear");
+
 // ../firebase/functions/src/modelo.ts
 var SECCIONES = {
   tiempo: { emoji: "\u{1F324}", titulo: "Tiempo", horaDefecto: "07:00", descripcion: "Previsi\xF3n por horas, lluvia, sol, viento, UV y luna" },
@@ -1400,53 +1447,6 @@ async function cancelarEvento(almacen, uid, eventoId) {
 }
 __name(cancelarEvento, "cancelarEvento");
 
-// ../firebase/functions/src/canal.ts
-var esc = /* @__PURE__ */ __name((s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), "esc");
-var escAttr = /* @__PURE__ */ __name((s) => esc(s).replace(/"/g, "&quot;"), "escAttr");
-function trocear(html, max = 3800) {
-  if (html.length <= max) return [html];
-  const partes = [];
-  let actual = "";
-  const empujar = /* @__PURE__ */ __name(() => {
-    if (actual.trim()) partes.push(actual.trimEnd());
-    actual = "";
-  }, "empujar");
-  for (const bloque2 of html.split(/\n\n/)) {
-    const candidato = actual ? `${actual}
-
-${bloque2}` : bloque2;
-    if (candidato.length <= max) {
-      actual = candidato;
-      continue;
-    }
-    empujar();
-    if (bloque2.length <= max) {
-      actual = bloque2;
-      continue;
-    }
-    for (const linea of bloque2.split("\n")) {
-      const c = actual ? `${actual}
-${linea}` : linea;
-      if (c.length <= max) {
-        actual = c;
-        continue;
-      }
-      empujar();
-      let resto = linea;
-      while (resto.length > max) {
-        const corte = resto.lastIndexOf(" ", max);
-        const n = corte > max / 2 ? corte : max;
-        partes.push(resto.slice(0, n).trimEnd());
-        resto = resto.slice(n).trimStart();
-      }
-      actual = resto;
-    }
-  }
-  empujar();
-  return partes;
-}
-__name(trocear, "trocear");
-
 // ../firebase/functions/src/util.ts
 var NF1 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
 var NF0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
@@ -1482,6 +1482,14 @@ async function cacheado(almacen, clave, ttlMs, ahora, fn) {
   return valor;
 }
 __name(cacheado, "cacheado");
+function conPlazo(p, ms, mensaje = "tard\xF3 demasiado en responder") {
+  let t;
+  const plazo = new Promise((_, rechazar) => {
+    t = setTimeout(() => rechazar(new Error(mensaje)), ms);
+  });
+  return Promise.race([p, plazo]).finally(() => clearTimeout(t));
+}
+__name(conPlazo, "conPlazo");
 async function conReintentos(fn, intentos = 3, esperaMs = 1e3) {
   let ultimo;
   for (let i = 0; i < intentos; i++) {
@@ -1700,7 +1708,19 @@ async function contenidoHoroscopo(ctx) {
     return { html: "\u{1F52E} <b>Hor\xF3scopo</b>\nPara darte tu hor\xF3scopo necesito tu fecha de nacimiento.", teclado: [[{ texto: "\u{1F382} Indicar mi fecha de nacimiento", datos: "p:nacimiento" }], NAV_MENU] };
   }
   const signo = signoDe(nac);
-  const doc = await ctx.almacen.getHoroscopo(signo.id);
+  let doc = await ctx.almacen.getHoroscopo(signo.id);
+  const hoyFecha = fechaIso(ctx.ahora, ctx.usuario.zona);
+  if ((!doc || doc.fecha !== hoyFecha) && ctx.horoscopoCfg) {
+    try {
+      const resp = await obtenerSigno(ctx.http, ctx.horoscopoCfg, signo, hoyFecha, 2, 300);
+      const nuevo = construirDoc(signo, hoyFecha, resp, ctx.horoscopoCfg, ctx.ahora);
+      if (nuevo && (!doc || nuevo.fecha >= doc.fecha)) {
+        doc = nuevo;
+        await ctx.almacen.guardarHoroscopo(signo.id, nuevo).catch(() => void 0);
+      }
+    } catch {
+    }
+  }
   if (!doc || !doc.prediccion?.trim()) {
     return { html: `\u{1F52E} <b>Hor\xF3scopo \xB7 ${signo.simbolo} ${signo.nombre}</b>
 Todav\xEDa no hay hor\xF3scopo publicado para hoy. Lo intentar\xE9 de nuevo m\xE1s tarde.`, teclado: [[{ texto: "\u{1F504} Reintentar", datos: "sev:horoscopo" }], NAV_MENU] };
@@ -1806,7 +1826,7 @@ __name(lineaNoticia, "lineaNoticia");
 // ../firebase/functions/src/secciones/noticias.ts
 async function noticiasDe(ctx, consulta) {
   return cacheado(ctx.almacen, `rss:${consulta}`, 30 * 6e4, ctx.ahora, async () => {
-    const r = await conReintentos(() => ctx.http.get(urlGoogleNews(consulta), { timeout: 2e4 }));
+    const r = await conReintentos(() => ctx.http.get(urlGoogleNews(consulta), { timeout: 8e3 }), 2, 400);
     return leerRss(String(r.data)).sort((a, b) => b.fecha - a.fecha).slice(0, 12);
   });
 }
@@ -1862,6 +1882,7 @@ async function contenidoTema(ctx, temaId) {
 __name(contenidoTema, "contenidoTema");
 
 // ../firebase/functions/src/secciones/mercados.ts
+var PLAZO_COTIZACIONES_MS = 9e3;
 var FUTUROS = [
   ["S&P 500 fut.", "ES=F"],
   ["Nasdaq 100 fut.", "NQ=F"],
@@ -1921,7 +1942,7 @@ function lineaCotizacion(nombre, c) {
 __name(lineaCotizacion, "lineaCotizacion");
 async function pedir(ctx, simbolo) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(simbolo)}?range=10d&interval=1d`;
-  const r = await conReintentos(() => ctx.http.get(url, { timeout: 15e3, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } }), 2, 800);
+  const r = await conReintentos(() => ctx.http.get(url, { timeout: 6e3, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } }), 2, 300);
   return parsearGrafico(r.data);
 }
 __name(pedir, "pedir");
@@ -1930,12 +1951,12 @@ async function contenidoMercados(ctx) {
   const clave = `mercados:${hoy}:${Math.floor(ctx.ahora.getTime() / (20 * 6e4))}`;
   const bloque2 = await cacheado(ctx.almacen, clave, 20 * 6e4, ctx.ahora, async () => {
     const [fut, ind] = await Promise.all([
-      Promise.allSettled(FUTUROS.map(async ([n, s]) => lineaCotizacion(n, cotizacionActual(await pedir(ctx, s))))),
-      Promise.allSettled(INDICES.map(async ([n, s]) => {
+      Promise.allSettled(FUTUROS.map(([n, s]) => conPlazo((async () => lineaCotizacion(n, cotizacionActual(await pedir(ctx, s))))(), PLAZO_COTIZACIONES_MS))),
+      Promise.allSettled(INDICES.map(([n, s]) => conPlazo((async () => {
         const q = ultimaSesion(await pedir(ctx, s), hoy);
         if (!q) throw new Error("sin sesi\xF3n");
         return lineaCotizacion(n, q);
-      }))
+      })(), PLAZO_COTIZACIONES_MS)))
     ]);
     const ok = /* @__PURE__ */ __name((r) => r.flatMap((x) => x.status === "fulfilled" ? [x.value] : []), "ok");
     return { fut: ok(fut), ind: ok(ind) };
@@ -2702,6 +2723,49 @@ async function texto(c) {
 }
 __name(texto, "texto");
 
+// ../firebase/functions/src/bot/diagnostico.ts
+async function probar(nombre, f) {
+  const t0 = Date.now();
+  try {
+    const extra = await conPlazo(f(), 1e4, "sin respuesta en 10 s");
+    return { nombre, ok: true, detalle: extra ?? "", ms: Date.now() - t0 };
+  } catch (e) {
+    const status = e.response?.status;
+    return { nombre, ok: false, detalle: status ? `HTTP ${status}` : String(e.message ?? e).slice(0, 70), ms: Date.now() - t0 };
+  }
+}
+__name(probar, "probar");
+var seg = /* @__PURE__ */ __name((ms) => `${(ms / 1e3).toFixed(1).replace(".", ",")} s`, "seg");
+async function diagnostico(c) {
+  const http = c.deps.http, cfg = c.deps.horoscopoCfg;
+  const hoy = fechaIso(c.ahora, c.u.zona);
+  const resultados = await Promise.all([
+    probar("Open-Meteo (tiempo)", async () => {
+      await http.get("https://api.open-meteo.com/v1/forecast?latitude=38&longitude=-4&current=temperature_2m", { timeout: 8e3 });
+    }),
+    probar("Google News (noticias)", async () => `${leerRss(String((await http.get(urlGoogleNews("econom\xEDa Espa\xF1a when:1d"), { timeout: 8e3 })).data)).length} noticias`),
+    probar("Yahoo Finance (mercados)", async () => {
+      await http.get("https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=5d&interval=1d", { timeout: 8e3, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } });
+    }),
+    cfg ? probar("horoscopefree (hor\xF3scopo)", async () => {
+      await http.get(urlHoroscopo(cfg, SIGNOS[0], hoy), { timeout: 8e3 });
+    }) : Promise.resolve({ nombre: "horoscopefree (hor\xF3scopo)", ok: false, detalle: "sin configurar", ms: 0 })
+  ]);
+  const guardados = (await Promise.all(SIGNOS.map((s) => c.almacen.getHoroscopo(s.id).catch(() => null)))).filter((d) => d?.fecha === hoy).length;
+  const lineas = resultados.map((r) => `${r.ok ? "\u2705" : "\u274C"} <b>${esc(r.nombre)}</b>
+     ${r.ok ? `responde en ${seg(r.ms)}${r.detalle ? ` \xB7 ${esc(r.detalle)}` : ""}` : `${esc(r.detalle)} \xB7 ${seg(r.ms)}`}`);
+  await c.nuevo([
+    cabecera("\u{1F6E0}", "Diagn\xF3stico", "Conexi\xF3n del servidor con cada fuente"),
+    "",
+    ...lineas.flatMap((l) => [l, ""]),
+    `\u{1F52E} <b>Hor\xF3scopos guardados hoy</b>
+     ${guardados} de ${SIGNOS.length}`,
+    "",
+    "<i>Si alguna fuente falla desde aqu\xED, esa secci\xF3n fallar\xE1 en tu bot.</i>"
+  ].join("\n"), [[BTN_MENU]]);
+}
+__name(diagnostico, "diagnostico");
+
 // ../firebase/functions/src/bot/eventos.ts
 var NOMBRE_TIPO = { alarma: "Alarma", cita: "Cita", tarea: "Tarea" };
 var REP_TEXTO = { ninguna: "solo una vez", diaria: "cada d\xEDa", semanal: "cada semana", laborables: "de lunes a viernes" };
@@ -3243,35 +3307,21 @@ async function menu(c) {
 }
 __name(menu, "menu");
 async function mostrarSeccion(c, ref2, editar = false) {
-  if (await delegar(c, ref2, editar)) return;
   await entregarSeccion(c, ref2, construirSeccion(c, ref2), editar);
 }
 __name(mostrarSeccion, "mostrarSeccion");
-async function delegar(c, ref2, editar) {
-  if (!c.deps.delegarSeccion) return false;
-  try {
-    return await c.deps.delegarSeccion({ uid: c.u.id, ref: ref2, editar: editar ? c.entrada.callback?.mensajeId : void 0 });
-  } catch {
-    return false;
-  }
-}
-__name(delegar, "delegar");
-async function enviarSeccionDirecta(deps, u, ref2, editar) {
-  const entrada = { chatId: u.id, nombre: u.nombre, updateId: 0, ...editar ? { callback: { id: "0", datos: "", mensajeId: editar } } : {} };
-  const c = new Ctx({ ...deps, delegarSeccion: void 0 }, u, entrada);
-  await entregarSeccion(c, ref2, construirSeccion(c, ref2), !!editar);
-}
-__name(enviarSeccionDirecta, "enviarSeccionDirecta");
-var construirSeccion = /* @__PURE__ */ __name((c, ref2) => construirContenido(ref2, { usuario: c.u, http: c.deps.http, almacen: c.almacen, ahora: c.ahora }), "construirSeccion");
+var contenidoDeSeccion = /* @__PURE__ */ __name((deps, u, ref2) => construirContenido(ref2, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg }), "contenidoDeSeccion");
+var construirSeccion = /* @__PURE__ */ __name((c, ref2) => c.deps.construirRemoto ? c.deps.construirRemoto({ uid: c.u.id, ref: ref2 }) : contenidoDeSeccion(c.deps, c.u, ref2), "construirSeccion");
 async function entregarSeccion(c, ref2, pendiente, editar = false) {
   try {
     const cont = await pendiente;
     if (editar) await c.responder(cont.html, cont.teclado);
     else await c.nuevo(cont.html, cont.teclado);
   } catch (e) {
+    const motivo = esc(String(e.message ?? e).slice(0, 90));
     console.error(`secci\xF3n ${ref2}:`, e.message);
     await c.nuevo(`\u26A0\uFE0F No he podido obtener esa informaci\xF3n ahora mismo.
-<i>Pulsa \xABReintentar\xBB o int\xE9ntalo en unos minutos.</i>`, [[{ texto: "\u{1F504} Reintentar", datos: `sec:${ref2}` }, BTN_MENU]]);
+<i>${motivo}</i>`, [[{ texto: "\u{1F504} Reintentar", datos: `sec:${ref2}` }, BTN_MENU]]);
   }
 }
 __name(entregarSeccion, "entregarSeccion");
@@ -3288,10 +3338,6 @@ async function todo(c) {
   }
   const fecha = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: c.u.zona }).format(c.ahora);
   await c.nuevo([cabecera("\u{1F4CB}", "Tu resumen de hoy", fecha.replace(/^./, (x) => x.toUpperCase())), "", ...activas.map((s) => `${s.emoji} ${s.titulo}`), "", "<i>Te lo env\xEDo ahora, uno por uno \u{1F447}</i>"].join("\n"));
-  if (c.deps.delegarSeccion) {
-    for (const s of activas) await mostrarSeccion(c, s.ref);
-    return;
-  }
   const pendientes = activas.map((s) => {
     const p = construirSeccion(c, s.ref);
     p.catch(() => void 0);
@@ -3353,6 +3399,10 @@ async function comando(c, texto4) {
     case "/borrar":
       await callback(c, ["p", "borrar"]);
       return true;
+    case "/diagnostico":
+      await diagnostico(c);
+      return true;
+    // no sale en el menú: es para encontrar fallos
     default:
       return false;
   }
@@ -3722,6 +3772,7 @@ var fabricaReal = /* @__PURE__ */ __name((env2) => {
 }, "fabricaReal");
 var ZONA = "Europe/Madrid";
 var CRON_HOROSCOPO = "*/10 4-10 * * *";
+var PLAZO_SECCION_MS = 15e3;
 var MAX_PROGRAMACIONES = 20;
 var SIMULTANEAS = 5;
 var MARGEN_PETICIONES = 22;
@@ -3741,13 +3792,20 @@ async function llamarInterno(env2, ruta, cuerpo) {
   }
 }
 __name(llamarInterno, "llamarInterno");
-function dependencias(env2, s, delegar2) {
+var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es" }), "horoscopoCfg");
+function dependencias(env2, s, remoto) {
   return {
     almacen: new AlmacenD1(env2.DB),
     canal: s.canal,
     http: s.http,
     ahora: /* @__PURE__ */ __name(() => /* @__PURE__ */ new Date(), "ahora"),
-    delegarSeccion: delegar2 && env2.SELF ? async (p) => await llamarInterno(env2, RUTA_SECCION, p) !== null : void 0
+    horoscopoCfg: horoscopoCfg(env2),
+    construirRemoto: remoto && env2.SELF ? async (p) => {
+      const r = await llamarInterno(env2, RUTA_SECCION, p);
+      if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");
+      if (r.error || !r.html) throw new Error(r.error ?? "respuesta vac\xEDa");
+      return { html: r.html, teclado: r.teclado };
+    } : void 0
   };
 }
 __name(dependencias, "dependencias");
@@ -3761,8 +3819,14 @@ async function manejarInterno(req, env2, ruta, fabrica) {
   const dep = dependencias(env2, s, false);
   if (ruta === RUTA_SECCION) {
     const u = await dep.almacen.getUsuario(String(cuerpo.uid));
-    if (u && u.activo) await enviarSeccionDirecta(dep, u, String(cuerpo.ref), typeof cuerpo.editar === "number" ? cuerpo.editar : void 0);
-    return Response.json({ ok: true });
+    if (!u) return Response.json({ error: "usuario no encontrado" });
+    try {
+      const c = await conPlazo(contenidoDeSeccion(dep, u, String(cuerpo.ref)), PLAZO_SECCION_MS, "la secci\xF3n tard\xF3 demasiado");
+      return Response.json({ html: c.html, teclado: c.teclado });
+    } catch (e) {
+      console.warn(`secci\xF3n ${cuerpo.ref}: ${e.message}`);
+      return Response.json({ error: String(e.message ?? e).slice(0, 120) });
+    }
   }
   if (ruta === RUTA_PROGRAMACION) {
     const instante = typeof cuerpo.ahora === "number" ? cuerpo.ahora : Date.now();
@@ -3825,7 +3889,7 @@ async function manejarHoroscopo(env2, ahora = /* @__PURE__ */ new Date()) {
   const almacen = new AlmacenD1(env2.DB);
   const r = await actualizarTodos({
     http,
-    config: { baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es" },
+    config: horoscopoCfg(env2),
     zona: ZONA,
     ahora,
     guardar: /* @__PURE__ */ __name((id, doc) => almacen.guardarHoroscopo(id, doc), "guardar"),

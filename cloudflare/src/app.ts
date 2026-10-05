@@ -1,13 +1,13 @@
 import { AlmacenD1, D1Like } from "./almacenD1";
 import { HttpFetch } from "./http";
-import { enviarSeccionDirecta } from "../../firebase/functions/src/bot/bot";
+import { contenidoDeSeccion } from "../../firebase/functions/src/bot/bot";
 import { Deps } from "../../firebase/functions/src/bot/ctx";
-import { Canal } from "../../firebase/functions/src/canal";
+import { Canal, Teclado } from "../../firebase/functions/src/canal";
 import { actualizarTodos } from "../../firebase/functions/src/horoscopo";
 import { Programacion } from "../../firebase/functions/src/modelo";
 import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/functions/src/scheduler";
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
-import { HttpGet } from "../../firebase/functions/src/util";
+import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
 import { iguales, procesarWebhook } from "../../firebase/functions/src/webhook";
 
 export interface Env {
@@ -35,6 +35,8 @@ const fabricaReal: Fabrica = (env) => {
 const ZONA = "Europe/Madrid";
 /** Cron del planificador (cada minuto) y cron del horóscopo (cada 10 min entre las 04:00 y las 10:59 UTC). */
 export const CRON_HOROSCOPO = "*/10 4-10 * * *";
+/** Una sección que tarda más de esto se da por fallida (la ejecución principal tiene unos 30 s de margen tras responder a Telegram). */
+const PLAZO_SECCION_MS = 15_000;
 /** Programaciones que se atienden como máximo en cada ejecución del cron, y cuántas a la vez. */
 const MAX_PROGRAMACIONES = 20;
 const SIMULTANEAS = 5;
@@ -55,10 +57,18 @@ async function llamarInterno<T>(env: Env, ruta: string, cuerpo: unknown): Promis
   } catch { return null; }
 }
 
-function dependencias(env: Env, s: Servicios, delegar: boolean): Deps & { almacen: AlmacenD1 } {
+const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es" });
+
+/** `remoto`: las secciones se construyen en otra ejecución (la principal solo las envía). */
+function dependencias(env: Env, s: Servicios, remoto: boolean): Deps & { almacen: AlmacenD1 } {
   return {
-    almacen: new AlmacenD1(env.DB), canal: s.canal, http: s.http, ahora: () => new Date(),
-    delegarSeccion: delegar && env.SELF ? async (p) => (await llamarInterno(env, RUTA_SECCION, p)) !== null : undefined,
+    almacen: new AlmacenD1(env.DB), canal: s.canal, http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
+    construirRemoto: remoto && env.SELF ? async (p) => {
+      const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);
+      if (!r) throw new Error("no se pudo contactar con la ejecución interna");
+      if (r.error || !r.html) throw new Error(r.error ?? "respuesta vacía");
+      return { html: r.html, teclado: r.teclado };
+    } : undefined,
   };
 }
 
@@ -74,9 +84,16 @@ async function manejarInterno(req: Request, env: Env, ruta: string, fabrica: Fab
   const s = fabrica(env);
   const dep = dependencias(env, s, false);
   if (ruta === RUTA_SECCION) {
+    // Construye UNA sección y devuelve su contenido (no la envía: lo hace la ejecución principal, así salen en orden).
     const u = await dep.almacen.getUsuario(String(cuerpo.uid));
-    if (u && u.activo) await enviarSeccionDirecta(dep, u, String(cuerpo.ref), typeof cuerpo.editar === "number" ? cuerpo.editar : undefined);
-    return Response.json({ ok: true });
+    if (!u) return Response.json({ error: "usuario no encontrado" });
+    try {
+      const c = await conPlazo(contenidoDeSeccion(dep, u, String(cuerpo.ref)), PLAZO_SECCION_MS, "la sección tardó demasiado");
+      return Response.json({ html: c.html, teclado: c.teclado });
+    } catch (e) {
+      console.warn(`sección ${cuerpo.ref}: ${(e as Error).message}`);
+      return Response.json({ error: String((e as Error).message ?? e).slice(0, 120) });
+    }
   }
   if (ruta === RUTA_PROGRAMACION) {
     const instante = typeof cuerpo.ahora === "number" ? cuerpo.ahora : Date.now();
@@ -142,7 +159,7 @@ export async function manejarHoroscopo(env: Env, ahora = new Date()) {
   const almacen = new AlmacenD1(env.DB);
   const r = await actualizarTodos({
     http,
-    config: { baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es" },
+    config: horoscopoCfg(env),
     zona: ZONA, ahora,
     guardar: (id, doc) => almacen.guardarHoroscopo(id, doc),
     fechaGuardada: async (id) => (await almacen.getHoroscopo(id))?.fecha,

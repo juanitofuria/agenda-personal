@@ -1,9 +1,11 @@
-import { Entrada } from "../canal";
+import { Entrada, esc } from "../canal";
 import { Usuario, usuarioNuevo } from "../modelo";
 import { sincronizarSecciones } from "../programar";
 import { construirContenido } from "../secciones";
 import { cabecera } from "../util";
+import { Contenido } from "../secciones/tipos";
 import * as ajustes from "./ajustes";
+import { diagnostico } from "./diagnostico";
 import { Ctx, Deps, BTN_MENU } from "./ctx";
 import * as eventos from "./eventos";
 import * as onboarding from "./onboarding";
@@ -13,33 +15,26 @@ async function menu(c: Ctx): Promise<void> { await c.responder(textoMenu(c.u), t
 
 /** Envía una sección. `editar`: sustituye el mensaje del botón (navegación dentro de una misma sección). */
 async function mostrarSeccion(c: Ctx, ref: string, editar = false): Promise<void> {
-  if (await delegar(c, ref, editar)) return;
   await entregarSeccion(c, ref, construirSeccion(c, ref), editar);
 }
 
-/** Intenta que la plataforma construya y envíe la sección en otra ejecución. */
-async function delegar(c: Ctx, ref: string, editar: boolean): Promise<boolean> {
-  if (!c.deps.delegarSeccion) return false;
-  try { return await c.deps.delegarSeccion({ uid: c.u.id, ref, editar: editar ? c.entrada.callback?.mensajeId : undefined }); } catch { return false; }
-}
+/** Genera el contenido de una sección con las dependencias dadas (es lo que hace la ejecución a la que se encarga cada sección). */
+export const contenidoDeSeccion = (deps: Deps, u: Usuario, ref: string): Promise<Contenido> =>
+  construirContenido(ref, { usuario: u, http: deps.http, almacen: deps.almacen, ahora: deps.ahora(), horoscopoCfg: deps.horoscopoCfg });
 
-/** Construye y envía una sección aquí mismo (es lo que hace la ejecución a la que se delega). */
-export async function enviarSeccionDirecta(deps: Deps, u: Usuario, ref: string, editar?: number): Promise<void> {
-  const entrada: Entrada = { chatId: u.id, nombre: u.nombre, updateId: 0, ...(editar ? { callback: { id: "0", datos: "", mensajeId: editar } } : {}) };
-  const c = new Ctx({ ...deps, delegarSeccion: undefined }, u, entrada);
-  await entregarSeccion(c, ref, construirSeccion(c, ref), !!editar);
-}
+/** Pide el contenido de una sección: en otra ejecución si la plataforma lo ofrece, y si no, aquí mismo. */
+const construirSeccion = (c: Ctx, ref: string): Promise<Contenido> =>
+  c.deps.construirRemoto ? c.deps.construirRemoto({ uid: c.u.id, ref }) : contenidoDeSeccion(c.deps, c.u, ref);
 
-const construirSeccion = (c: Ctx, ref: string) => construirContenido(ref, { usuario: c.u, http: c.deps.http, almacen: c.almacen, ahora: c.ahora });
-
-/** Envía el contenido (ya pedido o en camino) de una sección; si falló, avisa. */
-async function entregarSeccion(c: Ctx, ref: string, pendiente: ReturnType<typeof construirSeccion>, editar = false): Promise<void> {
+/** Envía el contenido (ya pedido o en camino) de una sección; si falló, avisa con el motivo y un botón para reintentar. */
+async function entregarSeccion(c: Ctx, ref: string, pendiente: Promise<Contenido>, editar = false): Promise<void> {
   try {
     const cont = await pendiente;
     if (editar) await c.responder(cont.html, cont.teclado); else await c.nuevo(cont.html, cont.teclado);
   } catch (e) {
+    const motivo = esc(String((e as Error).message ?? e).slice(0, 90));
     console.error(`sección ${ref}:`, (e as Error).message);
-    await c.nuevo(`⚠️ No he podido obtener esa información ahora mismo.\n<i>Pulsa «Reintentar» o inténtalo en unos minutos.</i>`, [[{ texto: "🔄 Reintentar", datos: `sec:${ref}` }, BTN_MENU]]);
+    await c.nuevo(`⚠️ No he podido obtener esa información ahora mismo.\n<i>${motivo}</i>`, [[{ texto: "🔄 Reintentar", datos: `sec:${ref}` }, BTN_MENU]]);
   }
 }
 
@@ -53,11 +48,7 @@ async function todo(c: Ctx): Promise<void> {
   if (activas.length === 0) { await c.nuevo("No tienes ninguna sección activada. Actívalas en 🧩 Mis secciones.", [[{ texto: "🧩 Mis secciones", datos: "s:lista" }]]); return; }
   const fecha = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: c.u.zona }).format(c.ahora);
   await c.nuevo([cabecera("📋", "Tu resumen de hoy", fecha.replace(/^./, (x) => x.toUpperCase())), "", ...activas.map((s) => `${s.emoji} ${s.titulo}`), "", "<i>Te lo envío ahora, uno por uno 👇</i>"].join("\n"));
-  if (c.deps.delegarSeccion) { // cada sección en su propia ejecución, una tras otra (así llegan en orden)
-    for (const s of activas) await mostrarSeccion(c, s.ref);
-    return;
-  }
-  // Sin delegar: todas se piden a la vez (tarda lo de la más lenta, no la suma) y se envían en orden.
+  // Todas se piden a la vez (tarda lo de la más lenta, no la suma) y se envían en orden.
   const pendientes = activas.map((s) => { const p = construirSeccion(c, s.ref); p.catch(() => undefined); return p; });
   for (let i = 0; i < activas.length; i++) await entregarSeccion(c, activas[i].ref, pendientes[i]);
 }
@@ -82,6 +73,7 @@ async function comando(c: Ctx, texto: string): Promise<boolean> {
     case "/ayuda": case "/help": await c.nuevo(textoAyuda, [[BTN_MENU]]); return true;
     case "/cancelar": await cancelar(c); return true;
     case "/borrar": await ajustes.callback(c, ["p", "borrar"]); return true;
+    case "/diagnostico": await diagnostico(c); return true; // no sale en el menú: es para encontrar fallos
     default: return false;
   }
 }

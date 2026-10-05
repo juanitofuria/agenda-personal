@@ -1,10 +1,13 @@
 import { fechaIso } from "../fechas";
-import { cabecera, cacheado, conReintentos, num0, pct } from "../util";
+import { cabecera, cacheado, conPlazo, conReintentos, num0, pct } from "../util";
 import { resumenNoticias } from "./noticias";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
 export interface Grafico { precio: number; ultimaCotizacion: number; desfase: number; cierres: { fecha: string; cierre: number }[]; cierreAnterior: number }
 export interface Cotizacion { precio: number; anterior: number; fecha?: string }
+
+/** Lo que no haya llegado en este plazo no se espera: se muestra lo que haya. */
+const PLAZO_COTIZACIONES_MS = 9000;
 
 const FUTUROS: [string, string][] = [
   ["S&P 500 fut.", "ES=F"], ["Nasdaq 100 fut.", "NQ=F"], ["Dow Jones fut.", "YM=F"], ["VIX", "^VIX"], ["Petróleo WTI", "CL=F"], ["Oro", "GC=F"],
@@ -53,7 +56,7 @@ export function lineaCotizacion(nombre: string, c: Cotizacion): string {
 
 async function pedir(ctx: Contexto, simbolo: string): Promise<Grafico> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(simbolo)}?range=10d&interval=1d`;
-  const r = await conReintentos(() => ctx.http.get(url, { timeout: 15000, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } }), 2, 800);
+  const r = await conReintentos(() => ctx.http.get(url, { timeout: 6000, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } }), 2, 300);
   return parsearGrafico(r.data);
 }
 
@@ -62,8 +65,8 @@ export async function contenidoMercados(ctx: Contexto): Promise<Contenido> {
   const clave = `mercados:${hoy}:${Math.floor(ctx.ahora.getTime() / (20 * 60_000))}`;
   const bloque = await cacheado(ctx.almacen, clave, 20 * 60_000, ctx.ahora, async () => {
     const [fut, ind] = await Promise.all([
-      Promise.allSettled(FUTUROS.map(async ([n, s]) => lineaCotizacion(n, cotizacionActual(await pedir(ctx, s))))),
-      Promise.allSettled(INDICES.map(async ([n, s]) => { const q = ultimaSesion(await pedir(ctx, s), hoy); if (!q) throw new Error("sin sesión"); return lineaCotizacion(n, q); })),
+      Promise.allSettled(FUTUROS.map(([n, s]) => conPlazo((async () => lineaCotizacion(n, cotizacionActual(await pedir(ctx, s))))(), PLAZO_COTIZACIONES_MS))),
+      Promise.allSettled(INDICES.map(([n, s]) => conPlazo((async () => { const q = ultimaSesion(await pedir(ctx, s), hoy); if (!q) throw new Error("sin sesión"); return lineaCotizacion(n, q); })(), PLAZO_COTIZACIONES_MS))),
     ]);
     const ok = (r: PromiseSettledResult<string>[]) => r.flatMap((x) => (x.status === "fulfilled" ? [x.value] : []));
     return { fut: ok(fut), ind: ok(ind) };

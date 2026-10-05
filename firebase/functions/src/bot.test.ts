@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { idProgramacion } from "./almacen";
 import { Banco, crearBanco, geocodingFalso, previsionFalsa, rssFalso } from "./arnes";
-import { enviarSeccionDirecta, manejarEntrada } from "./bot/bot";
+import { contenidoDeSeccion, manejarEntrada } from "./bot/bot";
 import { localAUtc, partesEnZona } from "./fechas";
 
 const MAD = "Europe/Madrid";
@@ -455,43 +455,58 @@ test("fechas del bot usan la zona del usuario", async () => {
   assert.equal((await evs(b))[0].fechaHora!.toISOString(), localAUtc(2026, 10, 5, 9, 0, "America/New_York").toISOString());
 });
 
-test("delegación: «Todo lo activado» pide cada sección a otra ejecución, en orden; si no se puede delegar, el bot la construye él", async () => {
+test("construcción remota: todas las secciones se piden a la vez, se envían en orden y un fallo ofrece «Reintentar» con el motivo", async () => {
   const b = await usuarioListo();
   b.http.añadir("news.google.com", rssFalso("Noticia", 5));
-  const pedidas: { ref: string; editar?: number }[] = [];
-  b.deps.delegarSeccion = async (p) => { pedidas.push({ ref: p.ref, editar: p.editar }); return true; };
+  const u = (await b.almacen.getUsuario(U))!;
+  const pedidas: string[] = [];
+  let fallar = "";
+  b.deps.construirRemoto = async (p) => {
+    pedidas.push(p.ref);
+    if (p.ref === fallar) throw new Error("HTTP 403 desde la fuente");
+    await new Promise((r) => setTimeout(r, p.ref === "noticias" ? 30 : 1)); // la primera es la más lenta: aun así sale primera
+    return contenidoDeSeccion(b.deps, u, p.ref);
+  };
   b.canal.limpiar();
   await b.pulsar(U, "sec:todo");
-  assert.deepEqual(pedidas.map((p) => p.ref), ["noticias", "agenda", "mercados"]); // en el orden de la lista
-  assert.equal(b.canal.mensajes.length, 1); // solo la tarjeta de resumen: el resto lo envían las otras ejecuciones
-  // una sección suelta y la navegación dentro de una sección (editar el mensaje)
-  pedidas.length = 0; b.canal.limpiar();
-  await b.pulsar(U, "sec:noticias"); await b.pulsar(U, "sev:tiempo");
-  assert.equal(pedidas[0].editar, undefined); assert.equal(pedidas[1].ref, "tiempo"); assert.ok(pedidas[1].editar);
-  // si la delegación falla o dice que no, se construye aquí mismo
-  b.canal.limpiar();
-  b.deps.delegarSeccion = async () => { throw new Error("sin conexión interna"); };
-  await b.pulsar(U, "sec:noticias");
-  assert.match(textoUltimo(b), /Noticias del día/);
-  b.deps.delegarSeccion = async () => false;
-  await b.pulsar(U, "sec:agenda");
-  assert.match(textoUltimo(b), /Tu agenda/);
+  assert.deepEqual(pedidas, ["noticias", "agenda", "mercados"]); // se piden todas antes de enviar
+  const t = b.canal.textos(U);
+  assert.match(t[0], /Tu resumen de hoy/); assert.match(t[1], /Noticias del día/); assert.match(t[2], /Tu agenda/); // en orden
+  // fallo de una sección: motivo y botón de reintentar; el resto sigue
+  fallar = "agenda"; b.canal.limpiar();
+  await b.pulsar(U, "sec:todo");
+  const t2 = b.canal.textos(U);
+  assert.match(t2[1], /Noticias del día/); assert.match(t2[2], /No he podido obtener[\s\S]*HTTP 403 desde la fuente/);
+  assert.ok(b.canal.mensajes[2].teclado!.flat().some((x) => x.datos === "sec:agenda" && /Reintentar/.test(x.texto)));
+  // una sección suelta y la navegación dentro de ella (editar el mensaje)
+  fallar = ""; b.canal.limpiar();
+  await b.pulsar(U, "sec:agenda"); await b.pulsar(U, "sev:agenda");
+  assert.equal(b.canal.mensajes[0].editado, undefined); assert.equal(b.canal.mensajes[1].editado !== undefined, true);
 });
 
-test("enviarSeccionDirecta construye y envía (o edita el mensaje) sin volver a delegar; un fallo ofrece «Reintentar»", async () => {
+test("el horóscopo se pide al momento si la tarea diaria aún no lo ha guardado, y se guarda para los demás", async () => {
   const b = await usuarioListo();
-  b.http.añadir("news.google.com", rssFalso("Noticia", 5));
-  let delegaciones = 0;
-  const deps = { ...b.deps, delegarSeccion: async () => { delegaciones++; return true; } };
-  const u = (await b.almacen.getUsuario(U))!;
+  const u = (await b.almacen.getUsuario(U))!; u.nacimiento = "1990-04-05"; await b.almacen.guardarUsuario(u);
+  const llamadas: string[] = [];
+  b.http.añadir("horoscopefree.test", (() => { llamadas.push("pedido"); return { sign: "aries", date: "2026-10-04", language: "es", text: "Un buen día para empezar.", source: "https://www.20minutos.es/horoscopo/aries/", cached: false }; }));
+  b.deps.horoscopoCfg = { baseUrl: "https://horoscopefree.test", idioma: "es" };
   b.canal.limpiar();
-  await enviarSeccionDirecta(deps, u, "noticias");
-  assert.match(textoUltimo(b), /Noticias del día/); assert.equal(b.canal.mensajes[0].editado, undefined);
-  await enviarSeccionDirecta(deps, u, "agenda", 777);
-  assert.equal(b.canal.ultimo(U).editado, 777);
-  assert.equal(delegaciones, 0);
-  b.http.añadir("news.google.com", new Error("caído")); b.reloj.ahora = new Date(b.reloj.ahora.getTime() + 31 * 60_000);
-  await enviarSeccionDirecta(deps, u, "noticias");
-  assert.match(textoUltimo(b), /No he podido obtener/); assert.ok(hayBoton(b, "Reintentar"));
-  assert.ok(b.canal.botones(U).some((x) => x.datos === "sec:noticias"));
+  await b.pulsar(U, "sec:horoscopo");
+  assert.match(textoUltimo(b), /Un buen día para empezar/); assert.equal(llamadas.length, 1);
+  assert.equal((await b.almacen.getHoroscopo("aries"))?.fecha, "2026-10-04"); // guardado
+  await b.pulsar(U, "sec:horoscopo"); assert.equal(llamadas.length, 1); // la segunda vez ya no se pide
+  // si la fuente falla y no hay nada guardado, se dice sin romper
+  const b2 = await usuarioListo(); const u2 = (await b2.almacen.getUsuario(U))!; u2.nacimiento = "1990-04-05"; await b2.almacen.guardarUsuario(u2);
+  b2.http.añadir("horoscopefree.test", new Error("caído")); b2.deps.horoscopoCfg = { baseUrl: "https://horoscopefree.test", idioma: "es" };
+  await b2.pulsar(U, "sec:horoscopo"); assert.match(textoUltimo(b2), /Todavía no hay horóscopo/);
+});
+
+test("/diagnostico comprueba cada fuente y dice cuáles responden y cuáles no", async () => {
+  const b = await usuarioListo();
+  b.http.añadir("api.open-meteo.com", { current: {} }).añadir("news.google.com", rssFalso("Noticia", 7)).añadir("finance.yahoo.com", Object.assign(new Error("Request failed"), { response: { status: 429 } }));
+  b.http.añadir("horoscopefree.test", { text: "x" }); b.deps.horoscopoCfg = { baseUrl: "https://horoscopefree.test", idioma: "es" };
+  await b.escribir(U, "/diagnostico");
+  const t = textoUltimo(b);
+  assert.match(t, /✅ <b>Open-Meteo/); assert.match(t, /✅ <b>Google News[\s\S]*7 noticias/); assert.match(t, /❌ <b>Yahoo Finance[\s\S]*HTTP 429/); assert.match(t, /✅ <b>horoscopefree/);
+  assert.match(t, /0 de 12/);
 });

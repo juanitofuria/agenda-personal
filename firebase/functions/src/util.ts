@@ -42,6 +42,13 @@ export async function cacheado<T>(almacen: Almacen, clave: string, ttlMs: number
   return valor;
 }
 
+/** Falla si [p] no termina en [ms]: una fuente lenta no debe colgar toda la sección. */
+export function conPlazo<T>(p: Promise<T>, ms: number, mensaje = "tardó demasiado en responder"): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const plazo = new Promise<never>((_, rechazar) => { t = setTimeout(() => rechazar(new Error(mensaje)), ms); });
+  return Promise.race([p, plazo]).finally(() => clearTimeout(t));
+}
+
 /** Reintenta fallos transitorios (red) unas pocas veces. */
 export async function conReintentos<T>(fn: () => Promise<T>, intentos = 3, esperaMs = 1000): Promise<T> {
   let ultimo: unknown;

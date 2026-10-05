@@ -1,6 +1,6 @@
 import { esc, escAttr } from "../canal";
 import { fechaIso } from "../fechas";
-import { urlSegura } from "../horoscopo";
+import { construirDoc, obtenerSigno, urlSegura } from "../horoscopo";
 import { signoDe } from "../signos";
 import { cabecera } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
@@ -12,7 +12,16 @@ export async function contenidoHoroscopo(ctx: Contexto): Promise<Contenido> {
     return { html: "🔮 <b>Horóscopo</b>\nPara darte tu horóscopo necesito tu fecha de nacimiento.", teclado: [[{ texto: "🎂 Indicar mi fecha de nacimiento", datos: "p:nacimiento" }], NAV_MENU] };
   }
   const signo = signoDe(nac);
-  const doc = await ctx.almacen.getHoroscopo(signo.id);
+  let doc = await ctx.almacen.getHoroscopo(signo.id);
+  // Si aún no está el de hoy (la tarea diaria no ha podido traerlo) se pide ahora mismo y se guarda para los demás.
+  const hoyFecha = fechaIso(ctx.ahora, ctx.usuario.zona);
+  if ((!doc || doc.fecha !== hoyFecha) && ctx.horoscopoCfg) {
+    try {
+      const resp = await obtenerSigno(ctx.http, ctx.horoscopoCfg, signo, hoyFecha, 2, 300);
+      const nuevo = construirDoc(signo, hoyFecha, resp, ctx.horoscopoCfg, ctx.ahora);
+      if (nuevo && (!doc || nuevo.fecha >= doc.fecha)) { doc = nuevo; await ctx.almacen.guardarHoroscopo(signo.id, nuevo).catch(() => undefined); }
+    } catch { /* se usa lo que haya guardado */ }
+  }
   if (!doc || !doc.prediccion?.trim()) {
     return { html: `🔮 <b>Horóscopo · ${signo.simbolo} ${signo.nombre}</b>\nTodavía no hay horóscopo publicado para hoy. Lo intentaré de nuevo más tarde.`, teclado: [[{ texto: "🔄 Reintentar", datos: "sev:horoscopo" }], NAV_MENU] };
   }

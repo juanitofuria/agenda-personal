@@ -29,6 +29,8 @@ Corre en **Cloudflare Workers** con **D1**, en el **plan gratuito y sin tarjeta*
 * **Privacidad**: `/borrar` elimina todos tus datos y deja de enviarte mensajes.
 
 Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/cancelar` `/borrar`.
+Hay además `/diagnostico` (no sale en el menú): comprueba desde el servidor si llegan Open-Meteo, Google News, Yahoo Finance y horoscopefree, y
+cuántos horóscopos hay guardados hoy. Sirve para saber por qué falla una sección.
 
 ## Puesta en marcha
 

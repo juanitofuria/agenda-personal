@@ -1,16 +1,19 @@
 import { Almacen } from "../almacen";
 import { Canal, Entrada, Teclado } from "../canal";
 import { Estado, Usuario } from "../modelo";
+import { Contenido } from "../secciones/tipos";
 import { HttpGet } from "../util";
 
 export interface Deps {
   almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date;
   /**
-   * Opcional. Si la plataforma limita el trabajo por ejecución (Cloudflare gratuito: 10 ms de CPU y 50 peticiones), puede construir y enviar
-   * cada sección en una ejecución propia. Devuelve true si la delegó; false (o error) y el bot la construye él mismo.
-   * `editar`: id del mensaje a sustituir (navegación dentro de una sección).
+   * Opcional. Si la plataforma limita el trabajo por ejecución (Cloudflare gratuito: 10 ms de CPU y 50 peticiones), puede construir cada
+   * sección en una ejecución propia y devolver el contenido ya hecho. Debe lanzar un error si la sección falla. El envío lo hace siempre
+   * quien llama, así los mensajes salen en orden aunque las secciones se construyan a la vez.
    */
-  delegarSeccion?: (p: { uid: string; ref: string; editar?: number }) => Promise<boolean>;
+  construirRemoto?: (p: { uid: string; ref: string }) => Promise<Contenido>;
+  /** Dónde pedir el horóscopo si falta el de hoy. */
+  horoscopoCfg?: { baseUrl: string; idioma: string };
 }
 
 /** Contexto de una interacción: quién escribe, qué ha pulsado/escrito y cómo responderle. */
