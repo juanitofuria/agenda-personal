@@ -273,10 +273,11 @@ test("noticias: Bing primero y Google solo de respaldo (si Bing falla o tarda); 
   // Google caído (como pasa desde Cloudflare): salva Bing
   const { c, b } = await probar((b) => { b.http.añadir("news.google.com", new Error("The operation was aborted due to timeout")); b.http.añadir("bing.com/news", BING(5)); });
   assert.match(c.html, /Noticias del día/); assert.match(c.html, /Titular de Bing/);
-  assert.ok(b.http.llamadas.some((x) => x.includes("news.google.com")) && b.http.llamadas.some((x) => x.includes("bing.com/news"))); // Bing falló: se pidió también Google
+  assert.ok(b.http.llamadas.some((x) => x.includes("bing.com/news")) && !b.http.llamadas.some((x) => x.includes("news.google.com"))); // Bing contestó: Google no hizo falta
   // Bing caído: salva Google
   const r2 = await probar((b) => { b.http.añadir("news.google.com", rssFalso("Economía", 4)); b.http.añadir("bing.com/news", new Error("HTTP 403")); });
   assert.match(r2.c.html, /Economía noticia/);
+  assert.ok(r2.b.http.llamadas.some((x) => x.includes("bing.com/news")) && r2.b.http.llamadas.some((x) => x.includes("news.google.com"))); // Bing falló: se pidió Google
   // Bing responde bien: Google ni se pide (no se gastan peticiones)
   const r4 = await probar((b) => { b.http.añadir("news.google.com", rssFalso("Economía", 4)); b.http.añadir("bing.com/news", BING(3)); });
   assert.match(r4.c.html, /Titular de Bing/); assert.equal(r4.b.http.llamadas.filter((x) => x.includes("news.google.com")).length, 0);
