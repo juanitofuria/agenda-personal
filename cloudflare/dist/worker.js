@@ -939,6 +939,7 @@ function usuarioDesdeJson(id, d) {
     nacimiento: d.nacimiento ?? null,
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
+    avatar: d.avatar && ["emoji", "telegram", "foto"].includes(d.avatar.tipo) ? d.avatar : null,
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
     secciones: d.secciones ?? {},
     temas: d.temas ?? [],
@@ -1259,6 +1260,7 @@ function usuarioNuevo(id, nombre, ahora) {
     zona: "Europe/Madrid",
     ciudad: null,
     compra: { items: [], historial: [], token: null },
+    avatar: null,
     secciones,
     temas: [],
     estado: null,
@@ -2813,6 +2815,100 @@ async function comando(c, cmd) {
 }
 __name(comando, "comando");
 
+// ../firebase/functions/src/avatares.ts
+var AVATARES = [
+  "\u{1F98A}",
+  "\u{1F43C}",
+  "\u{1F428}",
+  "\u{1F981}",
+  "\u{1F42F}",
+  "\u{1F438}",
+  "\u{1F435}",
+  "\u{1F427}",
+  "\u{1F989}",
+  "\u{1F984}",
+  "\u{1F419}",
+  "\u{1F98B}",
+  "\u{1F422}",
+  "\u{1F42C}",
+  "\u{1F988}",
+  "\u{1F433}",
+  "\u{1F996}",
+  "\u{1F41D}",
+  "\u{1F41E}",
+  "\u{1F994}",
+  "\u{1F430}",
+  "\u{1F43B}",
+  "\u{1F436}",
+  "\u{1F431}",
+  "\u{1F439}",
+  "\u{1F992}",
+  "\u{1F993}",
+  "\u{1F998}",
+  "\u{1F99C}",
+  "\u{1F9A9}",
+  "\u{1F43A}",
+  "\u{1F99D}",
+  "\u{1F42E}",
+  "\u{1F437}",
+  "\u{1F434}",
+  "\u{1F98C}",
+  "\u{1F9A6}",
+  "\u{1F9A5}",
+  "\u{1F40A}",
+  "\u{1F985}",
+  "\u{1F335}",
+  "\u{1F33B}",
+  "\u{1F338}",
+  "\u{1F340}",
+  "\u{1F344}",
+  "\u{1F308}",
+  "\u2B50",
+  "\u{1F319}",
+  "\u2600\uFE0F",
+  "\u{1F525}",
+  "\u26A1",
+  "\u2744\uFE0F",
+  "\u{1F30A}",
+  "\u{1F34E}",
+  "\u{1F353}",
+  "\u{1F34B}",
+  "\u{1F951}",
+  "\u{1F355}",
+  "\u{1F369}",
+  "\u2615",
+  "\u{1F3B8}",
+  "\u{1F3A7}",
+  "\u{1F3AE}",
+  "\u{1F3A8}",
+  "\u{1F4DA}",
+  "\u{1F680}",
+  "\u26BD",
+  "\u{1F3C0}",
+  "\u{1F6B2}",
+  "\u26F5",
+  "\u{1F3D4}\uFE0F",
+  "\u{1F3AF}",
+  "\u{1F9E9}",
+  "\u{1FA81}",
+  "\u{1F3AD}",
+  "\u{1F916}",
+  "\u{1F47D}",
+  "\u{1F47B}",
+  "\u{1F9D9}",
+  "\u{1F9B8}"
+];
+var NUM_COLORES = 8;
+function avatarEmoji(emoji, color) {
+  const e = AVATARES.find((x) => x === emoji);
+  const c = Number(color);
+  return e && Number.isInteger(c) && c >= 0 && c < NUM_COLORES ? { tipo: "emoji", emoji: e, color: c } : null;
+}
+__name(avatarEmoji, "avatarEmoji");
+var fotoValida = /* @__PURE__ */ __name((v) => typeof v === "string" && v.length <= 7e4 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v), "fotoValida");
+var claveFoto = /* @__PURE__ */ __name((uid) => `avatar:${uid}`, "claveFoto");
+var VIGENCIA_FOTO_MS = 3650 * 24 * 36e5;
+
 // ../firebase/functions/src/geocoding.ts
 async function buscarLugares(http, consulta) {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(consulta.trim())}&count=5&language=es&format=json`;
@@ -3177,6 +3273,7 @@ async function callback2(c, p) {
       return true;
     case "borrarok":
       await c.almacen.borrarUsuario(c.u.id);
+      await c.almacen.cacheSet(claveFoto(c.u.id), "", 1, c.ahora);
       await c.responder([cabecera("\u{1F5D1}", "Datos borrados"), "", "No te enviar\xE9 m\xE1s mensajes.", "", "<i>Si quieres volver, escribe /start.</i>"].join("\n"));
       return true;
     default:
@@ -3727,16 +3824,16 @@ function tecladoTemas(d) {
   return [...filas, [SIGUIENTE("Siguiente \u27A1\uFE0F", "o:sig")], [OMITIR_TODO]];
 }
 __name(tecladoTemas, "tecladoTemas");
-var TEXTO_ESTILO = [cabecera("\u{1F3A8}", "\xBFQu\xE9 estilo prefieres?", "Paso 1 de 8"), "", bloque("\u{1F60A}", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("\u{1F454}", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
-var TEXTO_MODO = [cabecera("\u{1F317}", "\xBFClaro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", bloque("\u{1F504}", "Autom\xE1tico", "Si tu dispositivo cambia solo entre claro y oscuro, el\xEDgelo: el bot cambia solo: oscuro desde el anochecer hasta el amanecer de tu ciudad."), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
+var TEXTO_ESTILO = [cabecera("\u{1F3A8}", "\xBFQu\xE9 estilo prefieres?", "Paso 1 de 9"), "", bloque("\u{1F60A}", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("\u{1F454}", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
+var TEXTO_MODO = [cabecera("\u{1F317}", "\xBFClaro u oscuro?", "Paso 2 de 9"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", bloque("\u{1F504}", "Autom\xE1tico", "Si tu dispositivo cambia solo entre claro y oscuro, el\xEDgelo: el bot cambia solo: oscuro desde el anochecer hasta el amanecer de tu ciudad."), "", "<i>Mira los ejemplos y elige \u{1F447}</i>"].join("\n");
 async function vistaPrevia(c, opciones) {
   if (!c.deps.urlBase || !c.deps.canal.enviarFoto) return;
   for (const o of opciones) await c.deps.canal.enviarFoto(c.u.id, `${c.deps.urlBase.replace(/\/+$/, "")}/menu-${o.archivo}.png`, o.pie).catch(() => void 0);
 }
 __name(vistaPrevia, "vistaPrevia");
-var TEXTO_SECCIONES = [cabecera("\u{1F4CB}", "\xBFQu\xE9 quieres recibir?", "Paso 3 de 8"), "", "Un resumen cada d\xEDa, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
-var TEXTO_TEMAS = [cabecera("\u2B50", "\xBFQu\xE9 te interesa?", "Paso 4 de 8"), "", "Crear\xE9 una secci\xF3n de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
-var PASOS = ["inicio", "estilo", "modo", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"];
+var TEXTO_SECCIONES = [cabecera("\u{1F4CB}", "\xBFQu\xE9 quieres recibir?", "Paso 3 de 9"), "", "Un resumen cada d\xEDa, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
+var TEXTO_TEMAS = [cabecera("\u2B50", "\xBFQu\xE9 te interesa?", "Paso 4 de 9"), "", "Crear\xE9 una secci\xF3n de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar \u{1F447}</i>"].join("\n");
+var PASOS = ["inicio", "estilo", "modo", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "avatar", "fin"];
 async function mostrarPaso(c, paso) {
   const d = datos(c);
   c.u.estado = { flujo: FLUJO, paso, datos: d };
@@ -3758,16 +3855,19 @@ async function mostrarPaso(c, paso) {
       await c.responder(TEXTO_TEMAS, tecladoTemas(d));
       break;
     case "extra":
-      await c.responder([cabecera("\u270D\uFE0F", "\xBFAlg\xFAn otro inter\xE9s?", "Paso 5 de 8"), "", "Escr\xEDbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u270D\uFE0F", "\xBFAlg\xFAn otro inter\xE9s?", "Paso 5 de 9"), "", "Escr\xEDbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "nombre":
-      await c.responder([cabecera("\u{1F464}", "\xBFC\xF3mo te llamo?", "Paso 6 de 8"), "", "<i>Escribe tu nombre \u{1F447}</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u{1F464}", "\xBFC\xF3mo te llamo?", "Paso 6 de 9"), "", "<i>Escribe tu nombre \u{1F447}</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "nacimiento":
-      await c.responder([cabecera("\u{1F382}", "Tu fecha de nacimiento", "Paso 7 de 8"), "", bloque("\u{1F52E}", "Para qu\xE9", "Tu signo y tu hor\xF3scopo diario"), "", "Escr\xEDbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aqu\xED y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u{1F382}", "Tu fecha de nacimiento", "Paso 7 de 9"), "", bloque("\u{1F52E}", "Para qu\xE9", "Tu signo y tu hor\xF3scopo diario"), "", "Escr\xEDbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aqu\xED y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
       break;
     case "ciudad":
-      await c.responder([cabecera("\u{1F4CD}", "\xBFD\xF3nde vives?", "Paso 8 de 8"), "", bloque("\u26C5", "Para qu\xE9", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      await c.responder([cabecera("\u{1F4CD}", "\xBFD\xF3nde vives?", "Paso 8 de 9"), "", bloque("\u26C5", "Para qu\xE9", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]);
+      break;
+    case "avatar":
+      await pasoAvatar(c);
       break;
     case "fin":
       await resumenFinal(c);
@@ -3777,6 +3877,20 @@ async function mostrarPaso(c, paso) {
   }
 }
 __name(mostrarPaso, "mostrarPaso");
+var POR_PAGINA = 15;
+async function pasoAvatar(c) {
+  const d = datos(c);
+  const pag = d.avPag ?? 0;
+  const ini = pag * POR_PAGINA, lista2 = AVATARES.slice(ini, ini + POR_PAGINA);
+  const filas = [];
+  for (let i = 0; i < lista2.length; i += 5) filas.push(lista2.slice(i, i + 5).map((e, j) => ({ texto: e, datos: `o:av:${ini + i + j}` })));
+  const hayMas = ini + POR_PAGINA < AVATARES.length;
+  filas.push([{ texto: hayMas ? "\u{1F504} M\xE1s avatares" : "\u21A9\uFE0F Volver al principio", datos: "o:avmas" }, { texto: "\u{1F4F7} Mi foto de Telegram", datos: "o:avtg" }]);
+  filas.push([SIGUIENTE("Omitir: usar mi inicial", "o:sig")], [OMITIR_TODO]);
+  const inicial = esc((c.u.nombre || "?").trim().charAt(0).toUpperCase());
+  await c.responder([cabecera("\u{1F5BC}", "Tu avatar", "Paso 9 de 9"), "", "Elige uno para tu perfil, o usa tu foto de Telegram.", "", `<i>Si no eliges, ver\xE1s una burbuja con tu inicial (${inicial}). Despu\xE9s podr\xE1s subir una foto tuya desde la app, tocando tu avatar.</i>`].join("\n"), filas);
+}
+__name(pasoAvatar, "pasoAvatar");
 async function resumenFinal(c) {
   const d = datos(c);
   const lineas = [];
@@ -3857,6 +3971,26 @@ async function callback4(c, p) {
       c.u.ciudad = { nombre: l.nombre, provincia: l.provincia, lat: l.lat, lon: l.lon };
       c.u.zona = l.zona;
       await c.guardar();
+    }
+    await mostrarPaso(c, "avatar");
+    return true;
+  }
+  if (p[1] === "avmas") {
+    const sig = ((d.avPag ?? 0) + 1) * POR_PAGINA < AVATARES.length ? (d.avPag ?? 0) + 1 : 0;
+    d.avPag = sig;
+    c.u.estado = { flujo: FLUJO, paso: "avatar", datos: d };
+    await c.guardar();
+    await pasoAvatar(c);
+    return true;
+  }
+  if (p[1] === "av" || p[1] === "avtg") {
+    const idx = +p[2];
+    const a = p[1] === "avtg" ? { tipo: "telegram" } : avatarEmoji(AVATARES[idx], idx % NUM_COLORES);
+    if (a) {
+      c.u.avatar = a;
+      await c.guardar();
+      await c.nuevo(`\u2705 <b>Avatar guardado</b>${a.tipo === "emoji" ? " " + a.emoji : ""}
+<i>Lo cambias cuando quieras en la app, toc\xE1ndolo.</i>`);
     }
     await mostrarPaso(c, "fin");
     return true;
@@ -4499,6 +4633,9 @@ async function estado(deps, u) {
   ];
   return ok({
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    avatar: u.avatar,
+    fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null,
+    avatares: AVATARES,
     compra: u.compra,
     secciones,
     eventos: eventos.map((e) => eventoJson(e, u, ahora)),
@@ -4672,6 +4809,21 @@ async function manejarApi(deps, u, ruta, c) {
         }
       }));
       return ok({ secciones: hechas });
+    }
+    case "/api/avatar": {
+      if (c.tipo === "emoji") {
+        const a = avatarEmoji(c.emoji, c.color);
+        if (!a) return error3(400, "Ese avatar no existe");
+        u.avatar = a;
+      } else if (c.tipo === "telegram") u.avatar = { tipo: "telegram" };
+      else if (c.tipo === "foto") {
+        if (!fotoValida(c.foto)) return error3(400, "La foto no es v\xE1lida o pesa demasiado");
+        await deps.almacen.cacheSet(claveFoto(u.id), c.foto, VIGENCIA_FOTO_MS, ahora);
+        u.avatar = { tipo: "foto" };
+      } else if (c.tipo === "ninguno") u.avatar = null;
+      else return error3(400, "Tipo de avatar desconocido");
+      await deps.almacen.guardarUsuario(u);
+      return ok();
     }
     case "/api/compra": {
       const l = u.compra;

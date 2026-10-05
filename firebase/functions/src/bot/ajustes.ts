@@ -1,3 +1,4 @@
+import { claveFoto } from "../avatares";
 import { esc, Teclado } from "../canal";
 import { buscarLugares, Lugar } from "../geocoding";
 import { parseHoraHHMM, parseNacimiento } from "../fechas";
@@ -120,7 +121,7 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
     case "est": c.u.estilo = p[2] === "formal" ? "formal" : "informal"; await c.guardar(); await apariencia(c); return true;
     case "modo": c.u.modo = p[2] === "oscuro" ? "oscuro" : p[2] === "auto" ? "auto" : "claro"; await c.guardar(); await apariencia(c); return true;
     case "borrar": await c.responder([cabecera("⚠️", "¿Borrar todos tus datos?", "No se puede deshacer"), "", bloque("🗑", "Se eliminará", "• tu perfil", "• tus secciones y temas", "• tus alarmas, citas y tareas"), "", "<i>Y dejaré de enviarte mensajes.</i>"].join("\n"), [[{ texto: "🗑 Sí, borrar todo", datos: "p:borrarok" }, { texto: "Cancelar", datos: "p:ver" }]]); return true;
-    case "borrarok": await c.almacen.borrarUsuario(c.u.id); await c.responder([cabecera("🗑", "Datos borrados"), "", "No te enviaré más mensajes.", "", "<i>Si quieres volver, escribe /start.</i>"].join("\n")); return true;
+    case "borrarok": await c.almacen.borrarUsuario(c.u.id); await c.almacen.cacheSet(claveFoto(c.u.id), "", 1, c.ahora); await c.responder([cabecera("🗑", "Datos borrados"), "", "No te enviaré más mensajes.", "", "<i>Si quieres volver, escribe /start.</i>"].join("\n")); return true;
     default: return true;
   }
 }

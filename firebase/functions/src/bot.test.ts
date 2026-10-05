@@ -69,6 +69,9 @@ test("asistente completo: intereses, aficiones, nombre, nacimiento y ciudad → 
   await b.escribir(U, "Montoro");
   assert.equal(b.canal.botones(U).length, 3); // dos resultados + «ninguna»
   await b.pulsar(U, "o:lugar:0");
+  assert.match(textoUltimo(b), /Tu avatar/); assert.match(textoUltimo(b), /Paso 9 de 9/); assert.ok(hayBoton(b, "🔄 Más avatares") && hayBoton(b, "📷 Mi foto de Telegram") && hayBoton(b, "🦊"));
+  await b.pulsar(U, "o:av:0"); // elige el primer avatar (🦊)
+  assert.deepEqual((await b.almacen.getUsuario(U))!.avatar, { tipo: "emoji", emoji: "🦊", color: 0 });
   assert.match(textoUltimo(b), /¡Todo listo!/); assert.match(textoUltimo(b), /Horóscopo de ♈ Aries/); assert.match(textoUltimo(b), /Montoro/);
   assert.match(textoUltimo(b), /Ajedrez, Pesca deportiva|Motociclismo, Ajedrez, Pesca deportiva/);
   await b.pulsar(U, "o:fin");
@@ -124,7 +127,9 @@ test("el asistente tolera una ciudad que no existe, un fallo de red y 'ninguna'"
   await b.escribir(U, "Montoro"); assert.match(textoUltimo(b), /No he podido buscar/);
   b.http.añadir("geocoding-api", geocodingFalso());
   await b.escribir(U, "Montoro");
-  await b.pulsarTexto(U, "Ninguna"); // pasa al resumen sin ciudad
+  await b.pulsarTexto(U, "Ninguna"); // sin ciudad: pasa al avatar…
+  assert.match(textoUltimo(b), /Tu avatar/); await b.pulsarTexto(U, "Omitir"); // …que se puede omitir (queda la inicial) y llega al resumen
+  assert.equal((await b.almacen.getUsuario(U))!.avatar, null);
   assert.match(textoUltimo(b), /¡Todo listo!/);
   await b.pulsar(U, "o:fin");
   assert.equal((await b.almacen.getUsuario(U))!.ciudad, null);
@@ -652,10 +657,10 @@ test("asistente: pregunta estilo y modo con ejemplos (si hay imágenes); omitir 
   assert.equal(fotos(b).length, 0); // la bienvenida no lleva imágenes
   await b.pulsarTexto(U, "Empezar");
   assert.deepEqual(fotos(b).map((m) => m.foto), [`${BASE}/menu-informal-claro.png`, `${BASE}/menu-formal-claro.png`]); // un ejemplo de cada estilo
-  assert.match(textoUltimo(b), /¿Qué estilo prefieres\?/); assert.match(textoUltimo(b), /Paso 1 de 8/);
+  assert.match(textoUltimo(b), /¿Qué estilo prefieres\?/); assert.match(textoUltimo(b), /Paso 1 de 9/);
   b.canal.limpiar(); await b.pulsar(U, "o:est:formal");
   assert.deepEqual(fotos(b).map((m) => m.foto), [`${BASE}/menu-formal-claro.png`, `${BASE}/menu-formal-oscuro.png`]); // y de cada modo, en el estilo elegido
-  assert.match(textoUltimo(b), /¿Claro u oscuro\?/); assert.match(textoUltimo(b), /Paso 2 de 8/);
+  assert.match(textoUltimo(b), /¿Claro u oscuro\?/); assert.match(textoUltimo(b), /Paso 2 de 9/);
   await b.pulsar(U, "o:modo:claro");
   assert.match(textoUltimo(b), /¿Qué quieres recibir\?/);
   assert.deepEqual([(await b.almacen.getUsuario(U))!.estilo, (await b.almacen.getUsuario(U))!.modo], ["formal", "claro"]);

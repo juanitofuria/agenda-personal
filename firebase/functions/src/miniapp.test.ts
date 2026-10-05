@@ -150,3 +150,20 @@ test("lista compartida por enlace: quien la recibe ve, añade, marca y quita; al
   await dueno({ accion: "descompartir" });
   assert.equal((await manejarListaPublica(b.deps, { token: r2.enlace.split("t=")[1], accion: "estado" })).estado, 404);
 });
+
+test("mini app: avatar (emoji, foto de Telegram, foto subida o inicial) y lista de avatares", async () => {
+  const { b, api } = await banco();
+  const e = (await api("/api/estado")).cuerpo as any; assert.equal(e.avatar, null); assert.ok(e.avatares.length >= 60 && e.avatares.includes("🦊")); // sin elegir: la app pinta la inicial
+  assert.equal((await api("/api/avatar", { tipo: "emoji", emoji: "💩", color: 1 })).estado, 400); // fuera de la lista
+  assert.equal((await api("/api/avatar", { tipo: "emoji", emoji: "🦊", color: 99 })).estado, 400);
+  await api("/api/avatar", { tipo: "emoji", emoji: "🐼", color: 3 }); assert.deepEqual((await b.almacen.getUsuario("1"))!.avatar, { tipo: "emoji", emoji: "🐼", color: 3 });
+  await api("/api/avatar", { tipo: "telegram" }); assert.deepEqual((await b.almacen.getUsuario("1"))!.avatar, { tipo: "telegram" });
+  assert.equal((await api("/api/avatar", { tipo: "foto", foto: "http://malo.example/x.png" })).estado, 400);
+  assert.equal((await api("/api/avatar", { tipo: "foto", foto: "data:image/jpeg;base64," + "A".repeat(80_000) })).estado, 400); // demasiado grande
+  assert.equal((await api("/api/avatar", { tipo: "foto", foto: "data:text/html;base64,PHNjcmlwdD4=" })).estado, 400); // solo imágenes
+  const foto = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==";
+  assert.equal((await api("/api/avatar", { tipo: "foto", foto })).estado, 200);
+  const e2 = (await api("/api/estado")).cuerpo as any; assert.deepEqual(e2.avatar, { tipo: "foto" }); assert.equal(e2.fotoAvatar, foto);
+  await api("/api/avatar", { tipo: "ninguno" }); assert.equal(((await api("/api/estado")).cuerpo as any).avatar, null);
+  assert.equal((await api("/api/avatar", { tipo: "raro" })).estado, 400);
+});

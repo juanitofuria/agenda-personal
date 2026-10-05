@@ -1,3 +1,4 @@
+import { AVATARES, avatarEmoji, NUM_COLORES } from "../avatares";
 import { textoSol } from "../apariencia";
 import { esc, Teclado } from "../canal";
 import { buscarLugares, Lugar } from "../geocoding";
@@ -15,7 +16,7 @@ import { mostrarMenu } from "./menu";
 const FLUJO = "onb";
 
 interface Datos {
-  secciones?: SeccionId[]; temas?: string[]; extra?: string[]; tocoIntereses?: boolean; resultados?: Lugar[];
+  secciones?: SeccionId[]; temas?: string[]; extra?: string[]; tocoIntereses?: boolean; resultados?: Lugar[]; avPag?: number;
 }
 const datos = (c: Ctx): Datos => (c.estado?.flujo === FLUJO ? (c.estado.datos as Datos) : {});
 
@@ -53,8 +54,8 @@ function tecladoTemas(d: Datos): Teclado {
   return [...filas, [SIGUIENTE("Siguiente ➡️", "o:sig")], [OMITIR_TODO]];
 }
 
-const TEXTO_ESTILO = [cabecera("🎨", "¿Qué estilo prefieres?", "Paso 1 de 8"), "", bloque("😊", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("👔", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
-const TEXTO_MODO = [cabecera("🌗", "¿Claro u oscuro?", "Paso 2 de 8"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", bloque("🔄", "Automático", "Si tu dispositivo cambia solo entre claro y oscuro, elígelo: el bot cambia solo: oscuro desde el anochecer hasta el amanecer de tu ciudad."), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
+const TEXTO_ESTILO = [cabecera("🎨", "¿Qué estilo prefieres?", "Paso 1 de 9"), "", bloque("😊", "Informal", "Cercano, colorido y con pictogramas"), "", bloque("👔", "Formal", "Sobrio, elegante y profesional"), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
+const TEXTO_MODO = [cabecera("🌗", "¿Claro u oscuro?", "Paso 2 de 9"), "", "Elige el que usas en Telegram, para que las cabeceras se vean bien.", "", bloque("🔄", "Automático", "Si tu dispositivo cambia solo entre claro y oscuro, elígelo: el bot cambia solo: oscuro desde el anochecer hasta el amanecer de tu ciudad."), "", "<i>Mira los ejemplos y elige 👇</i>"].join("\n");
 
 /** Cabeceras de ejemplo (si el bot sabe su dirección pública): una por opción, para que se vea qué se elige. */
 async function vistaPrevia(c: Ctx, opciones: { archivo: string; pie: string }[]): Promise<void> {
@@ -62,10 +63,10 @@ async function vistaPrevia(c: Ctx, opciones: { archivo: string; pie: string }[])
   for (const o of opciones) await c.deps.canal.enviarFoto(c.u.id, `${c.deps.urlBase.replace(/\/+$/, "")}/menu-${o.archivo}.png`, o.pie).catch(() => undefined);
 }
 
-const TEXTO_SECCIONES = [cabecera("📋", "¿Qué quieres recibir?", "Paso 3 de 8"), "", "Un resumen cada día, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
-const TEXTO_TEMAS = [cabecera("⭐", "¿Qué te interesa?", "Paso 4 de 8"), "", "Crearé una sección de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+const TEXTO_SECCIONES = [cabecera("📋", "¿Qué quieres recibir?", "Paso 3 de 9"), "", "Un resumen cada día, a la hora que elijas.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
+const TEXTO_TEMAS = [cabecera("⭐", "¿Qué te interesa?", "Paso 4 de 9"), "", "Crearé una sección de noticias para cada tema que marques.", "", "<i>Pulsa para marcar o desmarcar 👇</i>"].join("\n");
 
-const PASOS = ["inicio", "estilo", "modo", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "fin"] as const;
+const PASOS = ["inicio", "estilo", "modo", "secciones", "temas", "extra", "nombre", "nacimiento", "ciudad", "avatar", "fin"] as const;
 
 async function mostrarPaso(c: Ctx, paso: (typeof PASOS)[number]): Promise<void> {
   const d = datos(c);
@@ -84,16 +85,31 @@ async function mostrarPaso(c: Ctx, paso: (typeof PASOS)[number]): Promise<void> 
     case "temas":
       await c.responder(TEXTO_TEMAS, tecladoTemas(d)); break;
     case "extra":
-      await c.responder([cabecera("✍️", "¿Algún otro interés?", "Paso 5 de 8"), "", "Escríbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("✍️", "¿Algún otro interés?", "Paso 5 de 9"), "", "Escríbelos separados por comas.", "", "<i>Por ejemplo: ajedrez, pesca, Real Madrid</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "nombre":
-      await c.responder([cabecera("👤", "¿Cómo te llamo?", "Paso 6 de 8"), "", "<i>Escribe tu nombre 👇</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("👤", "¿Cómo te llamo?", "Paso 6 de 9"), "", "<i>Escribe tu nombre 👇</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "nacimiento":
-      await c.responder([cabecera("🎂", "Tu fecha de nacimiento", "Paso 7 de 8"), "", bloque("🔮", "Para qué", "Tu signo y tu horóscopo diario"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aquí y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("🎂", "Tu fecha de nacimiento", "Paso 7 de 9"), "", bloque("🔮", "Para qué", "Tu signo y tu horóscopo diario"), "", "Escríbela como <i>dd/mm/aaaa</i>.", "", "<i>Solo se guarda aquí y puedes borrarla cuando quieras.</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
     case "ciudad":
-      await c.responder([cabecera("📍", "¿Dónde vives?", "Paso 8 de 8"), "", bloque("⛅", "Para qué", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+      await c.responder([cabecera("📍", "¿Dónde vives?", "Paso 8 de 9"), "", bloque("⛅", "Para qué", "El tiempo y las noticias de tu zona"), "", "Escribe el nombre de tu municipio y lo busco.", "", "<i>Por ejemplo: Montoro</i>"].join("\n"), [[SIGUIENTE("Omitir este paso", "o:sig")], [OMITIR_TODO]]); break;
+    case "avatar": await pasoAvatar(c); break;
     case "fin": await resumenFinal(c); break;
     default: break;
   }
+}
+
+const POR_PAGINA = 15;
+/** Cuadrícula de avatares (15 por página) y atajos: usar la foto de Telegram o seguir con la inicial del nombre. */
+async function pasoAvatar(c: Ctx): Promise<void> {
+  const d = datos(c); const pag = d.avPag ?? 0;
+  const ini = pag * POR_PAGINA, lista = AVATARES.slice(ini, ini + POR_PAGINA);
+  const filas: Teclado = [];
+  for (let i = 0; i < lista.length; i += 5) filas.push(lista.slice(i, i + 5).map((e, j) => ({ texto: e, datos: `o:av:${ini + i + j}` })));
+  const hayMas = ini + POR_PAGINA < AVATARES.length;
+  filas.push([{ texto: hayMas ? "🔄 Más avatares" : "↩️ Volver al principio", datos: "o:avmas" }, { texto: "📷 Mi foto de Telegram", datos: "o:avtg" }]);
+  filas.push([SIGUIENTE("Omitir: usar mi inicial", "o:sig")], [OMITIR_TODO]);
+  const inicial = esc((c.u.nombre || "?").trim().charAt(0).toUpperCase());
+  await c.responder([cabecera("🖼", "Tu avatar", "Paso 9 de 9"), "", "Elige uno para tu perfil, o usa tu foto de Telegram.", "", `<i>Si no eliges, verás una burbuja con tu inicial (${inicial}). Después podrás subir una foto tuya desde la app, tocando tu avatar.</i>`].join("\n"), filas);
 }
 
 async function resumenFinal(c: Ctx): Promise<void> {
@@ -159,6 +175,17 @@ export async function callback(c: Ctx, p: string[]): Promise<boolean> {
   if (p[1] === "lugar") { // elección de una de las ciudades encontradas
     const l = (d.resultados ?? [])[+p[2]];
     if (l) { c.u.ciudad = { nombre: l.nombre, provincia: l.provincia, lat: l.lat, lon: l.lon }; c.u.zona = l.zona; await c.guardar(); }
+    await mostrarPaso(c, "avatar"); return true;
+  }
+  if (p[1] === "avmas") {
+    const sig = ((d.avPag ?? 0) + 1) * POR_PAGINA < AVATARES.length ? (d.avPag ?? 0) + 1 : 0;
+    d.avPag = sig; c.u.estado = { flujo: FLUJO, paso: "avatar", datos: d as Record<string, unknown> }; await c.guardar();
+    await pasoAvatar(c); return true;
+  }
+  if (p[1] === "av" || p[1] === "avtg") {
+    const idx = +p[2];
+    const a = p[1] === "avtg" ? ({ tipo: "telegram" } as const) : avatarEmoji(AVATARES[idx], idx % NUM_COLORES);
+    if (a) { c.u.avatar = a; await c.guardar(); await c.nuevo(`✅ <b>Avatar guardado</b>${a.tipo === "emoji" ? " " + a.emoji : ""}\n<i>Lo cambias cuando quieras en la app, tocándolo.</i>`); }
     await mostrarPaso(c, "fin"); return true;
   }
   if (p[1] === "est") { c.u.estilo = p[2] === "formal" ? "formal" : "informal"; await mostrarPaso(c, "modo"); return true; }

@@ -117,6 +117,8 @@ al chat el resumen, crear/completar/borrar alarmas, citas y tareas, activar secc
 El contenido (tiempo, noticias, horóscopo…) se ve dentro de la propia app, no en el chat. El menú del chat es solo el botón de entrada (y el botón fijo «📱 Agenda» junto al cuadro de texto abre también la app). Todo usa los mismos datos que el bot, y cada petición va firmada por Telegram (cabecera `Authorization: tma <initData>`, comprobada con el token del bot); en un bot privado
 solo entra quien tenga acceso. No hay que configurar nada más: el botón aparece solo. Para ver el diseño fuera de Telegram: `…/app/?demo=1&estilo=formal&modo=oscuro`.
 
+La cabecera de la app muestra el **avatar** del usuario: una foto subida (se reduce a 192 px en el propio móvil), su foto de Telegram, uno de los 72 avatares de emoji sobre un fondo de color a elegir, o, si no elige nada, una burbuja con la inicial de su nombre. Tocándolo se cambia en cualquier momento; el asistente inicial del bot también ofrece elegirlo (último paso). Encima del avatar sale una **frase célebre** (con su autor) distinta cada vez que se abre la app; están en `cloudflare/publico/app/index.html` (lista `FRASES`) y se pueden ampliar.
+
 Las cuatro cabeceras son PNG en `cloudflare/publico/` (se sirven desde la propia dirección del Worker; Telegram las descarga de ahí). Se regeneran con
 `cd tools/banners && npm install && npm run generar` (necesita Chromium; la ilustración y las tipografías están en `tools/banners/generar.mjs`).
 Sin dirección pública (versión de Firebase) el menú es solo texto.

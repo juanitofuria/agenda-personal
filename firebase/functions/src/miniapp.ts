@@ -6,6 +6,7 @@ import { buscarLugares } from "./geocoding";
 import { formatearFechaHora, localAUtc, Repeticion } from "./fechas";
 import { Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario } from "./modelo";
 import { slug } from "./bot/catalogo";
+import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "./avatares";
 import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
 import { iguales } from "./webhook";
@@ -57,6 +58,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
   ];
   return ok({
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
     compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
 }
@@ -226,6 +228,19 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
       }));
       return ok({ secciones: hechas });
+    }
+
+    case "/api/avatar": {
+      if (c.tipo === "emoji") { const a = avatarEmoji(c.emoji, c.color); if (!a) return error(400, "Ese avatar no existe"); u.avatar = a; }
+      else if (c.tipo === "telegram") u.avatar = { tipo: "telegram" };
+      else if (c.tipo === "foto") {
+        if (!fotoValida(c.foto)) return error(400, "La foto no es válida o pesa demasiado");
+        await deps.almacen.cacheSet(claveFoto(u.id), c.foto, VIGENCIA_FOTO_MS, ahora);
+        u.avatar = { tipo: "foto" };
+      } else if (c.tipo === "ninguno") u.avatar = null; // vuelve a la burbuja con su inicial
+      else return error(400, "Tipo de avatar desconocido");
+      await deps.almacen.guardarUsuario(u);
+      return ok();
     }
 
     case "/api/compra": {

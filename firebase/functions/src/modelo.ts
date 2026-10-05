@@ -35,6 +35,9 @@ export interface ArticuloCompra { id: string; texto: string; hecho: boolean }
 export interface CompraTerminada { id: string; fecha: string /* ISO */; items: string[] }
 export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTerminada[]; /** Código del enlace compartido de la lista actual (null si no se ha compartido). */ token?: string | null }
 
+/** Imagen del usuario: un avatar (emoji sobre un fondo de color), su foto de Telegram o una foto subida (se guarda aparte). Sin elegir: burbuja con su inicial. */
+export type Avatar = { tipo: "emoji"; emoji: string; color: number } | { tipo: "telegram" } | { tipo: "foto" };
+
 export interface Usuario {
   id: string;                 // id del chat
   nombre: string;
@@ -45,6 +48,7 @@ export interface Usuario {
   zona: string;               // zona horaria IANA
   ciudad: Ciudad | null;
   compra: ListaCompra;
+  avatar: Avatar | null;
   secciones: Record<SeccionId, ConfigSeccion>;
   temas: Tema[];
   estado: Estado | null;
@@ -102,7 +106,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, avatar: null, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }

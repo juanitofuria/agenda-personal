@@ -26,9 +26,19 @@ button,input,select{font:inherit;color:inherit}
 html[data-estilo=formal] .cab h1{font-weight:700;font-size:23px}
 .cab p{margin:4px 0 0;font-weight:700;font-size:13px;color:var(--suave)}
 html[data-estilo=formal] .cab p{text-transform:uppercase;letter-spacing:2.4px;font-size:10.5px}
-.frase{margin:14px 4px 2px;font:700 25px/1.15 var(--mano);color:var(--azul2);text-align:center;transform:rotate(-1.5deg)}
+.avw{position:relative;flex:none}
+.av{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font:800 26px var(--titulo);color:#fff;position:relative;overflow:hidden;border:0;padding:0;cursor:pointer;box-shadow:0 6px 16px rgba(20,60,140,.28)}
+.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.avw .lapiz{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:50%;background:var(--tarjeta);border:1px solid var(--linea);display:grid;place-items:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.av.g0{background:linear-gradient(145deg,#4aa3ff,#2f6fd6)}.av.g1{background:linear-gradient(145deg,#ff9a5a,#f0652c)}.av.g2{background:linear-gradient(145deg,#4fd08a,#1f9d5a)}.av.g3{background:linear-gradient(145deg,#b58cff,#7a4fe0)}
+.av.g4{background:linear-gradient(145deg,#ff7a8a,#e23a52)}.av.g5{background:linear-gradient(145deg,#4cc9d8,#1f94b0)}.av.g6{background:linear-gradient(145deg,#ffd35c,#e8a317)}.av.g7{background:linear-gradient(145deg,#8a97b8,#4a5a80)}
+.rej-av{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
+.rej-av button{aspect-ratio:1;border:2px solid transparent;border-radius:50%;font-size:24px;display:grid;place-items:center;padding:0;cursor:pointer;color:#fff}
+.colores{display:flex;gap:10px;justify-content:center;margin:8px 0 4px}.colores button{width:28px;height:28px;border-radius:50%;border:3px solid transparent;padding:0;cursor:pointer}.colores button.on{border-color:var(--tinta)}
+.frase small{display:block;font:700 14px var(--fuente);color:var(--suave);margin-top:6px;transform:none}
+.frase{margin:14px 4px 2px;font:700 22px/1.2 var(--mano);color:var(--azul2);text-align:center;transform:rotate(-1.5deg)}
 .frase::after{content:"";display:block;height:5px;width:46%;margin:8px auto 0;border-radius:3px;background:var(--azul2);opacity:.75;transform:rotate(1deg)}
-html[data-estilo=formal] .frase{font:italic 700 16px/1.35 var(--titulo);color:var(--suave);transform:none;text-align:left;margin:14px 2px 2px}
+html[data-estilo=formal] .frase{font:italic 700 15.5px/1.4 var(--titulo);color:var(--suave);transform:none;text-align:left;margin:14px 2px 2px}
 html[data-estilo=formal] .frase::after{width:76px;height:4px;margin:10px 0 0;background:var(--azul);opacity:1;transform:none;border-radius:2px}
 .saludo{margin:18px 4px 10px;font:800 20px var(--titulo)}
 .saludo small{display:block;font:600 13px var(--fuente);color:var(--suave);margin-top:2px}
@@ -176,9 +186,81 @@ function botonAtras() {
 }
 if (TG && TG.BackButton) TG.BackButton.onClick(volver);
 
-const FRASES = ["Hoy es un buen día para avanzar un paso más.", "Lo pequeño, hecho cada día, se vuelve grande.", "Empieza donde estás, con lo que tienes.", "Respira hondo: vas mejor de lo que crees.", "Un día a la vez, y siempre hacia delante.", "Tu constancia de hoy es tu tranquilidad de mañana.", "No hace falta correr: basta con no parar.", "Cada tarea hecha es una victoria.", "Hazlo con calma, hazlo con ganas.", "Lo que hoy cuesta, mañana se agradece.", "Organiza tu día y disfruta de tu tiempo.", "El mejor momento para empezar es ahora.", "Sonríe: ya has dado el primer paso.", "Haz hoy algo de lo que tu yo de mañana se alegre.", "Los grandes planes empiezan con una pequeña lista.", "Paso a paso se llega lejos.", "Cuida tu tiempo: es lo más valioso que tienes.", "Hoy puedes más de lo que imaginas.", "Con orden, todo parece más fácil.", "Date permiso para descansar y volver con fuerza.", "Lo importante primero, lo demás después.", "Cada mañana es una página en blanco.", "Tú marcas el ritmo de tu día.", "Haz lo que puedas, con lo que tengas, donde estés.", "La paciencia también es avanzar.", "Un buen plan hoy, un día tranquilo mañana.", "Celebra lo pequeño: también cuenta.", "Que tu agenda sea ligera y tu día, bonito.", "Hoy toca lo que toca, y a tu manera.", "No lo dejes para luego: tu futuro te lo agradecerá.", "Disfruta del camino, no solo de la meta.", "Lo estás haciendo mejor de lo que piensas.", "Un día bien organizado es un día ganado.", "Ten un plan, pero déjale sitio a lo bonito.", "Tu energía de hoy empieza con una buena decisión.", "Piensa en grande, empieza en pequeño.", "Termina lo que empezaste, y empieza lo que sueñas.", "Mereces un día sin prisas.", "Lo bueno llega a quien se organiza.", "Cada paso cuenta, también el de hoy."];
-S.frase = FRASES[Math.floor(Math.random() * FRASES.length)];
-const cabecera = () => `<div class="cab"><div class="fila1"><svg class="logo"><use href="#i-logo"/></svg><div><h1>Mi Agenda Personal</h1><p>${S.datos.usuario.estilo === "formal" ? "Organiza · Disfruta · Avanza" : "Organiza · Disfruta · Avanza"}</p></div></div><div class="frase">${esc(S.frase)}</div></div>`;
+const FRASES = [
+["Conócete a ti mismo.", "Inscripción del templo de Apolo, en Delfos"],
+["Una vida sin examen no merece ser vivida.", "Sócrates"],
+["Somos lo que hacemos repetidamente. La excelencia, entonces, no es un acto, sino un hábito.", "Will Durant"],
+["No es que tengamos poco tiempo, sino que perdemos mucho.", "Séneca"],
+["No hay viento favorable para quien no sabe adónde va.", "Séneca"],
+["Mientras dura la vida, aprende a vivir.", "Séneca"],
+["Tienes poder sobre tu mente, no sobre los acontecimientos externos. Date cuenta de esto y encontrarás la fuerza.", "Marco Aurelio"],
+["La felicidad de tu vida depende de la calidad de tus pensamientos.", "Marco Aurelio"],
+["Lo que no me mata me hace más fuerte.", "Friedrich Nietzsche"],
+["Quien tiene un porqué para vivir encontrará casi siempre el cómo.", "Friedrich Nietzsche"],
+["Yo soy yo y mi circunstancia, y si no la salvo a ella no me salvo yo.", "José Ortega y Gasset"],
+["La libertad, Sancho, es uno de los más preciosos dones que a los hombres dieron los cielos.", "Miguel de Cervantes"],
+["El que lee mucho y anda mucho, ve mucho y sabe mucho.", "Miguel de Cervantes"],
+["Cada uno es hijo de sus obras.", "Miguel de Cervantes"],
+["Caminante, no hay camino, se hace camino al andar.", "Antonio Machado"],
+["Hoy es siempre todavía.", "Antonio Machado"],
+["¿Qué es la vida? Un frenesí. ¿Qué es la vida? Una ilusión, una sombra, una ficción; que toda la vida es sueño, y los sueños, sueños son.", "Pedro Calderón de la Barca"],
+["El miedo es natural en el prudente, y el saberlo vencer es ser valiente.", "Alonso de Ercilla"],
+["La imaginación es más importante que el conocimiento.", "Albert Einstein"],
+["La vida es como montar en bicicleta: para mantener el equilibrio hay que seguir moviéndose.", "Albert Einstein"],
+["Si he visto más lejos, es porque estaba subido a hombros de gigantes.", "Isaac Newton"],
+["Pienso, luego existo.", "René Descartes"],
+["Todo fluye. Nadie se baña dos veces en el mismo río.", "Heráclito"],
+["Lo que con mucho trabajo se adquiere, más se ama.", "Aristóteles"],
+["El hombre es la medida de todas las cosas.", "Protágoras"],
+["Carpe diem: aprovecha el día.", "Horacio"],
+["Llegué, vi, vencí.", "Julio César"],
+["Un viaje de mil millas comienza con un solo paso.", "Lao Tsé"],
+["Quien conoce a los demás es sabio; quien se conoce a sí mismo es sabio de verdad.", "Lao Tsé"],
+["Aprender sin pensar es inútil; pensar sin aprender, peligroso.", "Confucio"],
+["Cae siete veces, levántate ocho.", "Proverbio japonés"],
+["Nunca cedáis, nunca, nunca, nunca.", "Winston Churchill"],
+["Lo único que debemos temer es al propio miedo.", "Franklin D. Roosevelt"],
+["Mucho mejor es atreverse a grandes cosas, aunque se alternen con fracasos, que formar fila con esos pobres espíritus que ni disfrutan mucho ni sufren mucho.", "Theodore Roosevelt"],
+["Haz lo que puedas, con lo que tengas, donde estés.", "Theodore Roosevelt"],
+["La oscuridad no puede expulsar a la oscuridad: solo la luz puede hacerlo.", "Martin Luther King Jr."],
+["Todo parece imposible hasta que se hace.", "Nelson Mandela"],
+["La educación es el arma más poderosa que puedes usar para cambiar el mundo.", "Nelson Mandela"],
+["Nada en la vida debe ser temido, solamente comprendido. Ahora es el momento de comprender más para temer menos.", "Marie Curie"],
+["Lo esencial es invisible a los ojos.", "Antoine de Saint-Exupéry"],
+["Lo que embellece al desierto es que en alguna parte esconde un pozo.", "Antoine de Saint-Exupéry"],
+["El único modo de hacer un gran trabajo es amar lo que haces.", "Steve Jobs"],
+["La vida es aquello que te va sucediendo mientras te empeñas en hacer otros planes.", "John Lennon"],
+["Cuando una puerta se cierra, otra se abre; pero a menudo miramos tanto tiempo la puerta cerrada que no vemos la que se ha abierto.", "Alexander Graham Bell"],
+["Quien tiene paciencia obtiene lo que desea.", "Benjamin Franklin"],
+["El tiempo es el mayor innovador.", "Francis Bacon"],
+["Lo importante rara vez es urgente, y lo urgente rara vez es importante.", "Dwight D. Eisenhower"],
+["No tengo miedo a las tormentas, porque estoy aprendiendo a dirigir mi barco.", "Louisa May Alcott"],
+["Ser o no ser, esa es la cuestión.", "William Shakespeare"],
+["Fracasar es simplemente la oportunidad de empezar de nuevo, esta vez con más inteligencia.", "Henry Ford"],
+["Ama y haz lo que quieras.", "San Agustín"],
+["La naturaleza no hace nada en vano.", "Aristóteles"],
+["Nuestra recompensa se encuentra en el esfuerzo y no en el resultado. Un esfuerzo total es una victoria completa.", "Mahatma Gandhi"],
+];
+{ // una frase distinta en cada apertura (nunca la misma que la última)
+  let i = Math.floor(Math.random() * FRASES.length), ult = -1;
+  try { ult = +localStorage.getItem("frase"); } catch (e) {}
+  if (i === ult) i = (i + 1) % FRASES.length;
+  try { localStorage.setItem("frase", i); } catch (e) {}
+  S.frase = FRASES[i];
+}
+
+/* ---------- Avatar: foto, avatar de emoji o burbuja con la inicial ---------- */
+const fotoTelegram = () => (TG && TG.initDataUnsafe && TG.initDataUnsafe.user && TG.initDataUnsafe.user.photo_url) || "";
+function burbuja(tam) {
+  const u = S.datos.usuario, a = S.datos.avatar, nombre = (u.nombre || "").trim();
+  const inicial = (nombre.charAt(0) || "?").toUpperCase();
+  const g = a && a.tipo === "emoji" ? a.color : [...nombre].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 8;
+  const foto = a && a.tipo === "foto" ? S.datos.fotoAvatar : a && a.tipo === "telegram" ? fotoTelegram() : "";
+  const dentro = a && a.tipo === "emoji" ? a.emoji : inicial;
+  return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
+}
+const botonAvatar = (tam = 58) => `<button class="avw" data-avatar="1" aria-label="Cambiar avatar" style="border:0;background:none;padding:0">${burbuja(tam)}<span class="lapiz">✎</span></button>`;
+const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>Mi Agenda Personal</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="frase">${esc(S.frase[0])}<small>— ${esc(S.frase[1])}</small></div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -252,7 +334,7 @@ const vistas = {
   perfil() {
     const u = S.datos.usuario;
     return `${barra("Mi perfil")}
-      <div class="lista"><div class="fila"><div class="emo">👤</div><div class="t"><b>${esc(u.nombre || "Sin nombre")}</b><small>${u.admin ? "Administrador" : "Usuario"}</small></div></div>
+      <div class="lista"><div class="fila">${botonAvatar(46)}<div class="t"><b>${esc(u.nombre || "Sin nombre")}</b><small>${u.admin ? "Administrador" : "Usuario"} · toca tu avatar para cambiarlo</small></div></div>
       <div class="fila"><div class="emo">📍</div><div class="t"><b>${u.ciudad ? esc(u.ciudad) : "Sin ciudad"}</b><small>${esc(u.zona)}</small></div></div></div>
       <label>Tu nombre</label><input type="text" id="nombre" maxlength="40" value="${esc(u.nombre)}" placeholder="¿Cómo te llamo?">
       <label>Fecha de nacimiento (para el horóscopo)</label><input type="date" id="nac" value="${esc(u.nacimiento || "")}">
@@ -337,6 +419,52 @@ async function hojaCompartir() {
   });
 }
 
+/* ---------- Cambiar avatar ---------- */
+function redimensionar(archivo) {
+  return new Promise((ok, mal) => {
+    const url = URL.createObjectURL(archivo), img = new Image();
+    img.onload = () => {
+      const t = 192, c = document.createElement("canvas"); c.width = c.height = t;
+      const lado = Math.min(img.width, img.height), sx = (img.width - lado) / 2, sy = (img.height - lado) / 2;
+      c.getContext("2d").drawImage(img, sx, sy, lado, lado, 0, 0, t, t);
+      URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("No he podido leer esa imagen")); };
+    img.src = url;
+  });
+}
+function hojaAvatar() {
+  let color = S.datos.avatar && S.datos.avatar.tipo === "emoji" ? S.datos.avatar.color : 0;
+  const h = document.createElement("div"); h.className = "hoja";
+  const pintarHoja = () => {
+    h.innerHTML = `<div><h3>Tu avatar</h3>
+      <div style="display:flex;justify-content:center;margin:10px 0">${burbuja(84)}</div>
+      <button class="btn ancho" data-av="foto">📷 Subir una foto</button><input type="file" id="f-foto" accept="image/*" hidden>
+      ${fotoTelegram() ? `<button class="btn sec ancho" data-av="telegram">✈️ Usar mi foto de Telegram</button>` : ""}
+      <label>O elige un avatar</label>
+      <div class="colores">${[0,1,2,3,4,5,6,7].map((i) => `<button class="av g${i} ${i === color ? "on" : ""}" data-col="${i}" style="width:28px;height:28px;box-shadow:none"></button>`).join("")}</div>
+      <div class="rej-av">${S.datos.avatares.map((e) => `<button class="av g${color}" data-emo="${e}" style="width:auto;height:auto;box-shadow:none">${e}</button>`).join("")}</div>
+      <button class="btn peligro ancho" data-av="ninguno">Quitar y usar mi inicial</button>
+      <button class="btn sec ancho" data-av="no">Cerrar</button></div>`;
+  };
+  pintarHoja(); document.body.appendChild(h);
+  const guardar = async (cuerpo) => { try { await api("/api/avatar", cuerpo); await cargar(); pintar(); aviso("✅ Avatar cambiado"); h.remove(); } catch (e) { aviso(e.message); } };
+  h.addEventListener("click", (e) => {
+    if (e.target === h) return h.remove();
+    const col = e.target.closest("[data-col]"), emo = e.target.closest("[data-emo]"), acc = e.target.closest("[data-av]")?.dataset.av;
+    if (col) { color = +col.dataset.col; return pintarHoja(); }
+    if (emo) return guardar({ tipo: "emoji", emoji: emo.dataset.emo, color });
+    if (acc === "no") return h.remove();
+    if (acc === "foto") return $("#f-foto", h).click();
+    if (acc === "telegram") return guardar({ tipo: "telegram" });
+    if (acc === "ninguno") return guardar({ tipo: "ninguno" });
+  });
+  h.addEventListener("change", async (e) => {
+    if (e.target.id !== "f-foto" || !e.target.files[0]) return;
+    try { guardar({ tipo: "foto", foto: await redimensionar(e.target.files[0]) }); } catch (err) { aviso(err.message); }
+  });
+}
+
 function hojaTerminar() {
   const n = S.datos.compra.items.filter((x) => x.hecho).length;
   const h = document.createElement("div"); h.className = "hoja";
@@ -366,6 +494,7 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
+  if (q("[data-avatar]")) return hojaAvatar();
   if (q("[data-compartir]")) return hojaCompartir();
   if ((el = q("[data-repetir]"))) return compra({ accion: "repetir", id: el.dataset.repetir }, "↻ Añadido a la lista");
   if ((el = q("[data-olvidar]"))) { if (confirm("¿Eliminar esta compra del historial?")) compra({ accion: "olvidar", id: el.dataset.olvidar }); return; }
@@ -400,11 +529,13 @@ function demo(ruta, c) {
   const d = (window.__demo ||= {
     usuario: { nombre: "Ana", estilo: new URLSearchParams(location.search).get("estilo") || "informal", modo: new URLSearchParams(location.search).get("modo") || "auto", ciudad: "Córdoba", zona: "Europe/Madrid", sol: "amanece 08:12 · anochece 19:41", admin: true },
     secciones: [["tiempo", "🌤", "Tiempo", "Previsión por horas, lluvia, sol, viento, UV y luna", 1], ["noticias", "📰", "Noticias", "Economía, política y noticias de tu zona", 1], ["agenda", "🗓", "Agenda", "Tus citas y tareas de hoy y mañana", 0], ["horoscopo", "🔮", "Horóscopo", "El horóscopo del día de tu signo", 1], ["mercados", "📈", "Mercados", "Premercado de Wall Street y cierre de ayer", 0]].map(([ref, emoji, titulo, descripcion, a]) => ({ ref, emoji, titulo, descripcion, activa: !!a, hora: "07:30" })),
+    avatar: null, fotoAvatar: null, avatares: ["🦊","🐼","🐨","🦁","🐯","🐸","🐵","🐧","🦉","🦄","🐙","🦋","🐢","🐬","🦈","🐳","🦖","🐝","🐞","🦔","🐰","🐻"],
     compra: { items: [{ id: "a", texto: "Leche", hecho: false }, { id: "b", texto: "Pan", hecho: true }, { id: "c", texto: "Huevos", hecho: false }], historial: [{ id: "h1", fecha: "2026-10-01T10:00:00Z", items: ["Arroz", "Tomates", "Café"] }] },
     eventos: [{ id: "1", tipo: "cita", titulo: "Cardiología", lugar: "Hospital", texto: "mañana · 10:30", hecho: false, repeticion: "ninguna" }, { id: "2", tipo: "alarma", titulo: "Tomar la pastilla", lugar: "", texto: "hoy · 21:00", hecho: false, repeticion: "diaria" }, { id: "3", tipo: "tarea", titulo: "Llamar al fontanero", lugar: "", texto: "sin fecha", hecho: true, repeticion: "ninguna" }],
   });
   if (ruta === "/api/apariencia") Object.assign(d.usuario, { ...(c.estilo && { estilo: c.estilo }), ...(c.modo && { modo: c.modo }) });
   if (ruta === "/api/seccion") { const s = d.secciones.find((x) => x.ref === c.ref); if (typeof c.activa === "boolean") s.activa = c.activa; if (c.hora) s.hora = c.hora; }
+  if (ruta === "/api/avatar") { d.avatar = c.tipo === "emoji" ? { tipo: "emoji", emoji: c.emoji, color: c.color } : c.tipo === "foto" ? { tipo: "foto" } : null; d.fotoAvatar = c.foto || null; return Promise.resolve({ ok: true }); }
   if (ruta === "/api/compra") { const l = d.compra; const it = l.items.find((x) => x.id === c.id);
     if (c.accion === "anadir") c.texto.split(",").forEach((t, i) => l.items.push({ id: "n" + Date.now() + i, texto: t.trim(), hecho: false }));
     if (c.accion === "marcar") it.hecho = !it.hecho; if (c.accion === "quitar") l.items = l.items.filter((x) => x !== it);
