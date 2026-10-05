@@ -35,10 +35,12 @@ html[data-estilo=formal] .cab p{text-transform:uppercase;letter-spacing:2.4px;fo
 .rej-av{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
 .rej-av button{aspect-ratio:1;border:2px solid transparent;border-radius:50%;font-size:24px;display:grid;place-items:center;padding:0;cursor:pointer;color:#fff}
 .colores{display:flex;gap:10px;justify-content:center;margin:8px 0 4px}.colores button{width:28px;height:28px;border-radius:50%;border:3px solid transparent;padding:0;cursor:pointer}.colores button.on{border-color:var(--tinta)}
+.dia{margin:14px 4px 0;text-align:center;font:800 11.5px var(--fuente);letter-spacing:1.6px;text-transform:uppercase;color:var(--suave)}
+html[data-estilo=formal] .dia{text-align:left;margin-left:2px}
 .frase small{display:block;font:700 14px var(--fuente);color:var(--suave);margin-top:6px;transform:none}
-.frase{margin:14px 4px 2px;font:700 22px/1.2 var(--mano);color:var(--azul2);text-align:center;transform:rotate(-1.5deg)}
+.frase{margin:6px 4px 2px;font:700 22px/1.2 var(--mano);color:var(--azul2);text-align:center;transform:rotate(-1.5deg)}
 .frase::after{content:"";display:block;height:5px;width:46%;margin:8px auto 0;border-radius:3px;background:var(--azul2);opacity:.75;transform:rotate(1deg)}
-html[data-estilo=formal] .frase{font:italic 700 15.5px/1.4 var(--titulo);color:var(--suave);transform:none;text-align:left;margin:14px 2px 2px}
+html[data-estilo=formal] .frase{font:italic 700 15.5px/1.4 var(--titulo);color:var(--suave);transform:none;text-align:left;margin:6px 2px 2px}
 html[data-estilo=formal] .frase::after{width:76px;height:4px;margin:10px 0 0;background:var(--azul);opacity:1;transform:none;border-radius:2px}
 .saludo{margin:18px 4px 10px;font:800 20px var(--titulo)}
 .saludo small{display:block;font:600 13px var(--fuente);color:var(--suave);margin-top:2px}
@@ -118,6 +120,7 @@ html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
 <symbol id="i-logo" viewBox="0 0 64 64"><rect x="9" y="12" width="46" height="42" rx="10" fill="var(--logo-fondo,#f4f8ff)" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 26h46" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 22a10 10 0 0 1 10-10h26a10 10 0 0 1 10 10v4H9z" fill="var(--logo-tapa,#ef4a5a)"/><rect x="20" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><rect x="39" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><path d="M22 39l7 7 14-15" fill="none" stroke="var(--logo-check,#3d6fcf)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
 <div class="app" id="app"><div class="cargando">Cargando…</div></div>
+<script src="frases.js"></script>
 <script>
 const TG = window.Telegram && Telegram.WebApp;
 const DEMO = new URLSearchParams(location.search).has("demo");
@@ -186,67 +189,10 @@ function botonAtras() {
 }
 if (TG && TG.BackButton) TG.BackButton.onClick(volver);
 
-const FRASES = [
-["Conócete a ti mismo.", "Inscripción del templo de Apolo, en Delfos"],
-["Una vida sin examen no merece ser vivida.", "Sócrates"],
-["Somos lo que hacemos repetidamente. La excelencia, entonces, no es un acto, sino un hábito.", "Will Durant"],
-["No es que tengamos poco tiempo, sino que perdemos mucho.", "Séneca"],
-["No hay viento favorable para quien no sabe adónde va.", "Séneca"],
-["Mientras dura la vida, aprende a vivir.", "Séneca"],
-["Tienes poder sobre tu mente, no sobre los acontecimientos externos. Date cuenta de esto y encontrarás la fuerza.", "Marco Aurelio"],
-["La felicidad de tu vida depende de la calidad de tus pensamientos.", "Marco Aurelio"],
-["Lo que no me mata me hace más fuerte.", "Friedrich Nietzsche"],
-["Quien tiene un porqué para vivir encontrará casi siempre el cómo.", "Friedrich Nietzsche"],
-["Yo soy yo y mi circunstancia, y si no la salvo a ella no me salvo yo.", "José Ortega y Gasset"],
-["La libertad, Sancho, es uno de los más preciosos dones que a los hombres dieron los cielos.", "Miguel de Cervantes"],
-["El que lee mucho y anda mucho, ve mucho y sabe mucho.", "Miguel de Cervantes"],
-["Cada uno es hijo de sus obras.", "Miguel de Cervantes"],
-["Caminante, no hay camino, se hace camino al andar.", "Antonio Machado"],
-["Hoy es siempre todavía.", "Antonio Machado"],
-["¿Qué es la vida? Un frenesí. ¿Qué es la vida? Una ilusión, una sombra, una ficción; que toda la vida es sueño, y los sueños, sueños son.", "Pedro Calderón de la Barca"],
-["El miedo es natural en el prudente, y el saberlo vencer es ser valiente.", "Alonso de Ercilla"],
-["La imaginación es más importante que el conocimiento.", "Albert Einstein"],
-["La vida es como montar en bicicleta: para mantener el equilibrio hay que seguir moviéndose.", "Albert Einstein"],
-["Si he visto más lejos, es porque estaba subido a hombros de gigantes.", "Isaac Newton"],
-["Pienso, luego existo.", "René Descartes"],
-["Todo fluye. Nadie se baña dos veces en el mismo río.", "Heráclito"],
-["Lo que con mucho trabajo se adquiere, más se ama.", "Aristóteles"],
-["El hombre es la medida de todas las cosas.", "Protágoras"],
-["Carpe diem: aprovecha el día.", "Horacio"],
-["Llegué, vi, vencí.", "Julio César"],
-["Un viaje de mil millas comienza con un solo paso.", "Lao Tsé"],
-["Quien conoce a los demás es sabio; quien se conoce a sí mismo es sabio de verdad.", "Lao Tsé"],
-["Aprender sin pensar es inútil; pensar sin aprender, peligroso.", "Confucio"],
-["Cae siete veces, levántate ocho.", "Proverbio japonés"],
-["Nunca cedáis, nunca, nunca, nunca.", "Winston Churchill"],
-["Lo único que debemos temer es al propio miedo.", "Franklin D. Roosevelt"],
-["Mucho mejor es atreverse a grandes cosas, aunque se alternen con fracasos, que formar fila con esos pobres espíritus que ni disfrutan mucho ni sufren mucho.", "Theodore Roosevelt"],
-["Haz lo que puedas, con lo que tengas, donde estés.", "Theodore Roosevelt"],
-["La oscuridad no puede expulsar a la oscuridad: solo la luz puede hacerlo.", "Martin Luther King Jr."],
-["Todo parece imposible hasta que se hace.", "Nelson Mandela"],
-["La educación es el arma más poderosa que puedes usar para cambiar el mundo.", "Nelson Mandela"],
-["Nada en la vida debe ser temido, solamente comprendido. Ahora es el momento de comprender más para temer menos.", "Marie Curie"],
-["Lo esencial es invisible a los ojos.", "Antoine de Saint-Exupéry"],
-["Lo que embellece al desierto es que en alguna parte esconde un pozo.", "Antoine de Saint-Exupéry"],
-["El único modo de hacer un gran trabajo es amar lo que haces.", "Steve Jobs"],
-["La vida es aquello que te va sucediendo mientras te empeñas en hacer otros planes.", "John Lennon"],
-["Cuando una puerta se cierra, otra se abre; pero a menudo miramos tanto tiempo la puerta cerrada que no vemos la que se ha abierto.", "Alexander Graham Bell"],
-["Quien tiene paciencia obtiene lo que desea.", "Benjamin Franklin"],
-["El tiempo es el mayor innovador.", "Francis Bacon"],
-["Lo importante rara vez es urgente, y lo urgente rara vez es importante.", "Dwight D. Eisenhower"],
-["No tengo miedo a las tormentas, porque estoy aprendiendo a dirigir mi barco.", "Louisa May Alcott"],
-["Ser o no ser, esa es la cuestión.", "William Shakespeare"],
-["Fracasar es simplemente la oportunidad de empezar de nuevo, esta vez con más inteligencia.", "Henry Ford"],
-["Ama y haz lo que quieras.", "San Agustín"],
-["La naturaleza no hace nada en vano.", "Aristóteles"],
-["Nuestra recompensa se encuentra en el esfuerzo y no en el resultado. Un esfuerzo total es una victoria completa.", "Mahatma Gandhi"],
-];
-{ // una frase distinta en cada apertura (nunca la misma que la última)
-  let i = Math.floor(Math.random() * FRASES.length), ult = -1;
-  try { ult = +localStorage.getItem("frase"); } catch (e) {}
-  if (i === ult) i = (i + 1) % FRASES.length;
-  try { localStorage.setItem("frase", i); } catch (e) {}
-  S.frase = FRASES[i];
+// La frase del día: una por cada día del año (frases.js), la misma para todo el mundo ese día.
+{
+  const h = new Date(), dia = Math.floor((Date.UTC(h.getFullYear(), h.getMonth(), h.getDate()) - Date.UTC(h.getFullYear(), 0, 0)) / 864e5); // 1..366
+  S.frase = FRASES[(dia - 1) % FRASES.length];
 }
 
 /* ---------- Avatar: foto, avatar de emoji o burbuja con la inicial ---------- */
@@ -260,7 +206,7 @@ function burbuja(tam) {
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
 const botonAvatar = (tam = 58) => `<button class="avw" data-avatar="1" aria-label="Cambiar avatar" style="border:0;background:none;padding:0">${burbuja(tam)}<span class="lapiz">✎</span></button>`;
-const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>Mi Agenda Personal</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="frase">${esc(S.frase[0])}<small>— ${esc(S.frase[1])}</small></div></div>`;
+const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>Mi Agenda Personal</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase[0])}<small>— ${esc(S.frase[1])}</small></div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
