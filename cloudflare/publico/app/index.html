@@ -212,6 +212,7 @@ const vistas = {
     return `${barra("Lista de la compra", `<button class="btn chico sec" data-ir="historial">🕘 Historial</button>`)}
       <div class="anadir"><input type="text" id="nuevo-art" maxlength="60" placeholder="Añadir (varios, con comas)" autocomplete="off"><button class="btn" data-anadir="1">＋</button></div>
       <div class="lista" style="margin-top:12px">${pend.map(fila).join("") || (hechos.length ? "" : `<div class="vacio">Tu lista está vacía.<br>Añade lo que necesitas comprar.</div>`)}</div>
+      ${pend.length ? `<button class="btn sec ancho" data-compartir="1">📤 Compartir lo que falta (${pend.length})</button>` : ""}
       ${hechos.length ? `<label>Comprado (${hechos.length})</label><div class="lista">${hechos.map(fila).join("")}</div><button class="btn ancho" data-terminar="1">✓ Compra hecha</button>` : ""}
       ${l.items.length ? `<button class="btn peligro ancho" data-vaciar="1">Vaciar la lista</button>` : ""}`;
   },
@@ -296,6 +297,42 @@ function hojaNuevo() {
   });
 }
 
+/* Compartir: solo lo que aún no está comprado. Telegram no ofrece el menú «Compartir» del sistema dentro de las mini apps, así que se ofrecen los destinos más usados. */
+function textoCompra() {
+  const pend = S.datos.compra.items.filter((x) => !x.hecho);
+  return "🛒 Lista de la compra\n" + pend.map((x) => "• " + x.texto).join("\n");
+}
+async function copiar(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
+  try { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; } catch (e) { return false; }
+}
+function abrirEnlace(u) { if (TG && TG.openLink) TG.openLink(u); else window.open(u, "_blank"); }
+function hojaCompartir() {
+  const texto = textoCompra();
+  if (!S.datos.compra.items.some((x) => !x.hecho)) return aviso("No queda nada por comprar");
+  const h = document.createElement("div"); h.className = "hoja";
+  h.innerHTML = `<div><h3>Compartir la lista</h3><p class="nota">Se envía solo lo que falta por comprar.</p><div class="doc" style="white-space:pre-wrap;font-size:13.5px">${esc(texto)}</div>
+    <button class="btn ancho" data-c="wa">💬 WhatsApp</button>
+    <button class="btn ancho" data-c="mail">✉️ Correo</button>
+    <button class="btn ancho" data-c="tg">✈️ Telegram</button>
+    ${navigator.share ? `<button class="btn ancho" data-c="otras">📤 Otras aplicaciones…</button>` : ""}
+    <button class="btn sec ancho" data-c="copiar">📋 Copiar el texto</button>
+    <button class="btn sec ancho" data-c="no">Cerrar</button></div>`;
+  document.body.appendChild(h);
+  h.addEventListener("click", async (e) => {
+    const c = e.target.closest("[data-c]")?.dataset.c;
+    if (e.target === h || c === "no") return h.remove();
+    if (!c) return;
+    const t = encodeURIComponent(texto);
+    if (c === "wa") abrirEnlace("https://wa.me/?text=" + t);
+    else if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Lista de la compra") + "&body=" + t);
+    else if (c === "tg") { const u = "https://t.me/share/url?url=%20&text=" + t; if (TG && TG.openTelegramLink) TG.openTelegramLink(u); else window.open(u, "_blank"); }
+    else if (c === "otras") { try { await navigator.share({ title: "Lista de la compra", text: texto }); } catch (err) {} }
+    else if (c === "copiar") { aviso((await copiar(texto)) ? "📋 Copiado" : "No he podido copiar"); }
+    if (c !== "copiar") h.remove();
+  });
+}
+
 function hojaTerminar() {
   const n = S.datos.compra.items.filter((x) => x.hecho).length;
   const h = document.createElement("div"); h.className = "hoja";
@@ -325,6 +362,7 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
+  if (q("[data-compartir]")) return hojaCompartir();
   if ((el = q("[data-repetir]"))) return compra({ accion: "repetir", id: el.dataset.repetir }, "↻ Añadido a la lista");
   if ((el = q("[data-olvidar]"))) { if (confirm("¿Eliminar esta compra del historial?")) compra({ accion: "olvidar", id: el.dataset.olvidar }); return; }
   if ((el = q("[data-url]"))) { e.preventDefault(); const u = el.dataset.url; return TG && TG.openLink ? TG.openLink(u) : window.open(u, "_blank"); }
