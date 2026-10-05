@@ -732,6 +732,23 @@ function demo(ruta, c) {
   return Promise.resolve(ruta === "/api/estado" ? structuredClone(d) : { ok: true });
 }
 
+/* ---------- Actualización automática: lo que se cambie desde otro dispositivo aparece solo ---------- */
+const huella = (d) => { const c = { ...d }; delete c.ahora; return JSON.stringify(c); };
+async function refrescar() {
+  if (document.hidden || !S.datos || DEMO || S.ocupado) return;
+  if (S.vista === "ver" || document.querySelector(".hoja")) return; // contenido ya preparado o ventana abierta: no se toca
+  if ([...document.querySelectorAll("input,textarea,select")].some((e) => e.type !== "file" && e.value !== e.defaultValue)) return; // no pisar lo que se está escribiendo
+  S.ocupado = true;
+  try {
+    const d = await api("/api/estado");
+    if (!document.hidden && huella(d) !== huella(S.datos)) { S.datos = d; aplicarTema(); if (S.vista === "dispositivos") await refrescarDispositivos(); pintar(); }
+  } catch (e) { /* sin conexión o sesión caducada: se reintenta en el siguiente ciclo */ }
+  S.ocupado = false;
+}
+setInterval(refrescar, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refrescar(); });
+window.addEventListener("focus", refrescar);
+
 /* ---------- Arranque ---------- */
 const MENSAJE_ENTRADA = `<div class="cargando" style="line-height:1.6">Para usar la app fuera de Telegram necesitas un <b>enlace de acceso</b>.<br><br>Escribe <b>/app</b> al bot en Telegram y abre el enlace que te dé en este dispositivo.</div>`;
 (async () => {
