@@ -10,6 +10,8 @@ import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "
 import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
 import { iguales } from "./webhook";
+import { claveVapid, suscripcionValida } from "./webpush";
+import { crearAcceso } from "./sesiones";
 import { parseNacimiento } from "./fechas";
 
 /** Antigüedad máxima de los datos de inicio que da Telegram al abrir la mini app. */
@@ -59,6 +61,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
   return ok({
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
     avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
+    notificaciones: { canal: u.notificaciones.canal, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
     compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
 }
@@ -228,6 +231,50 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
       }));
       return ok({ secciones: hechas });
+    }
+
+    case "/api/acceso/enlace": {
+      if (!deps.urlBase) return error(409, "La app aún no tiene dirección pública");
+      const codigo = await crearAcceso(deps.almacen, u.id, ahora);
+      return ok({ enlace: `${deps.urlBase.replace(/\/+$/, "")}/app/?acceso=${codigo}`, minutos: 10 });
+    }
+
+    case "/api/push/clave": return ok({ clave: (await claveVapid(deps.almacen, ahora)).publica });
+
+    case "/api/push/suscribir": {
+      const sub = c.suscripcion;
+      if (!suscripcionValida(sub)) return error(400, "La suscripción no es válida");
+      const nombre = String(c.dispositivo ?? "Dispositivo").trim().slice(0, 40) || "Dispositivo";
+      const resto = u.notificaciones.suscripciones.filter((x) => x.endpoint !== sub.endpoint);
+      u.notificaciones.suscripciones = [...resto, { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, dispositivo: nombre, desde: ahora.toISOString() }].slice(-6);
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+
+    case "/api/push/quitar": {
+      u.notificaciones.suscripciones = u.notificaciones.suscripciones.filter((x) => x.endpoint.slice(-24) !== c.id && x.endpoint !== c.endpoint);
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+
+    case "/api/push/probar": {
+      if (!deps.push) return error(409, "Las notificaciones no están disponibles");
+      if (!u.notificaciones.suscripciones.length) return error(409, "Ningún dispositivo tiene las notificaciones activadas");
+      let enviadas = 0; const vivas = [];
+      for (const sub of u.notificaciones.suscripciones) {
+        const r = await deps.push(sub, { titulo: "🔔 Notificaciones activadas", cuerpo: "Así te avisaré de tus resúmenes y recordatorios.", url: "/app/", etiqueta: "prueba" });
+        if (r === "ok") enviadas++; if (r !== "caducada") vivas.push(sub);
+      }
+      if (vivas.length !== u.notificaciones.suscripciones.length) { u.notificaciones.suscripciones = vivas; await deps.almacen.guardarUsuario(u); }
+      return enviadas ? ok({ enviadas }) : error(502, "No he podido enviarla: vuelve a activar las notificaciones en ese dispositivo");
+    }
+
+    case "/api/notificaciones": {
+      if (c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error(400, "Opción desconocida");
+      if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error(409, "Primero activa las notificaciones en un dispositivo");
+      u.notificaciones.canal = c.canal;
+      await deps.almacen.guardarUsuario(u);
+      return ok();
     }
 
     case "/api/avatar": {

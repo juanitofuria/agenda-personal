@@ -63,6 +63,7 @@ export const textoAyuda = [
     "/eventos · ver y modificar lo creado",
     "/secciones · activar y cambiar horas",
     "/perfil · tus datos",
+    "/app · enlace para usar la app en otro dispositivo",
     "/cancelar · cancelar lo que haces",
     "/borrar · borrar todos tus datos"),
   "",

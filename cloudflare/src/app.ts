@@ -10,6 +10,8 @@ import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/funct
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
 import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
 import { manejarApi, manejarListaPublica, validarInitData } from "../../firebase/functions/src/miniapp";
+import { canjearAcceso, cerrarSesion, usuarioDeSesion } from "../../firebase/functions/src/sesiones";
+import { crearEmisorPush } from "../../firebase/functions/src/webpush";
 import { iguales, procesarWebhook } from "../../firebase/functions/src/webhook";
 
 export interface Env {
@@ -71,8 +73,9 @@ const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https:
 
 /** `remoto`: las secciones se construyen en otra ejecución (la principal solo las envía). */
 function dependencias(env: Env, s: Servicios, remoto: boolean, urlBase?: string): Deps & { almacen: AlmacenD1 } {
+  const almacen = new AlmacenD1(env.DB);
   return {
-    almacen: new AlmacenD1(env.DB), canal: s.canal, http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
+    almacen, canal: s.canal, push: crearEmisorPush(almacen, () => new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status), http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
     podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined, urlBase,
     construirRemoto: remoto && env.SELF ? async (p) => {
       const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);
@@ -129,15 +132,27 @@ async function manejarListaCompartida(req: Request, env: Env, fabrica: Fabrica):
 async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica): Promise<Response> {
   const json = (estado: number, cuerpo: unknown) => Response.json(cuerpo, { status: estado, headers: { "cache-control": "no-store" } });
   if (req.method !== "POST") return json(405, { error: "método no permitido" });
-  const firma = (req.headers.get("authorization") ?? "").replace(/^tma\s+/i, "");
-  const quien = validarInitData(firma, env.TELEGRAM_BOT_TOKEN, new Date());
-  if (!quien) return json(401, { error: "Abre esta app desde Telegram" });
   const dep = dependencias(env, fabrica(env), true, url.origin);
-  const admin = dep.adminId;
-  if (admin && quien.id !== admin && !(await dep.almacen.getAcceso(quien.id))) return json(403, { error: "No tienes acceso al bot" });
-  const u = await dep.almacen.getUsuario(quien.id);
-  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
   const cuerpo = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+
+  // Cambiar el enlace de acceso (de un solo uso) por una sesión en este dispositivo: es la única ruta que no pide estar ya identificado.
+  if (url.pathname === "/api/sesion") {
+    const r = await canjearAcceso(dep.almacen, String(cuerpo.codigo ?? ""), new Date());
+    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se usó o ha caducado. Pide otro con /app en el bot." });
+  }
+
+  // Identificación: dentro de Telegram, con los datos firmados por Telegram; fuera, con la sesión de un dispositivo vinculado.
+  const cab = req.headers.get("authorization") ?? "";
+  let uid: string | null = null, token = "";
+  if (/^tma\s/i.test(cab)) uid = validarInitData(cab.replace(/^tma\s+/i, ""), env.TELEGRAM_BOT_TOKEN, new Date())?.id ?? null;
+  else if (/^sesion\s/i.test(cab)) { token = cab.replace(/^sesion\s+/i, ""); uid = await usuarioDeSesion(dep.almacen, token, new Date(), url.pathname === "/api/estado"); }
+  if (!uid) return json(401, { error: token ? "Tu sesión ha caducado. Pide un enlace nuevo con /app en el bot." : "Abre esta app desde Telegram" });
+  if (url.pathname === "/api/salir") { if (token) await cerrarSesion(dep.almacen, token, new Date()); return json(200, { ok: true }); }
+
+  const admin = dep.adminId;
+  if (admin && uid !== admin && !(await dep.almacen.getAcceso(uid))) return json(403, { error: "No tienes acceso al bot" });
+  const u = await dep.almacen.getUsuario(uid);
+  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
   try {
     const r = await manejarApi(dep, u, url.pathname, cuerpo);
     return json(r.estado, r.cuerpo);

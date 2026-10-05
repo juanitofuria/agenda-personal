@@ -336,3 +336,34 @@ test("si la ejecución muere a medias, la alarma tampoco se pierde", async () =>
   assert.ok(b.canal.textos(U).some((t) => t.includes("Pastilla")));
   assert.equal(prog(b, "evento", e.id), undefined); // enviado: se borra
 });
+
+// =============== Avisos por la app (notificaciones push) ===============
+test("avisos por la app: «app» no escribe en Telegram si llega; «ambos» manda por los dos; sin dispositivo que responda, cae a Telegram; las suscripciones caducadas se olvidan", async () => {
+  const sub = (n: string) => ({ endpoint: `https://push.example/${n}`, p256dh: "p", auth: "a", dispositivo: n, desde: "2026-10-01" });
+  const probar = async (canal: "telegram" | "app" | "ambos", resultados: Record<string, "ok" | "caducada" | "error">) => {
+    const b = await usuarioListo();
+    const u = (await b.almacen.getUsuario(U))!; u.notificaciones = { canal, suscripciones: Object.keys(resultados).map(sub) }; await b.almacen.guardarUsuario(u);
+    const enviados: { sub: string; titulo: string; url: string }[] = [];
+    avanzar(b, "2026-10-04T05:11:00Z"); // 07:11: toca el resumen de noticias
+    await tick({ almacen: b.almacen, canal: b.canal, http: b.http, ahora: b.deps.ahora, push: async (s, aviso) => { enviados.push({ sub: s.dispositivo, titulo: aviso.titulo, url: aviso.url }); return resultados[s.dispositivo]; } });
+    return { b, enviados, telegram: b.canal.textos(U).some((t) => /Noticia/.test(t)), subs: (await b.almacen.getUsuario(U))!.notificaciones.suscripciones.map((x) => x.dispositivo) };
+  };
+  const solo = await probar("app", { movil: "ok" });
+  assert.equal(solo.telegram, false); assert.deepEqual(solo.enviados, [{ sub: "movil", titulo: "📰 Noticias", url: "/app/?ver=noticias" }]);
+  const ambos = await probar("ambos", { movil: "ok", pc: "ok" }); assert.equal(ambos.telegram, true); assert.equal(ambos.enviados.length, 2);
+  const tg = await probar("telegram", { movil: "ok" }); assert.equal(tg.telegram, true); assert.equal(tg.enviados.length, 0); // solo Telegram: no se usa el push
+  const falla = await probar("app", { movil: "error" }); assert.equal(falla.telegram, true); assert.deepEqual(falla.subs, ["movil"]); // no llegó: Telegram como respaldo, y se conserva (puede ser un fallo pasajero)
+  const baja = await probar("app", { movil: "caducada", pc: "ok" }); assert.equal(baja.telegram, false); assert.deepEqual(baja.subs, ["pc"]); // el dispositivo dado de baja se olvida
+  const sinDisp = await probar("app", {}); assert.equal(sinDisp.telegram, true); // sin ningún dispositivo: Telegram
+});
+
+test("avisos por la app: una alarma llega como notificación con su título y lleva a Mis eventos", async () => {
+  const b = await usuarioListo(); await sinResumenes(b);
+  const ev = await nuevaAlarma(b, "Tomar la pastilla", "hoy 09:00");
+  const u = (await b.almacen.getUsuario(U))!; u.notificaciones = { canal: "app", suscripciones: [{ endpoint: "https://push.example/x", p256dh: "p", auth: "a", dispositivo: "móvil", desde: "2026-10-01" }] }; await b.almacen.guardarUsuario(u);
+  const vistos: { titulo: string; cuerpo: string; url: string }[] = [];
+  avanzar(b, "2026-10-04T07:01:00Z"); // 09:01
+  await tick({ almacen: b.almacen, canal: b.canal, http: b.http, ahora: b.deps.ahora, push: async (_s, aviso) => { vistos.push(aviso); return "ok"; } });
+  assert.equal(vistos.length, 1); assert.match(vistos[0].titulo, /Tomar la pastilla/); assert.equal(vistos[0].url, "/app/?ir=eventos"); assert.ok(ev.id);
+  assert.equal(b.canal.textos(U).length, 0); // nada por Telegram
+});

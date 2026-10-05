@@ -23,6 +23,8 @@ export interface Deps {
   /** Dónde pedir el horóscopo si falta el de hoy. */
   horoscopoCfg?: Config;
   podcastFeed?: string;
+  /** Envía notificaciones push a los dispositivos con la app instalada. */
+  push?: import("../webpush").EmisorPush;
 }
 
 /** Contexto de una interacción: quién escribe, qué ha pulsado/escrito y cómo responderle. */

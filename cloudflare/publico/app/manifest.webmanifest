@@ -1,0 +1,18 @@
+{
+  "name": "Mi Agenda Personal",
+  "short_name": "Agenda",
+  "description": "Tu agenda, tus avisos y tu lista de la compra en un solo sitio.",
+  "lang": "es",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "id": "/app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef5fd",
+  "theme_color": "#2f6fd6",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

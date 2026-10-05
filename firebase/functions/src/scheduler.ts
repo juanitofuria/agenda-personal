@@ -2,12 +2,16 @@ import { Almacen } from "./almacen";
 import { Canal } from "./canal";
 import { mensajeAviso } from "./bot/eventos";
 import { proximaOcurrencia, siguienteRepeticion } from "./fechas";
-import { Evento, momentoAviso, Programacion, SeccionId, Usuario } from "./modelo";
+import { Evento, momentoAviso, Programacion, SECCIONES, SeccionId, Usuario } from "./modelo";
+import { Aviso, EmisorPush } from "./webpush";
+import { Teclado } from "./canal";
+import { EMOJI_TIPO } from "./secciones/agenda";
+import { formatearFechaHora } from "./fechas";
 import { construirContenido } from "./secciones";
 import { ErrorTelegram } from "./telegram";
 import { HttpGet } from "./util";
 
-export interface DepsTick { almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date; log?: (m: string) => void; /** Si hay administrador, solo se envía a quien tenga acceso. */ adminId?: string }
+export interface DepsTick { almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date; log?: (m: string) => void; /** Si hay administrador, solo se envía a quien tenga acceso. */ adminId?: string; /** Si está, los avisos también pueden llegar como notificación de la app instalada. */ push?: EmisorPush }
 
 const MAX_SECCION_RETRASO = 3 * 3_600_000;  // un resumen de hace más de 3 h ya no sirve
 const MAX_EVENTO_RETRASO = 24 * 3_600_000;  // un aviso de hace más de 1 día se descarta
@@ -28,6 +32,27 @@ async function bloquear(dep: DepsTick, u: Usuario): Promise<void> {
   await dep.almacen.borrarProgramacionesDe(u.id);
 }
 
+/**
+ * Entrega un mensaje programado por donde el usuario haya elegido: Telegram, la app instalada (notificación push) o ambos.
+ * Si elige solo la app pero no hay ningún dispositivo que responda, se manda por Telegram para que no se pierda.
+ */
+async function entregar(dep: DepsTick, u: Usuario, msg: { html: string; teclado?: Teclado }, aviso: Aviso): Promise<void> {
+  const { canal, suscripciones } = u.notificaciones;
+  let porApp = false;
+  if (canal !== "telegram" && dep.push && suscripciones.length) {
+    const vivas = [];
+    for (const s of suscripciones) { const r = await dep.push(s, aviso); if (r === "ok") porApp = true; if (r !== "caducada") vivas.push(s); }
+    if (vivas.length !== suscripciones.length) { u.notificaciones.suscripciones = vivas; await dep.almacen.guardarUsuario(u); } // se olvidan los dispositivos dados de baja
+  }
+  if (canal === "app" && porApp) return;
+  await dep.canal.enviar(u.id, msg.html, msg.teclado);
+}
+
+const tituloSeccion = (u: Usuario, ref: string): string => {
+  if (ref.startsWith("tema:")) { const t = u.temas.find((x) => `tema:${x.id}` === ref); return t ? `${t.emoji} ${t.titulo}` : "⭐ Noticias"; }
+  const i = SECCIONES[ref as SeccionId]; return i ? `${i.emoji} ${i.titulo}` : "📬 Tu resumen";
+};
+
 async function enviarSeccion(dep: DepsTick, u: Usuario, p: Programacion, ahora: Date, r: ResultadoTick): Promise<void> {
   const cfg = configSeccion(u, p.ref);
   if (!cfg || !cfg.activa) { await dep.almacen.borrarProgramacion(p.id); return; }
@@ -38,7 +63,7 @@ async function enviarSeccion(dep: DepsTick, u: Usuario, p: Programacion, ahora: 
   if (tarde) { r.omitidos++; return; }
   try {
     const cont = await construirContenido(p.ref, { usuario: u, http: dep.http, almacen: dep.almacen, ahora });
-    await dep.canal.enviar(u.id, cont.html, cont.teclado);
+    await entregar(dep, u, cont, { titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen está listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
     await dep.almacen.guardarProgramacion({ ...p, proximo: siguiente, intentos: 0 });
     r.enviados++;
   } catch (e) {
@@ -74,7 +99,7 @@ async function enviarEvento(dep: DepsTick, u: Usuario, p: Programacion, ahora: D
   if (retraso > MAX_EVENTO_RETRASO) { r.omitidos++; } else {
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 60_000);
-      await dep.canal.enviar(u.id, html, teclado);
+      await entregar(dep, u, { html, teclado }, { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` });
       r.enviados++;
     } catch (e) {
       if (e instanceof ErrorTelegram && e.bloqueado) { await bloquear(dep, u); r.fallidos++; return; }

@@ -38,6 +38,11 @@ export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTermina
 /** Imagen del usuario: un avatar (emoji sobre un fondo de color), su foto de Telegram o una foto subida (se guarda aparte). Sin elegir: burbuja con su inicial. */
 export type Avatar = { tipo: "emoji"; emoji: string; color: number } | { tipo: "telegram" } | { tipo: "foto" };
 
+/** Dispositivo que recibe notificaciones push (Web Push). */
+export interface SuscripcionPush { endpoint: string; p256dh: string; auth: string; dispositivo: string; desde: string }
+/** Por dónde recibe los avisos y resúmenes programados: Telegram, la app instalada o ambos. */
+export interface AjustesAvisos { canal: "telegram" | "app" | "ambos"; suscripciones: SuscripcionPush[] }
+
 export interface Usuario {
   id: string;                 // id del chat
   nombre: string;
@@ -49,6 +54,7 @@ export interface Usuario {
   ciudad: Ciudad | null;
   compra: ListaCompra;
   avatar: Avatar | null;
+  notificaciones: AjustesAvisos;
   secciones: Record<SeccionId, ConfigSeccion>;
   temas: Tema[];
   estado: Estado | null;
@@ -106,7 +112,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, avatar: null, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, avatar: null, notificaciones: { canal: "telegram", suscripciones: [] }, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }

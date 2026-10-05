@@ -3,6 +3,7 @@ import { Usuario, usuarioNuevo } from "../modelo";
 import { sincronizarSecciones } from "../programar";
 import { construirContenido } from "../secciones";
 import { cabecera } from "../util";
+import { crearAcceso } from "../sesiones";
 import { Contenido } from "../secciones/tipos";
 import * as acceso from "./acceso";
 import * as ajustes from "./ajustes";
@@ -62,6 +63,14 @@ async function cancelar(c: Ctx): Promise<void> {
   await c.nuevo(habia ? "Cancelado." : "No había nada que cancelar."); await mostrarMenu(c);
 }
 
+/** /app: enlace de un solo uso para entrar en la app desde otro dispositivo (navegador o app instalada). */
+async function enlaceApp(c: Ctx): Promise<void> {
+  if (!c.deps.urlBase) { await c.nuevo("La app aún no está disponible en este bot."); return; }
+  const codigo = await crearAcceso(c.almacen, c.u.id, c.ahora);
+  const url = `${c.deps.urlBase.replace(/\/+$/, "")}/app/?acceso=${codigo}`;
+  await c.nuevo([cabecera("📲", "Tu agenda en otro dispositivo", "Enlace de acceso de un solo uso"), "", "Ábrelo en el móvil u ordenador donde quieras usar la app. <b>Caduca en 10 minutos</b> y solo sirve una vez.", "", "<i>Después puedes instalarla como una app y recibir los avisos como notificaciones.</i>"].join("\n"), [[{ texto: "📲 Abrir y vincular", url }], [BTN_MENU]]);
+}
+
 async function comando(c: Ctx, texto: string): Promise<boolean> {
   const cmd = texto.split(/[\s@]/)[0].toLowerCase();
   if (await acceso.comando(c, cmd)) return true;
@@ -74,6 +83,7 @@ async function comando(c: Ctx, texto: string): Promise<boolean> {
     case "/secciones": await c.terminarFlujo(); await ajustes.listaSecciones(c); return true;
     case "/perfil": await c.terminarFlujo(); await ajustes.callback(c, ["p", "ver"]); return true;
     case "/ayuda": case "/help": await c.nuevo(textoAyuda, [[BTN_MENU]]); return true;
+    case "/app": await enlaceApp(c); return true;
     case "/cancelar": await cancelar(c); return true;
     case "/borrar": await ajustes.callback(c, ["p", "borrar"]); return true;
     case "/diagnostico": if (!c.esAdmin && c.deps.adminId) return false; await diagnostico(c); return true; // no sale en el menú: es para encontrar fallos

@@ -940,6 +940,7 @@ function usuarioDesdeJson(id, d) {
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
     avatar: d.avatar && ["emoji", "telegram", "foto"].includes(d.avatar.tipo) ? d.avatar : null,
+    notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
     secciones: d.secciones ?? {},
     temas: d.temas ?? [],
@@ -1261,6 +1262,7 @@ function usuarioNuevo(id, nombre, ahora) {
     ciudad: null,
     compra: { items: [], historial: [], token: null },
     avatar: null,
+    notificaciones: { canal: "telegram", suscripciones: [] },
     secciones,
     temas: [],
     estado: null,
@@ -1870,8 +1872,8 @@ function leerEpisodios(xml, max = 1) {
     if (fin < 0) break;
     pos = fin + 7;
     const it = xml.slice(ini, fin);
-    const enc = /<enclosure\b([^>]*)>/i.exec(it)?.[1] ?? "";
-    const atributo = /* @__PURE__ */ __name((n) => new RegExp(`${n}="([^"]*)"`, "i").exec(enc)?.[1] ?? "", "atributo");
+    const enc2 = /<enclosure\b([^>]*)>/i.exec(it)?.[1] ?? "";
+    const atributo = /* @__PURE__ */ __name((n) => new RegExp(`${n}="([^"]*)"`, "i").exec(enc2)?.[1] ?? "", "atributo");
     const notas = ["content:encoded", "itunes:summary", "description"].map((n) => sinHtml(etiqueta(it, n))).sort((a, b) => b.length - a.length)[0] ?? "";
     res.push({
       titulo: sinHtml(etiqueta(it, "title")),
@@ -2532,6 +2534,43 @@ async function construirContenido(id, ctx) {
 }
 __name(construirContenido, "construirContenido");
 
+// ../firebase/functions/src/sesiones.ts
+var ALFABETO = "abcdefghijkmnpqrstuvwxyz23456789";
+var aleatorio = /* @__PURE__ */ __name((n) => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(n)), (b) => ALFABETO[b % ALFABETO.length]).join(""), "aleatorio");
+var sha256 = /* @__PURE__ */ __name(async (t) => Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(t))), (b) => b.toString(16).padStart(2, "0")).join(""), "sha256");
+var VIGENCIA_ENLACE_MS = 10 * 6e4;
+var VIGENCIA_SESION_MS = 180 * 24 * 36e5;
+var claveAcceso = /* @__PURE__ */ __name((codigo) => `acceso:${codigo}`, "claveAcceso");
+var claveSesion = /* @__PURE__ */ __name(async (token) => `sesion:${await sha256(token)}`, "claveSesion");
+async function crearAcceso(almacen, uid, ahora) {
+  const codigo = aleatorio(20);
+  await almacen.cacheSet(claveAcceso(codigo), uid, VIGENCIA_ENLACE_MS, ahora);
+  return codigo;
+}
+__name(crearAcceso, "crearAcceso");
+async function canjearAcceso(almacen, codigo, ahora) {
+  if (!/^[a-z2-9]{20}$/.test(codigo)) return null;
+  const uid = await almacen.cacheGet(claveAcceso(codigo), ahora);
+  if (!uid) return null;
+  await almacen.cacheSet(claveAcceso(codigo), "", 1, ahora);
+  const token = aleatorio(40);
+  await almacen.cacheSet(await claveSesion(token), uid, VIGENCIA_SESION_MS, ahora);
+  return { token, uid };
+}
+__name(canjearAcceso, "canjearAcceso");
+async function usuarioDeSesion(almacen, token, ahora, renovar = false) {
+  if (!/^[a-z2-9]{40}$/.test(token)) return null;
+  const clave = await claveSesion(token);
+  const uid = await almacen.cacheGet(clave, ahora);
+  if (uid && renovar) await almacen.cacheSet(clave, uid, VIGENCIA_SESION_MS, ahora);
+  return uid || null;
+}
+__name(usuarioDeSesion, "usuarioDeSesion");
+async function cerrarSesion(almacen, token, ahora) {
+  if (/^[a-z2-9]{40}$/.test(token)) await almacen.cacheSet(await claveSesion(token), "", 1, ahora);
+}
+__name(cerrarSesion, "cerrarSesion");
+
 // ../firebase/functions/src/bot/ctx.ts
 var Ctx = class {
   constructor(deps, u, entrada) {
@@ -2589,8 +2628,8 @@ var BTN_CANCELAR = { texto: "\u274C Cancelar", datos: "x:cancelar" };
 
 // ../firebase/functions/src/bot/acceso.ts
 var DIAS_INVITACION = 7;
-var ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-var nuevoCodigo = /* @__PURE__ */ __name(() => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(14)), (b) => ALFABETO[b % ALFABETO.length]).join(""), "nuevoCodigo");
+var ALFABETO2 = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+var nuevoCodigo = /* @__PURE__ */ __name(() => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(14)), (b) => ALFABETO2[b % ALFABETO2.length]).join(""), "nuevoCodigo");
 var quien = /* @__PURE__ */ __name((nombre, usuario, id) => `${esc(nombre || "Sin nombre")}${usuario ? ` (@${esc(usuario)})` : ""} \xB7 <code>${esc(id)}</code>`, "quien");
 async function enlace(deps, codigo) {
   const bot = await deps.canal.nombreUsuario?.().catch(() => void 0);
@@ -3048,6 +3087,7 @@ var textoAyuda = [
     "/eventos \xB7 ver y modificar lo creado",
     "/secciones \xB7 activar y cambiar horas",
     "/perfil \xB7 tus datos",
+    "/app \xB7 enlace para usar la app en otro dispositivo",
     "/cancelar \xB7 cancelar lo que haces",
     "/borrar \xB7 borrar todos tus datos"
   ),
@@ -4114,6 +4154,16 @@ async function cancelar(c) {
   await mostrarMenu(c);
 }
 __name(cancelar, "cancelar");
+async function enlaceApp(c) {
+  if (!c.deps.urlBase) {
+    await c.nuevo("La app a\xFAn no est\xE1 disponible en este bot.");
+    return;
+  }
+  const codigo = await crearAcceso(c.almacen, c.u.id, c.ahora);
+  const url = `${c.deps.urlBase.replace(/\/+$/, "")}/app/?acceso=${codigo}`;
+  await c.nuevo([cabecera("\u{1F4F2}", "Tu agenda en otro dispositivo", "Enlace de acceso de un solo uso"), "", "\xC1brelo en el m\xF3vil u ordenador donde quieras usar la app. <b>Caduca en 10 minutos</b> y solo sirve una vez.", "", "<i>Despu\xE9s puedes instalarla como una app y recibir los avisos como notificaciones.</i>"].join("\n"), [[{ texto: "\u{1F4F2} Abrir y vincular", url }], [BTN_MENU]]);
+}
+__name(enlaceApp, "enlaceApp");
 async function comando2(c, texto4) {
   const cmd = texto4.split(/[\s@]/)[0].toLowerCase();
   if (await comando(c, cmd)) return true;
@@ -4151,6 +4201,9 @@ async function comando2(c, texto4) {
     case "/ayuda":
     case "/help":
       await c.nuevo(textoAyuda, [[BTN_MENU]]);
+      return true;
+    case "/app":
+      await enlaceApp(c);
       return true;
     case "/cancelar":
       await cancelar(c);
@@ -4450,6 +4503,33 @@ async function bloquear(dep, u) {
   await dep.almacen.borrarProgramacionesDe(u.id);
 }
 __name(bloquear, "bloquear");
+async function entregar(dep, u, msg, aviso) {
+  const { canal, suscripciones } = u.notificaciones;
+  let porApp = false;
+  if (canal !== "telegram" && dep.push && suscripciones.length) {
+    const vivas = [];
+    for (const s of suscripciones) {
+      const r = await dep.push(s, aviso);
+      if (r === "ok") porApp = true;
+      if (r !== "caducada") vivas.push(s);
+    }
+    if (vivas.length !== suscripciones.length) {
+      u.notificaciones.suscripciones = vivas;
+      await dep.almacen.guardarUsuario(u);
+    }
+  }
+  if (canal === "app" && porApp) return;
+  await dep.canal.enviar(u.id, msg.html, msg.teclado);
+}
+__name(entregar, "entregar");
+var tituloSeccion = /* @__PURE__ */ __name((u, ref2) => {
+  if (ref2.startsWith("tema:")) {
+    const t = u.temas.find((x) => `tema:${x.id}` === ref2);
+    return t ? `${t.emoji} ${t.titulo}` : "\u2B50 Noticias";
+  }
+  const i = SECCIONES[ref2];
+  return i ? `${i.emoji} ${i.titulo}` : "\u{1F4EC} Tu resumen";
+}, "tituloSeccion");
 async function enviarSeccion(dep, u, p, ahora, r) {
   const cfg = configSeccion(u, p.ref);
   if (!cfg || !cfg.activa) {
@@ -4468,7 +4548,7 @@ async function enviarSeccion(dep, u, p, ahora, r) {
   }
   try {
     const cont = await construirContenido(p.ref, { usuario: u, http: dep.http, almacen: dep.almacen, ahora });
-    await dep.canal.enviar(u.id, cont.html, cont.teclado);
+    await entregar(dep, u, cont, { titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen est\xE1 listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
     await dep.almacen.guardarProgramacion({ ...p, proximo: siguiente, intentos: 0 });
     r.enviados++;
   } catch (e) {
@@ -4516,7 +4596,7 @@ async function enviarEvento(dep, u, p, ahora, r) {
   } else {
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 6e4);
-      await dep.canal.enviar(u.id, html, teclado);
+      await entregar(dep, u, { html, teclado }, { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` });
       r.enviados++;
     } catch (e) {
       if (e instanceof ErrorTelegram && e.bloqueado) {
@@ -4589,6 +4669,103 @@ async function procesarWebhook(deps, secreto, p, log3 = () => void 0) {
 }
 __name(procesarWebhook, "procesarWebhook");
 
+// ../firebase/functions/src/webpush.ts
+var enc = new TextEncoder();
+var subtle = /* @__PURE__ */ __name(() => globalThis.crypto.subtle, "subtle");
+var b64u = /* @__PURE__ */ __name((b) => {
+  const u = b instanceof Uint8Array ? b : new Uint8Array(b);
+  let s = "";
+  for (const x of u) s += String.fromCharCode(x);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}, "b64u");
+var deB64u = /* @__PURE__ */ __name((s) => {
+  const t = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4));
+  return Uint8Array.from(t, (c) => c.charCodeAt(0));
+}, "deB64u");
+var concat = /* @__PURE__ */ __name((...p) => {
+  const r = new Uint8Array(p.reduce((n, x) => n + x.length, 0));
+  let o = 0;
+  for (const x of p) {
+    r.set(x, o);
+    o += x.length;
+  }
+  return r;
+}, "concat");
+async function hkdf(ikm, salt, info4, bytes) {
+  const k = await subtle().importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+  return new Uint8Array(await subtle().deriveBits({ name: "HKDF", hash: "SHA-256", salt, info: info4 }, k, bytes * 8));
+}
+__name(hkdf, "hkdf");
+async function cifrarPush(mensaje, p256dh, auth, alAzar) {
+  const uaPublica = deB64u(p256dh), secretoAuth = deB64u(auth);
+  const efimera = alAzar?.claves ?? await subtle().generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPublica = new Uint8Array(await subtle().exportKey("raw", efimera.publicKey));
+  const uaClave = await subtle().importKey("raw", uaPublica, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const compartido = new Uint8Array(await subtle().deriveBits({ name: "ECDH", public: uaClave }, efimera.privateKey, 256));
+  const ikm = await hkdf(compartido, secretoAuth, concat(enc.encode("WebPush: info\0"), uaPublica, asPublica), 32);
+  const salt = alAzar?.salt ?? globalThis.crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(ikm, salt, enc.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(ikm, salt, enc.encode("Content-Encoding: nonce\0"), 12);
+  const relleno = concat(enc.encode(mensaje), Uint8Array.of(2));
+  const clave = await subtle().importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const cifrado = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv: nonce }, clave, relleno));
+  return concat(salt, Uint8Array.of(0, 0, 16, 0), Uint8Array.of(asPublica.length), asPublica, cifrado);
+}
+__name(cifrarPush, "cifrarPush");
+var CLAVE_VAPID = "vapid:claves";
+var DIEZ_ANYOS_MS = 3650 * 24 * 36e5;
+async function claveVapid(almacen, ahora) {
+  const guardada = await almacen.cacheGet(CLAVE_VAPID, ahora);
+  if (guardada) {
+    try {
+      return JSON.parse(guardada);
+    } catch {
+    }
+  }
+  const par = await subtle().generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const c = { publica: b64u(await subtle().exportKey("raw", par.publicKey)), privada: await subtle().exportKey("jwk", par.privateKey) };
+  await almacen.cacheSet(CLAVE_VAPID, JSON.stringify(c), DIEZ_ANYOS_MS, ahora);
+  return c;
+}
+__name(claveVapid, "claveVapid");
+async function cabeceraVapid(endpoint, c, ahora, contacto = "mailto:admin@agenda.invalid") {
+  const cuerpo = b64u(enc.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(ahora.getTime() / 1e3) + 12 * 3600, sub: contacto })));
+  const dato = `${b64u(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })))}.${cuerpo}`;
+  const clave = await subtle().importKey("jwk", c.privada, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const firma = new Uint8Array(await subtle().sign({ name: "ECDSA", hash: "SHA-256" }, clave, enc.encode(dato)));
+  return `vapid t=${dato}.${b64u(firma)}, k=${c.publica}`;
+}
+__name(cabeceraVapid, "cabeceraVapid");
+function crearEmisorPush(almacen, ahora, post) {
+  return async (s, aviso) => {
+    try {
+      const vapid = await claveVapid(almacen, ahora());
+      const cuerpo = await cifrarPush(JSON.stringify(aviso), s.p256dh, s.auth);
+      const estado2 = await post(s.endpoint, {
+        authorization: await cabeceraVapid(s.endpoint, vapid, ahora()),
+        "content-encoding": "aes128gcm",
+        "content-type": "application/octet-stream",
+        ttl: "86400",
+        urgency: "normal"
+      }, cuerpo);
+      if (estado2 >= 200 && estado2 < 300) return "ok";
+      return estado2 === 404 || estado2 === 410 ? "caducada" : "error";
+    } catch {
+      return "error";
+    }
+  };
+}
+__name(crearEmisorPush, "crearEmisorPush");
+function suscripcionValida(v) {
+  if (!v || typeof v.endpoint !== "string" || v.endpoint.length > 600 || !/^https:\/\//.test(v.endpoint)) return false;
+  try {
+    return deB64u(String(v.p256dh)).length === 65 && deB64u(String(v.auth)).length === 16;
+  } catch {
+    return false;
+  }
+}
+__name(suscripcionValida, "suscripcionValida");
+
 // ../firebase/functions/src/miniapp.ts
 var VIGENCIA_S = 24 * 3600;
 function validarInitData(initData, token, ahora) {
@@ -4636,6 +4813,7 @@ async function estado(deps, u) {
     avatar: u.avatar,
     fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null,
     avatares: AVATARES,
+    notificaciones: { canal: u.notificaciones.canal, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
     compra: u.compra,
     secciones,
     eventos: eventos.map((e) => eventoJson(e, u, ahora)),
@@ -4810,6 +4988,50 @@ async function manejarApi(deps, u, ruta, c) {
       }));
       return ok({ secciones: hechas });
     }
+    case "/api/acceso/enlace": {
+      if (!deps.urlBase) return error3(409, "La app a\xFAn no tiene direcci\xF3n p\xFAblica");
+      const codigo = await crearAcceso(deps.almacen, u.id, ahora);
+      return ok({ enlace: `${deps.urlBase.replace(/\/+$/, "")}/app/?acceso=${codigo}`, minutos: 10 });
+    }
+    case "/api/push/clave":
+      return ok({ clave: (await claveVapid(deps.almacen, ahora)).publica });
+    case "/api/push/suscribir": {
+      const sub = c.suscripcion;
+      if (!suscripcionValida(sub)) return error3(400, "La suscripci\xF3n no es v\xE1lida");
+      const nombre = String(c.dispositivo ?? "Dispositivo").trim().slice(0, 40) || "Dispositivo";
+      const resto = u.notificaciones.suscripciones.filter((x) => x.endpoint !== sub.endpoint);
+      u.notificaciones.suscripciones = [...resto, { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, dispositivo: nombre, desde: ahora.toISOString() }].slice(-6);
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+    case "/api/push/quitar": {
+      u.notificaciones.suscripciones = u.notificaciones.suscripciones.filter((x) => x.endpoint.slice(-24) !== c.id && x.endpoint !== c.endpoint);
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
+    case "/api/push/probar": {
+      if (!deps.push) return error3(409, "Las notificaciones no est\xE1n disponibles");
+      if (!u.notificaciones.suscripciones.length) return error3(409, "Ning\xFAn dispositivo tiene las notificaciones activadas");
+      let enviadas = 0;
+      const vivas = [];
+      for (const sub of u.notificaciones.suscripciones) {
+        const r = await deps.push(sub, { titulo: "\u{1F514} Notificaciones activadas", cuerpo: "As\xED te avisar\xE9 de tus res\xFAmenes y recordatorios.", url: "/app/", etiqueta: "prueba" });
+        if (r === "ok") enviadas++;
+        if (r !== "caducada") vivas.push(sub);
+      }
+      if (vivas.length !== u.notificaciones.suscripciones.length) {
+        u.notificaciones.suscripciones = vivas;
+        await deps.almacen.guardarUsuario(u);
+      }
+      return enviadas ? ok({ enviadas }) : error3(502, "No he podido enviarla: vuelve a activar las notificaciones en ese dispositivo");
+    }
+    case "/api/notificaciones": {
+      if (c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error3(400, "Opci\xF3n desconocida");
+      if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error3(409, "Primero activa las notificaciones en un dispositivo");
+      u.notificaciones.canal = c.canal;
+      await deps.almacen.guardarUsuario(u);
+      return ok();
+    }
     case "/api/avatar": {
       if (c.tipo === "emoji") {
         const a = avatarEmoji(c.emoji, c.color);
@@ -4923,9 +5145,11 @@ async function llamarInterno(env2, ruta, cuerpo) {
 __name(llamarInterno, "llamarInterno");
 var horoscopoCfg = /* @__PURE__ */ __name((env2) => ({ baseUrl: env2.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env2.HOROSCOPO_IDIOMA ?? "es", directo: true }), "horoscopoCfg");
 function dependencias(env2, s, remoto, urlBase) {
+  const almacen = new AlmacenD1(env2.DB);
   return {
-    almacen: new AlmacenD1(env2.DB),
+    almacen,
     canal: s.canal,
+    push: crearEmisorPush(almacen, () => /* @__PURE__ */ new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status),
     http: s.http,
     ahora: /* @__PURE__ */ __name(() => /* @__PURE__ */ new Date(), "ahora"),
     horoscopoCfg: horoscopoCfg(env2),
@@ -4984,15 +5208,28 @@ __name(manejarListaCompartida, "manejarListaCompartida");
 async function manejarMiniApp(req, env2, url, fabrica) {
   const json = /* @__PURE__ */ __name((estado2, cuerpo2) => Response.json(cuerpo2, { status: estado2, headers: { "cache-control": "no-store" } }), "json");
   if (req.method !== "POST") return json(405, { error: "m\xE9todo no permitido" });
-  const firma = (req.headers.get("authorization") ?? "").replace(/^tma\s+/i, "");
-  const quien2 = validarInitData(firma, env2.TELEGRAM_BOT_TOKEN, /* @__PURE__ */ new Date());
-  if (!quien2) return json(401, { error: "Abre esta app desde Telegram" });
   const dep = dependencias(env2, fabrica(env2), true, url.origin);
-  const admin = dep.adminId;
-  if (admin && quien2.id !== admin && !await dep.almacen.getAcceso(quien2.id)) return json(403, { error: "No tienes acceso al bot" });
-  const u = await dep.almacen.getUsuario(quien2.id);
-  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
   const cuerpo = await req.json().catch(() => ({})) ?? {};
+  if (url.pathname === "/api/sesion") {
+    const r = await canjearAcceso(dep.almacen, String(cuerpo.codigo ?? ""), /* @__PURE__ */ new Date());
+    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se us\xF3 o ha caducado. Pide otro con /app en el bot." });
+  }
+  const cab = req.headers.get("authorization") ?? "";
+  let uid = null, token = "";
+  if (/^tma\s/i.test(cab)) uid = validarInitData(cab.replace(/^tma\s+/i, ""), env2.TELEGRAM_BOT_TOKEN, /* @__PURE__ */ new Date())?.id ?? null;
+  else if (/^sesion\s/i.test(cab)) {
+    token = cab.replace(/^sesion\s+/i, "");
+    uid = await usuarioDeSesion(dep.almacen, token, /* @__PURE__ */ new Date(), url.pathname === "/api/estado");
+  }
+  if (!uid) return json(401, { error: token ? "Tu sesi\xF3n ha caducado. Pide un enlace nuevo con /app en el bot." : "Abre esta app desde Telegram" });
+  if (url.pathname === "/api/salir") {
+    if (token) await cerrarSesion(dep.almacen, token, /* @__PURE__ */ new Date());
+    return json(200, { ok: true });
+  }
+  const admin = dep.adminId;
+  if (admin && uid !== admin && !await dep.almacen.getAcceso(uid)) return json(403, { error: "No tienes acceso al bot" });
+  const u = await dep.almacen.getUsuario(uid);
+  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
   try {
     const r = await manejarApi(dep, u, url.pathname, cuerpo);
     return json(r.estado, r.cuerpo);

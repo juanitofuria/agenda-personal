@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Agenda Personal</title>
+<title>Mi Agenda Personal</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#2f6fd6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Nunito:wght@600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -144,14 +152,21 @@ if (TG) TG.onEvent("themeChanged", aplicarTema);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarTema);
 
 /* ---------- API ---------- */
+/* Identificación: dentro de Telegram, con sus datos firmados; fuera (navegador o app instalada), con la sesión que crea el enlace de acceso (/app en el bot). */
+const enTelegram = () => !!(TG && TG.initData);
+const leerSesion = () => { try { return localStorage.getItem("sesion") || ""; } catch (e) { return ""; } };
+const guardarSesion = (t) => { try { t ? localStorage.setItem("sesion", t) : localStorage.removeItem("sesion"); } catch (e) {} };
 async function api(ruta, cuerpo = {}) {
   if (DEMO) return demo(ruta, cuerpo);
-  const r = await fetch(ruta, { method: "POST", headers: { "content-type": "application/json", authorization: "tma " + (TG ? TG.initData : "") }, body: JSON.stringify(cuerpo) });
+  const cab = { "content-type": "application/json" };
+  if (enTelegram()) cab.authorization = "tma " + TG.initData; else if (leerSesion()) cab.authorization = "sesion " + leerSesion();
+  const r = await fetch(ruta, { method: "POST", headers: cab, body: JSON.stringify(cuerpo) });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && !enTelegram() && ruta !== "/api/sesion") { guardarSesion(""); const e = new Error(j.error || "Tu sesión ha caducado"); e.sesion = true; throw e; }
   if (!r.ok) throw new Error(j.error || "Algo ha fallado");
   return j;
 }
-async function cargar() { S.datos = await api("/api/estado"); aplicarTema(); }
+async function cargar() { S.datos = await api("/api/estado"); aplicarTema(); if (S.vista === "dispositivos" && typeof refrescarDispositivos === "function") await refrescarDispositivos(); }
 function aviso(t) { const d = document.createElement("div"); d.className = "aviso"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
 async function hacer(f, ok) { try { await f(); if (ok) aviso(ok); await cargar(); pintar(); } catch (e) { aviso(e.message); } }
 
@@ -181,7 +196,7 @@ async function abrirVer(ref, titulo) {
 }
 
 /* ---------- Navegación ---------- */
-function ir(v) { S.pila.push(S.vista); S.vista = v; pintar(); window.scrollTo(0, 0); }
+async function ir(v) { S.pila.push(S.vista); S.vista = v; if (v === "dispositivos") await refrescarDispositivos(); pintar(); window.scrollTo(0, 0); }
 function volver() { S.vista = S.pila.pop() || "inicio"; pintar(); }
 function botonAtras() {
   if (!TG || !TG.BackButton) return;
@@ -276,6 +291,34 @@ const vistas = {
       <label>Tema</label><div class="seg">${b("modo", "claro", "☀️ Claro")}${b("modo", "oscuro", "🌙 Oscuro")}${b("modo", "auto", "🔄 Automático")}</div>
       <p class="nota">Automático sigue el tema de tu dispositivo, el mismo que usa Telegram. Los mensajes del chat no pueden leerlo: ahí «Automático» cambia con el anochecer y el amanecer de tu ciudad (${esc(u.sol)}).</p>`;
   },
+  dispositivos() {
+    const n = S.datos.notificaciones, fuera = !enTelegram(), aqui = S.aqui || { suscrito: false };
+    const instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    const canal = (v, txt) => `<button class="${n.canal === v ? "on" : ""}" data-canal="${v}">${txt}</button>`;
+    const instalar = !fuera ? `<p class="nota">Estás dentro de Telegram. Para instalarla, abre un <b>enlace de acceso</b> (más abajo) en el navegador del dispositivo donde la quieras.</p>`
+      : instalada ? `<div class="doc" style="white-space:normal">✅ Esta app ya está instalada en este dispositivo.</div>`
+      : S.instalacion ? `<button class="btn ancho" data-instalar="1">⬇️ Instalar en este dispositivo</button>`
+      : ios ? `<div class="doc" style="white-space:normal"><b>En iPhone o iPad</b><br>1. Abre este enlace en <b>Safari</b>.<br>2. Pulsa el botón <b>Compartir</b> (el cuadrado con la flecha).<br>3. Elige <b>Añadir a pantalla de inicio</b>.<br>4. Ábrela desde el icono nuevo.</div>`
+      : `<div class="doc" style="white-space:normal"><b>En Android, Windows o Mac</b><br>Abre el menú del navegador (Chrome o Edge) y elige <b>Instalar aplicación</b> (o el icono de instalar en la barra de direcciones). En Safari de Mac: Archivo → <b>Añadir al Dock</b>.</div>`;
+    let notis;
+    if (!fuera) notis = `<p class="nota">Las notificaciones de la app se activan desde la app instalada, no desde Telegram.</p>`;
+    else if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
+    else if (!soportaPush) notis = `<p class="nota">Este navegador no admite notificaciones.</p>`;
+    else notis = aqui.suscrito ? `<button class="btn peligro ancho" data-push="off">🔕 Desactivar en este dispositivo</button>` : `<button class="btn ancho" data-push="on">🔔 Activar en este dispositivo</button>`;
+    return `${barra("App y notificaciones")}
+      <label>Instalar</label>${instalar}
+      <label>Usar en otro dispositivo</label>
+      <p class="nota">Crea un enlace de un solo uso (caduca en 10 minutos) y ábrelo en el móvil u ordenador donde quieras tener la app. También lo puedes pedir con <b>/app</b> en el bot.</p>
+      <button class="btn sec ancho" data-enlace="1">🔗 Crear enlace de acceso</button>
+      <label>Cómo recibir tus avisos</label>
+      <div class="seg">${canal("telegram", "✈️ Telegram")}${canal("app", "📲 App")}${canal("ambos", "Ambos")}</div>
+      <p class="nota">Resúmenes diarios y recordatorios. «App» envía una notificación al dispositivo; si no llega a ninguno, te lo mando por Telegram para que no se pierda.</p>
+      ${notis}
+      ${n.dispositivos.length ? `<label>Dispositivos con notificaciones</label><div class="lista">${n.dispositivos.map((d) => `<div class="fila"><div class="emo">📲</div><div class="t"><b>${esc(d.nombre)}</b><small>desde ${new Date(d.desde).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small></div><button class="btn chico peligro" data-pushquitar="${esc(d.id)}">✕</button></div>`).join("")}</div><button class="btn sec ancho" data-probar="1">🔔 Enviarme una prueba</button>` : ""}
+      ${fuera && leerSesion() ? `<button class="btn peligro ancho" style="margin-top:22px" data-salir="1">Cerrar sesión en este dispositivo</button>` : ""}`;
+  },
   perfil() {
     const u = S.datos.usuario;
     return `${barra("Mi perfil")}
@@ -284,6 +327,7 @@ const vistas = {
       <label>Tu nombre</label><input type="text" id="nombre" maxlength="40" value="${esc(u.nombre)}" placeholder="¿Cómo te llamo?">
       <label>Fecha de nacimiento (para el horóscopo)</label><input type="date" id="nac" value="${esc(u.nacimiento || "")}">
       <button class="btn ancho" data-perfil="1">Guardar</button>
+      <button class="btn sec ancho" data-ir="dispositivos">📲 Instalar la app y notificaciones</button>
       <label>Cambiar de ciudad</label><input type="text" id="ciudad" placeholder="Escribe tu municipio" autocomplete="off">
       <button class="btn ancho" data-buscar="1">${"Buscar"}</button><div class="lista" id="lugares" style="margin-top:10px"></div>`;
   },
@@ -426,6 +470,58 @@ function hojaTerminar() {
   });
 }
 
+/* ---------- App instalable y notificaciones ---------- */
+let peticionInstalar = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); peticionInstalar = e; S.instalacion = true; if (S.vista === "dispositivos") pintar(); });
+window.addEventListener("appinstalled", () => { peticionInstalar = null; S.instalacion = false; if (S.vista === "dispositivos") pintar(); });
+const deB64u = (s) => Uint8Array.from(atob((s + "=".repeat((4 - (s.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+function nombreDispositivo() {
+  const ua = navigator.userAgent;
+  const so = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "Dispositivo";
+  const nav = /Edg\//.test(ua) ? "Edge" : /Firefox/.test(ua) ? "Firefox" : /Chrome/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari" : "";
+  return nav ? `${so} · ${nav}` : so;
+}
+async function registrarSW() {
+  if (enTelegram() || DEMO || !("serviceWorker" in navigator)) return null;
+  try { return await navigator.serviceWorker.register("sw.js", { scope: "/app/" }); } catch (e) { return null; }
+}
+async function suscritoAqui() {
+  try { const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription()); return sub ? sub.endpoint.slice(-24) : ""; } catch (e) { return ""; }
+}
+async function activarPush() {
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error("Has bloqueado las notificaciones: actívalas en los ajustes del navegador para esta app");
+  const reg = (await registrarSW()) && (await navigator.serviceWorker.ready);
+  if (!reg) throw new Error("No he podido preparar las notificaciones en este navegador");
+  const { clave } = await api("/api/push/clave");
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deB64u(clave) }));
+  const j = sub.toJSON();
+  await api("/api/push/suscribir", { suscripcion: { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, dispositivo: nombreDispositivo() });
+}
+async function desactivarPush() {
+  const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription());
+  if (sub) { const endpoint = sub.endpoint; await sub.unsubscribe(); await api("/api/push/quitar", { endpoint }); }
+}
+async function refrescarDispositivos() { const aqui = await suscritoAqui(); S.aqui = { suscrito: !!aqui && S.datos.notificaciones.dispositivos.some((d) => d.id === aqui) }; }
+function hojaEnlace(enlace) {
+  const texto = "🔗 Enlace para abrir mi agenda (vale una vez y caduca en 10 minutos):\n" + enlace;
+  const h = document.createElement("div"); h.className = "hoja";
+  h.innerHTML = `<div><h3>Enlace de acceso</h3><p class="nota">Ábrelo en el dispositivo donde quieras la app. <b>Vale una sola vez y caduca en 10 minutos.</b> No lo compartas con nadie más.</p>
+    <div class="doc" style="white-space:normal;font-size:12.5px;word-break:break-all">${esc(enlace)}</div>
+    <button class="btn ancho" data-e="copiar">📋 Copiar el enlace</button>
+    <button class="btn sec ancho" data-e="wa">💬 Enviármelo por WhatsApp</button>
+    <button class="btn sec ancho" data-e="mail">✉️ Enviármelo por correo</button>
+    <button class="btn sec ancho" data-e="no">Cerrar</button></div>`;
+  document.body.appendChild(h);
+  h.addEventListener("click", async (e) => {
+    const c = e.target.closest("[data-e]")?.dataset.e;
+    if (e.target === h || c === "no") return h.remove();
+    if (c === "copiar") aviso((await copiar(enlace)) ? "📋 Copiado" : "No he podido copiar");
+    if (c === "wa") abrirEnlace("https://wa.me/?text=" + encodeURIComponent(texto));
+    if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Enlace de acceso a mi agenda") + "&body=" + encodeURIComponent(texto));
+  });
+}
+
 /* ---------- Eventos de la página ---------- */
 document.addEventListener("click", async (e) => {
   const q = (s) => e.target.closest(s);
@@ -439,6 +535,13 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-quitar]"))) return compra({ accion: "quitar", id: el.dataset.quitar });
   if (q("[data-vaciar]")) { if (confirm("¿Vaciar toda la lista?")) compra({ accion: "vaciar" }); return; }
   if (q("[data-terminar]")) return hojaTerminar();
+  if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
+  if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); await peticionInstalar.userChoice.catch(() => {}); peticionInstalar = null; S.instalacion = false; pintar(); } return; }
+  if ((el = q("[data-canal]"))) return hacer(() => api("/api/notificaciones", { canal: el.dataset.canal }));
+  if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? "🔔 Notificaciones activadas" : "🔕 Desactivadas");
+  if ((el = q("[data-pushquitar]"))) return hacer(() => api("/api/push/quitar", { id: el.dataset.pushquitar }), "Dispositivo quitado");
+  if (q("[data-probar]")) { try { await api("/api/push/probar"); aviso("🔔 Prueba enviada"); } catch (err) { aviso(err.message); } return; }
+  if (q("[data-salir]")) { if (!confirm("¿Cerrar la sesión en este dispositivo?")) return; try { await api("/api/salir"); } catch (err) {} guardarSesion(""); location.href = "/app/"; return; }
   if (q("[data-avatar]")) return hojaAvatar();
   if (q("[data-compartir]")) return hojaCompartir();
   if ((el = q("[data-repetir]"))) return compra({ accion: "repetir", id: el.dataset.repetir }, "↻ Añadido a la lista");
@@ -474,6 +577,7 @@ function demo(ruta, c) {
   const d = (window.__demo ||= {
     usuario: { nombre: "Ana", estilo: new URLSearchParams(location.search).get("estilo") || "informal", modo: new URLSearchParams(location.search).get("modo") || "auto", ciudad: "Córdoba", zona: "Europe/Madrid", sol: "amanece 08:12 · anochece 19:41", admin: true },
     secciones: [["tiempo", "🌤", "Tiempo", "Previsión por horas, lluvia, sol, viento, UV y luna", 1], ["noticias", "📰", "Noticias", "Economía, política y noticias de tu zona", 1], ["agenda", "🗓", "Agenda", "Tus citas y tareas de hoy y mañana", 0], ["horoscopo", "🔮", "Horóscopo", "El horóscopo del día de tu signo", 1], ["mercados", "📈", "Mercados", "Premercado de Wall Street y cierre de ayer", 0]].map(([ref, emoji, titulo, descripcion, a]) => ({ ref, emoji, titulo, descripcion, activa: !!a, hora: "07:30" })),
+    notificaciones: { canal: "telegram", dispositivos: [{ id: "abc", nombre: "Android · Chrome", desde: "2026-10-01T10:00:00Z" }] },
     avatar: null, fotoAvatar: null, avatares: ["🦊","🐼","🐨","🦁","🐯","🐸","🐵","🐧","🦉","🦄","🐙","🦋","🐢","🐬","🦈","🐳","🦖","🐝","🐞","🦔","🐰","🐻"],
     compra: { items: [{ id: "a", texto: "Leche", hecho: false }, { id: "b", texto: "Pan", hecho: true }, { id: "c", texto: "Huevos", hecho: false }], historial: [{ id: "h1", fecha: "2026-10-01T10:00:00Z", items: ["Arroz", "Tomates", "Café"] }] },
     eventos: [{ id: "1", tipo: "cita", titulo: "Cardiología", lugar: "Hospital", texto: "mañana · 10:30", hecho: false, repeticion: "ninguna" }, { id: "2", tipo: "alarma", titulo: "Tomar la pastilla", lugar: "", texto: "hoy · 21:00", hecho: false, repeticion: "diaria" }, { id: "3", tipo: "tarea", titulo: "Llamar al fontanero", lugar: "", texto: "sin fecha", hecho: true, repeticion: "ninguna" }],
@@ -493,10 +597,26 @@ function demo(ruta, c) {
 }
 
 /* ---------- Arranque ---------- */
+const MENSAJE_ENTRADA = `<div class="cargando" style="line-height:1.6">Para usar la app fuera de Telegram necesitas un <b>enlace de acceso</b>.<br><br>Escribe <b>/app</b> al bot en Telegram y abre el enlace que te dé en este dispositivo.</div>`;
 (async () => {
   if (TG) { TG.ready(); TG.expand(); }
-  if (!DEMO && !(TG && TG.initData)) { $("#app").innerHTML = `<div class="cargando">Abre esta app desde el bot de Telegram.</div>`; return; }
-  try { await cargar(); pintar(); } catch (e) { $("#app").innerHTML = `<div class="cargando">${esc(e.message)}</div>`; }
+  const url = new URL(location.href);
+  try {
+    if (!DEMO && !enTelegram()) {
+      const codigo = url.searchParams.get("acceso");
+      if (codigo) { // enlace de acceso de un solo uso: se cambia por una sesión de este dispositivo
+        $("#app").innerHTML = `<div class="cargando">Vinculando este dispositivo…</div>`;
+        const r = await api("/api/sesion", { codigo });
+        guardarSesion(r.token); url.searchParams.delete("acceso"); history.replaceState(null, "", url.pathname + (url.search || ""));
+      }
+      if (!leerSesion()) { $("#app").innerHTML = MENSAJE_ENTRADA; registrarSW(); return; }
+    }
+    await cargar(); registrarSW();
+    const ver = url.searchParams.get("ver"), ir_ = url.searchParams.get("ir");
+    if (ver || ir_) history.replaceState(null, "", url.pathname);
+    if (ir_ && vistas[ir_]) { S.vista = ir_; pintar(); } else pintar();
+    if (ver) abrirVer(ver);
+  } catch (e) { $("#app").innerHTML = e.sesion ? MENSAJE_ENTRADA : `<div class="cargando" style="line-height:1.6">${esc(e.message)}<br><br>Escribe <b>/app</b> al bot en Telegram para pedir un enlace nuevo.</div>`; }
 })();
 </script>
 </body>

@@ -167,3 +167,49 @@ test("mini app: avatar (emoji, foto de Telegram, foto subida o inicial) y lista 
   await api("/api/avatar", { tipo: "ninguno" }); assert.equal(((await api("/api/estado")).cuerpo as any).avatar, null);
   assert.equal((await api("/api/avatar", { tipo: "raro" })).estado, 400);
 });
+
+test("acceso desde otro dispositivo: el enlace vale una vez y 10 minutos; la sesión se puede renovar y cerrar", async () => {
+  const { crearAcceso, canjearAcceso, usuarioDeSesion, cerrarSesion } = await import("./sesiones");
+  const al = new (await import("./almacen")).AlmacenMemoria(); const t0 = new Date("2026-10-05T10:00:00Z");
+  const c = await crearAcceso(al, "1", t0); assert.match(c, /^[a-z2-9]{20}$/);
+  assert.equal(await canjearAcceso(al, "malo", t0), null); assert.equal(await canjearAcceso(al, "a".repeat(20), t0), null);
+  const r = (await canjearAcceso(al, c, new Date(t0.getTime() + 5 * 60_000)))!; assert.equal(r.uid, "1"); assert.match(r.token, /^[a-z2-9]{40}$/);
+  assert.equal(await canjearAcceso(al, c, t0), null); // un solo uso
+  const c2 = await crearAcceso(al, "1", t0); assert.equal(await canjearAcceso(al, c2, new Date(t0.getTime() + 11 * 60_000)), null); // caducado a los 10 minutos
+  assert.equal(await usuarioDeSesion(al, r.token, t0), "1"); assert.equal(await usuarioDeSesion(al, "x".repeat(40), t0), null); assert.equal(await usuarioDeSesion(al, "corto", t0), null);
+  assert.equal(await usuarioDeSesion(al, r.token, new Date(t0.getTime() + 179 * 24 * 3600_000)), "1");
+  assert.equal(await usuarioDeSesion(al, r.token, new Date(t0.getTime() + 181 * 24 * 3600_000)), null); // 180 días
+  await cerrarSesion(al, r.token, t0); assert.equal(await usuarioDeSesion(al, r.token, t0), null);
+});
+
+test("bot: /app da un enlace de acceso de un solo uso", async () => {
+  const b = crearBanco(AHORA); b.deps.urlBase = "https://agenda.test";
+  const u = usuarioNuevo("1", "Ana", AHORA); u.onboardingHecho = true; await b.almacen.guardarUsuario(u);
+  await b.escribir("1", "/app");
+  const boton = b.canal.botones("1").find((x) => x.url)!; assert.match(boton.url!, /^https:\/\/agenda\.test\/app\/\?acceso=[a-z2-9]{20}$/);
+  const { canjearAcceso } = await import("./sesiones"); const codigo = boton.url!.split("acceso=")[1];
+  assert.equal((await canjearAcceso(b.almacen, codigo, AHORA))!.uid, "1");
+  const b2 = crearBanco(AHORA); await b2.almacen.guardarUsuario(u); await b2.escribir("1", "/app"); assert.match(b2.canal.textos("1").at(-1)!, /aún no está disponible/); // sin dirección pública
+});
+
+test("mini app: notificaciones (dispositivos, canal y prueba)", async () => {
+  const { b, api } = await banco();
+  const { createECDH, randomBytes } = await import("node:crypto"); const { b64u } = await import("./webpush");
+  const e = createECDH("prime256v1"); e.generateKeys();
+  const suscripcion = { endpoint: "https://push.example/abc123", p256dh: b64u(e.getPublicKey()), auth: b64u(randomBytes(16)) };
+  const clave = ((await api("/api/push/clave")).cuerpo as any).clave; assert.equal(clave.length, 87); // 65 bytes en base64url
+  assert.equal(((await api("/api/push/clave")).cuerpo as any).clave, clave); // siempre la misma
+  assert.equal((await api("/api/notificaciones", { canal: "app" })).estado, 409); // sin dispositivo no se puede elegir «solo app»
+  assert.equal((await api("/api/push/probar")).estado, 409); assert.equal((await api("/api/push/suscribir", { suscripcion: { ...suscripcion, auth: "x" } })).estado, 400);
+  assert.equal((await api("/api/push/suscribir", { suscripcion, dispositivo: "  Mi móvil " })).estado, 200);
+  await api("/api/push/suscribir", { suscripcion, dispositivo: "Mi móvil" }); // el mismo dispositivo no se duplica
+  let e1 = ((await api("/api/estado")).cuerpo as any).notificaciones; assert.equal(e1.dispositivos.length, 1); assert.equal(e1.dispositivos[0].nombre, "Mi móvil"); assert.equal(e1.canal, "telegram");
+  assert.equal((await api("/api/notificaciones", { canal: "ambos" })).estado, 200); assert.equal((await api("/api/notificaciones", { canal: "otro" })).estado, 400);
+  assert.equal((await api("/api/push/probar")).estado, 409); // sin emisor (no disponible aquí)
+  const enviados: string[] = []; b.deps.push = async (s, aviso) => { enviados.push(`${s.dispositivo}:${aviso.titulo}`); return "ok"; };
+  assert.deepEqual(((await api("/api/push/probar")).cuerpo as any).enviadas, 1); assert.match(enviados[0], /^Mi móvil:🔔/);
+  b.deps.push = async () => "caducada"; assert.equal((await api("/api/push/probar")).estado, 502);
+  e1 = ((await api("/api/estado")).cuerpo as any).notificaciones; assert.equal(e1.dispositivos.length, 0); // se olvidó el caducado
+  await api("/api/push/suscribir", { suscripcion }); await api("/api/push/quitar", { id: suscripcion.endpoint.slice(-24) });
+  assert.equal(((await api("/api/estado")).cuerpo as any).notificaciones.dispositivos.length, 0);
+});

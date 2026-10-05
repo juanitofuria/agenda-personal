@@ -373,3 +373,26 @@ test("la frase del día: 365 frases motivadoras distintas, una por día", () => 
   assert.equal(dia(2026, 0, 1), 1); assert.equal(dia(2026, 11, 31), 365); assert.equal(dia(2028, 11, 31), 366); // año bisiesto: el último día repite la primera
   assert.equal(frases[(366 - 1) % 365], frases[0]);
 });
+
+test("worker: acceso fuera de Telegram con enlace de un solo uso y sesión del dispositivo", async () => {
+  const { d1, almacen } = nuevo();
+  const env: Env = { DB: d1, TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_WEBHOOK_SECRET: "secreto-largo-1234567890" };
+  await almacen.guardarUsuario(usuarioNuevo("7", "Ana", T0));
+  const { crearAcceso } = await import("../../firebase/functions/src/sesiones");
+  const api = (ruta: string, cab: Record<string, string> = {}, cuerpo: unknown = {}) => manejarFetch(new Request(`https://x.workers.dev${ruta}`, { method: "POST", headers: cab, body: JSON.stringify(cuerpo) }), env);
+  const codigo = await crearAcceso(almacen, "7", new Date());
+  assert.equal((await api("/api/sesion", {}, { codigo: "a".repeat(20) })).status, 401);
+  const r = await api("/api/sesion", {}, { codigo }); assert.equal(r.status, 200);
+  const token = ((await r.json()) as any).token as string; assert.match(token, /^[a-z2-9]{40}$/);
+  assert.equal((await api("/api/sesion", {}, { codigo })).status, 401); // el enlace vale una vez
+  const ok = await api("/api/estado", { authorization: `sesion ${token}` }); assert.equal(ok.status, 200); assert.equal(((await ok.json()) as any).usuario.nombre, "Ana");
+  assert.equal((await api("/api/estado", { authorization: `sesion ${"x".repeat(40)}` })).status, 401);
+  assert.equal((await api("/api/estado", { authorization: "sesion corto" })).status, 401);
+  const clave = await api("/api/push/clave", { authorization: `sesion ${token}` }); assert.equal(clave.status, 200); assert.equal((((await clave.json()) as any).clave as string).length, 87);
+  assert.equal((await api("/api/salir", { authorization: `sesion ${token}` })).status, 200);
+  assert.equal((await api("/api/estado", { authorization: `sesion ${token}` })).status, 401); // sesión cerrada
+  const privado: Env = { ...env, ADMIN_CHAT_ID: "1" }; // bot privado: un enlace de alguien sin acceso no sirve
+  const c2 = await crearAcceso(almacen, "7", new Date()); const t2 = ((await (await api("/api/sesion", {}, { codigo: c2 })).json()) as any).token;
+  assert.equal((await api("/api/estado", { authorization: `sesion ${t2}` }, {})).status, 200);
+  assert.equal((await manejarFetch(new Request("https://x.workers.dev/api/estado", { method: "POST", headers: { authorization: `sesion ${t2}` }, body: "{}" }), privado)).status, 403);
+});
