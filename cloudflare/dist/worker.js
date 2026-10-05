@@ -1898,7 +1898,7 @@ Todav\xEDa no hay hor\xF3scopo publicado para hoy. Lo intentar\xE9 de nuevo m\xE
   ].filter(Boolean).join("\n\n") + `
 
 <i>Fuente:</i> ${enlaceFuente}`;
-  const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "\u{1F3A7} Escuchar el podcast de hoy" : `\u{1F3A7} Escuchar el \xFAltimo podcast (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
+  const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "\u{1F3A7} Escuchar Hor\xF3scopo Ampliado" : `\u{1F3A7} Escuchar Hor\xF3scopo Ampliado (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
   return { html, teclado: [...botones, NAV_MENU] };
 }
 __name(contenidoHoroscopo, "contenidoHoroscopo");

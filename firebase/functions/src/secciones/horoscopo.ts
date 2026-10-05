@@ -43,6 +43,6 @@ export async function contenidoHoroscopo(ctx: Contexto): Promise<Contenido> {
     desactualizado ? `⚠️ <i>Aún no se ha publicado el de hoy: este es el del ${doc.fecha}.</i>` : "",
     esc(original.prediccion.trim()),
   ].filter(Boolean).join("\n\n") + `\n\n<i>Fuente:</i> ${enlaceFuente}`;
-  const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "🎧 Escuchar el podcast de hoy" : `🎧 Escuchar el último podcast (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
+  const botones = episodio ? [[{ texto: episodio.fecha === hoy ? "🎧 Escuchar Horóscopo Ampliado" : `🎧 Escuchar Horóscopo Ampliado (${episodio.fecha.slice(8)}/${episodio.fecha.slice(5, 7)})`, url: episodio.url }]] : [];
   return { html, teclado: [...botones, NAV_MENU] };
 }

@@ -557,13 +557,13 @@ test("horóscopo: el texto es el de 20minutos tal cual, con una sola línea de f
   assert.ok(t.includes(ORIGINAL)); // sin reescribir
   assert.match(t, /\n\n<i>Fuente:<\/i> <a href="https:\/\/www\.20minutos\.es\/horoscopo\/aries\/">20minutos\.es<\/a>$/); // y la fuente es lo último
   assert.doesNotMatch(t, /derechos|sencillas|Basado en/);
-  const boton = b.canal.botones(U).find((x) => /podcast/.test(x.texto))!;
-  assert.equal(boton.url, "https://podcasts.test/ep/aries/0"); assert.match(boton.texto, /Escuchar el podcast de hoy/);
+  const boton = b.canal.botones(U).find((x) => /Horóscopo Ampliado/.test(x.texto))!;
+  assert.equal(boton.url, "https://podcasts.test/ep/aries/0"); assert.equal(boton.texto, "🎧 Escuchar Horóscopo Ampliado"); // sin fecha: es el de hoy
   // sin feed configurado: sin botón
   const b2 = await usuarioListo(); const u2 = (await b2.almacen.getUsuario(U))!; u2.nacimiento = "1990-04-05"; await b2.almacen.guardarUsuario(u2);
   await b2.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
   await b2.pulsar(U, "sec:horoscopo");
-  assert.ok(textoUltimo(b2).includes(ORIGINAL)); assert.ok(!b2.canal.botones(U).some((x) => /podcast/.test(x.texto)));
+  assert.ok(textoUltimo(b2).includes(ORIGINAL)); assert.ok(!b2.canal.botones(U).some((x) => /Horóscopo Ampliado/.test(x.texto)));
 });
 
 test("horóscopo: sin episodio de hoy el botón es del último, y si el feed falla no hay botón ni error", async () => {
@@ -571,10 +571,10 @@ test("horóscopo: sin episodio de hoy el botón es del último, y si el feed fal
   await b.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
   b.deps.podcastFeed = FEED; b.http.añadir("feeds.test", feedPodcast(["Viernes 2 de Octubre de 2026"]));
   await b.pulsar(U, "sec:horoscopo");
-  assert.match(b.canal.botones(U).find((x) => /podcast/.test(x.texto))!.texto, /Escuchar el último podcast \(02\/10\)/);
+  assert.match(b.canal.botones(U).find((x) => /Horóscopo Ampliado/.test(x.texto))!.texto, /^🎧 Escuchar Horóscopo Ampliado \(02\/10\)$/);
   const b2 = await usuarioListo(); const u2 = (await b2.almacen.getUsuario(U))!; u2.nacimiento = "1990-04-05"; await b2.almacen.guardarUsuario(u2);
   await b2.almacen.guardarHoroscopo("aries", { signo: "aries", fecha: "2026-10-04", prediccion: ORIGINAL, fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });
   b2.deps.podcastFeed = FEED; b2.http.añadir("feeds.test", new Error("caído"));
   await b2.pulsar(U, "sec:horoscopo");
-  assert.match(textoUltimo(b2), /agresividad/); assert.ok(!b2.canal.botones(U).some((x) => /podcast/.test(x.texto)));
+  assert.match(textoUltimo(b2), /agresividad/); assert.ok(!b2.canal.botones(U).some((x) => /Horóscopo Ampliado/.test(x.texto)));
 });
