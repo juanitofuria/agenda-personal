@@ -142,7 +142,7 @@ test("noticias: economía, política y las de la zona sin repetir; tolera una co
 test("noticias: si no se obtiene ninguna consulta, falla", async () => {
   const b = crearBanco(AHORA); b.http.añadir("news.google.com", new Error("caído"));
   const u = usuarioNuevo("1", "Ana", AHORA);
-  await assert.rejects(construirContenido("noticias", { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA }), /Google y Bing sin respuesta[\s\S]*caído/);
+  await assert.rejects(construirContenido("noticias", { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA }), /Bing y Google sin respuesta[\s\S]*caído/);
 });
 
 test("tema personalizado", async () => {
@@ -264,7 +264,7 @@ test("Bing News: se lee <News:Source> y el enlace se saca del redirector; la URL
   assert.equal(urlBingNews('"Ayuntamiento de Montoro" España when:7d'), "https://www.bing.com/news/search?q=%22Ayuntamiento%20de%20Montoro%22%20Espa%C3%B1a&format=rss&setlang=es-ES&cc=ES");
 });
 
-test("noticias: Google y Bing se piden a la vez y basta con que responda una; si ninguna, el error dice por qué", async () => {
+test("noticias: Bing primero y Google solo de respaldo (si Bing falla o tarda); si ninguna responde, el error dice por qué", async () => {
   const u = usuarioNuevo("1", "Ana", AHORA);
   const probar = async (reglas: (b: ReturnType<typeof crearBanco>) => void) => {
     const b = crearBanco(AHORA); reglas(b);
@@ -273,12 +273,19 @@ test("noticias: Google y Bing se piden a la vez y basta con que responda una; si
   // Google caído (como pasa desde Cloudflare): salva Bing
   const { c, b } = await probar((b) => { b.http.añadir("news.google.com", new Error("The operation was aborted due to timeout")); b.http.añadir("bing.com/news", BING(5)); });
   assert.match(c.html, /Noticias del día/); assert.match(c.html, /Titular de Bing/);
-  assert.ok(b.http.llamadas.some((x) => x.includes("news.google.com")) && b.http.llamadas.some((x) => x.includes("bing.com/news"))); // se pidieron las dos
+  assert.ok(b.http.llamadas.some((x) => x.includes("news.google.com")) && b.http.llamadas.some((x) => x.includes("bing.com/news"))); // Bing falló: se pidió también Google
   // Bing caído: salva Google
   const r2 = await probar((b) => { b.http.añadir("news.google.com", rssFalso("Economía", 4)); b.http.añadir("bing.com/news", new Error("HTTP 403")); });
   assert.match(r2.c.html, /Economía noticia/);
+  // Bing responde bien: Google ni se pide (no se gastan peticiones)
+  const r4 = await probar((b) => { b.http.añadir("news.google.com", rssFalso("Economía", 4)); b.http.añadir("bing.com/news", BING(3)); });
+  assert.match(r4.c.html, /Titular de Bing/); assert.equal(r4.b.http.llamadas.filter((x) => x.includes("news.google.com")).length, 0);
+  // Bing lento (tarda más que la espera): se pide Google y gana el que conteste antes
+  const colgado: { get(url: string): Promise<{ data: unknown }> } = { get: (url: string) => (url.includes("bing.com") ? new Promise(() => undefined) : Promise.resolve({ data: rssFalso("Economía", 4) })) };
+  const lento = await construirContenido("noticias", { usuario: u, http: colgado, almacen: crearBanco(AHORA).almacen, ahora: AHORA });
+  assert.match(lento.html, /Economía noticia/); // Bing no contesta: tras la espera se pide Google
   // las dos caídas: el motivo de cada una
-  await assert.rejects(probar((b) => { b.http.añadir("news.google.com", new Error("timeout")); b.http.añadir("bing.com/news", Object.assign(new Error("x"), { response: { status: 403 } })); }), /Google y Bing sin respuesta[\s\S]*timeout/);
+  await assert.rejects(probar((b) => { b.http.añadir("news.google.com", new Error("timeout")); b.http.añadir("bing.com/news", Object.assign(new Error("x"), { response: { status: 403 } })); }), /Bing y Google sin respuesta[\s\S]*timeout/);
   // una respuesta sin noticias (p. ej. una página de bloqueo) no cuenta como respuesta
   const r3 = await probar((b) => { b.http.añadir("news.google.com", "<html>consentimiento</html>"); b.http.añadir("bing.com/news", BING(3)); });
   assert.match(r3.c.html, /Titular de Bing/);

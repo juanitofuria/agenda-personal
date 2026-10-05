@@ -13,18 +13,29 @@ async function pedirRss(ctx: Contexto, url: string): Promise<Noticia[]> {
   return noticias;
 }
 
+/** Espera que Google News solo se pide si Bing no ha contestado en este tiempo (o ha fallado). */
+const ESPERA_RESPALDO_MS = 1500;
+
 /**
- * Noticias de una búsqueda (cacheado 30 min para todos los usuarios). Se piden a la vez a Google News y a Bing News y vale la primera que
- * responda: si una está bloqueada o lenta desde el servidor, la otra salva la sección.
+ * Noticias de una búsqueda (cacheado 30 min para todos los usuarios). Se pide primero a Bing News; si tarda más de 1,5 s o falla, se pide
+ * también a Google News y vale la primera que responda. Así, si una está bloqueada o lenta desde el servidor, la otra salva la sección,
+ * sin gastar peticiones en la de respaldo cuando la principal responde bien.
  */
 export async function noticiasDe(ctx: Contexto, consulta: string): Promise<Noticia[]> {
   return cacheado(ctx.almacen, `rss:${consulta}`, 30 * 60_000, ctx.ahora, async () => {
+    const bing = pedirRss(ctx, urlBingNews(consulta));
+    const estadoBing = bing.then(() => "ok" as const, () => "fallo" as const);
+    const google = (async () => {
+      const e = await Promise.race([estadoBing, new Promise<"lento">((r) => setTimeout(() => r("lento"), ESPERA_RESPALDO_MS))]);
+      if (e === "ok") throw new Error("no hizo falta"); // Bing ya contestó bien
+      return pedirRss(ctx, urlGoogleNews(consulta));
+    })();
     try {
-      const lista = await Promise.any([pedirRss(ctx, urlGoogleNews(consulta)), pedirRss(ctx, urlBingNews(consulta))]);
+      const lista = await Promise.any([bing, google]);
       return lista.sort((a, b) => b.fecha - a.fecha).slice(0, 12);
     } catch (e) {
-      const motivos = (e as AggregateError).errors?.map((x: Error) => x.message).join(" · ") ?? (e as Error).message;
-      throw new Error(`Google y Bing sin respuesta (${motivos})`.slice(0, 160));
+      const motivos = (e as AggregateError).errors?.map((x: Error) => x.message).filter((m: string) => m !== "no hizo falta").join(" · ") ?? (e as Error).message;
+      throw new Error(`Bing y Google sin respuesta (${motivos})`.slice(0, 160));
     }
   });
 }

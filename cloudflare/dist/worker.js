@@ -1912,14 +1912,22 @@ async function pedirRss(ctx, url) {
   return noticias;
 }
 __name(pedirRss, "pedirRss");
+var ESPERA_RESPALDO_MS = 1500;
 async function noticiasDe(ctx, consulta) {
   return cacheado(ctx.almacen, `rss:${consulta}`, 30 * 6e4, ctx.ahora, async () => {
+    const bing = pedirRss(ctx, urlBingNews(consulta));
+    const estadoBing = bing.then(() => "ok", () => "fallo");
+    const google = (async () => {
+      const e = await Promise.race([estadoBing, new Promise((r) => setTimeout(() => r("lento"), ESPERA_RESPALDO_MS))]);
+      if (e === "ok") throw new Error("no hizo falta");
+      return pedirRss(ctx, urlGoogleNews(consulta));
+    })();
     try {
-      const lista2 = await Promise.any([pedirRss(ctx, urlGoogleNews(consulta)), pedirRss(ctx, urlBingNews(consulta))]);
+      const lista2 = await Promise.any([bing, google]);
       return lista2.sort((a, b) => b.fecha - a.fecha).slice(0, 12);
     } catch (e) {
-      const motivos = e.errors?.map((x) => x.message).join(" \xB7 ") ?? e.message;
-      throw new Error(`Google y Bing sin respuesta (${motivos})`.slice(0, 160));
+      const motivos = e.errors?.map((x) => x.message).filter((m) => m !== "no hizo falta").join(" \xB7 ") ?? e.message;
+      throw new Error(`Bing y Google sin respuesta (${motivos})`.slice(0, 160));
     }
   });
 }
