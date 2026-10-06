@@ -16,14 +16,15 @@ const claveC = (uid: string, fecha: string, ref: string) => `rc:${uid}:${fecha}:
 const esSeccion = (ref: string) => !ref.includes(":") || ref.startsWith("tema:");
 
 export interface ResumenGuardado { ref: string; hora: string; previa: string }
-export interface ContenidoGuardado { html: string; teclado?: Contenido["teclado"]; grupos?: Contenido["grupos"]; hora: string }
+export interface ContenidoGuardado { html: string; teclado?: Contenido["teclado"]; grupos?: Contenido["grupos"]; tiempo?: Contenido["tiempo"]; hora: string }
 
 export async function guardarResumen(ctx: Contexto, ref: string, c: Contenido): Promise<void> {
   if (!esSeccion(ref)) return;
   const u = ctx.usuario, fecha = fechaIso(ctx.ahora, u.zona), hora = ctx.ahora.toISOString();
-  const previa = c.grupos?.[0]?.noticias[0]?.titulo ?? textoPlano(c.html, 150);
+  const t = c.tiempo?.resumen;
+  const previa = t ? `${c.tiempo!.ciudad} · ${t.temp}° · ${t.desc} (mín ${t.tMin}° / máx ${t.tMax}°)` : c.grupos?.[0]?.noticias[0]?.titulo ?? textoPlano(c.html, 150);
   await ctx.almacen.cacheSet(claveP(u.id, fecha, ref), JSON.stringify({ hora, previa }), VIGENCIA_MS, ctx.ahora);
-  await ctx.almacen.cacheSet(claveC(u.id, fecha, ref), JSON.stringify({ html: c.html, teclado: c.teclado, grupos: c.grupos, hora } satisfies ContenidoGuardado), VIGENCIA_MS, ctx.ahora);
+  await ctx.almacen.cacheSet(claveC(u.id, fecha, ref), JSON.stringify({ html: c.html, teclado: c.teclado, grupos: c.grupos, tiempo: c.tiempo, hora } satisfies ContenidoGuardado), VIGENCIA_MS, ctx.ahora);
 }
 
 /** Resúmenes de hoy (en la zona del usuario), en el orden de las secciones y luego los temas. */

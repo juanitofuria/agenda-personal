@@ -119,6 +119,8 @@ solo entra quien tenga acceso. No hay que configurar nada más: el botón aparec
 
 **Pantalla principal de la app:** arriba, el **resumen de hoy** (los resúmenes que se hayan pedido o enviado ese día, guardados 36 horas para no prepararlos otra vez), y debajo una sección por tipo: ⏰ Alarmas, 📅 Citas, ✅ Tareas pendientes, 📝 Notas, 💬 Mensajes de WhatsApp y 🛒 Lista de la compra, más ⚙️ **Ajustes** (perfil y ciudad —se cambia tocándola—, resumen de hoy, mis secciones, apariencia, app y notificaciones). Las noticias se ven como tarjetas con foto (la trae el RSS de Bing News) y al tocarlas se abre la noticia. El gesto de «atrás» del móvil vuelve a la pantalla anterior (o cierra la ventana abierta) en vez de salir de la app.
 
+**El tiempo en la app** se ve como un panel de tarjetas (resumen con temperatura, detalles, rango del día, lluvia prevista, sol, viento con brújula, humedad, UV, luna y lluvia caída; más *Hora a hora* con gráfico y *Calendario lunar* mensual), con el estilo (informal o formal) y el tema (claro u oscuro) elegidos. La cabecera lleva el **nombre de tu ciudad** y, a la derecha, una **foto real de la ciudad**: la imagen principal de su artículo de Wikipedia (Wikimedia Commons, libre), saltando escudos, mapas y logotipos; se guarda 30 días y, si no hay foto, se ve una ilustración de montañas.
+
 ### App instalable y notificaciones (Android, iPhone, Windows y Mac)
 
 La mini app también es una **app instalable (PWA)**: se instala desde el navegador, sin tiendas ni cuentas de desarrollador, y funciona fuera de Telegram.

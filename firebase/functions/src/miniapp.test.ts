@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
-import { crearBanco } from "./arnes";
+import { crearBanco, previsionFalsa } from "./arnes";
 import { manejarApi, validarInitData } from "./miniapp";
 import { usuarioNuevo } from "./modelo";
 
@@ -313,4 +313,27 @@ test("actualizar el resumen de hoy: «refs» prepara varias secciones a la vez (
   assert.deepEqual(r.secciones.map((s: any) => s.ref), ["agenda"]); assert.ok(r.secciones[0].hora);
   assert.equal((await api("/api/ver", { refs: ["inventada"] })).estado, 409);
   assert.equal(((await api("/api/estado")).cuerpo as any).resumenHoy.length, 1);
+});
+
+test("tiempo para la app: datos de las tarjetas (resumen, hora a hora y calendario lunar) y foto real de la ciudad", async () => {
+  const { b, api } = await banco();
+  b.http.añadir("api.open-meteo.com", previsionFalsa("2026-10-05", "2026-10-06")).añadir("historical-forecast-api", { daily: { precipitation_sum: [0, 0.4, 1.1] } });
+  await api("/api/seccion", { ref: "tiempo", activa: true });
+  const r = (await api("/api/ver", { ref: "tiempo" })).cuerpo as any; const t = r.secciones[0].tiempo;
+  assert.equal(t.vista, "resumen"); assert.equal(t.ciudad, "Córdoba"); assert.match(t.actualizado, /^\d\d:\d\d$/);
+  assert.equal(typeof t.resumen.temp, "number"); assert.ok(t.resumen.tMax >= t.resumen.tMin); assert.match(t.resumen.amanece, /^\d\d:\d\d$/); assert.ok(Array.isArray(t.resumen.lluvia.tramos));
+  assert.equal(t.resumen.luna.iluminada >= 0 && t.resumen.luna.iluminada <= 100, true); assert.equal(t.resumen.caida.ayer, 1.1);
+  const h = ((await api("/api/ver", { ref: "tiempo:horas" })).cuerpo as any).secciones[0].tiempo; assert.equal(h.vista, "horas"); assert.ok(h.horas.length >= 6); assert.ok(h.horas[0].emoji.length > 0);
+  const l = ((await api("/api/ver", { ref: "tiempo:luna" })).cuerpo as any).secciones[0].tiempo; assert.equal(l.vista, "luna");
+  assert.ok(l.luna.semanas.length >= 4 && l.luna.semanas.every((s: any[]) => s.length === 7)); assert.equal(l.luna.semanas.flat().filter(Boolean).length >= 28, true); assert.match(l.luna.llena, /\d/);
+  const g = ((await api("/api/estado")).cuerpo as any).resumenHoy.find((x: any) => x.ref === "tiempo"); assert.match(g.previa, /Córdoba · \d+° ·/); // vista previa en la pantalla principal
+  // foto: la principal del artículo de Wikipedia, sin escudos ni mapas; se guarda y no se vuelve a pedir
+  let pedidas = 0;
+  b.http.añadir("es.wikipedia.org/api/rest_v1/page/summary", () => { pedidas++; return { type: "standard", thumbnail: { source: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Escudo.jpg/320px-Escudo.jpg" } }; })
+    .añadir("es.wikipedia.org/api/rest_v1/page/media-list", { items: [
+      { type: "image", title: "Archivo:Escudo_de_Cordoba.jpg", srcset: [{ src: "//upload.wikimedia.org/wikipedia/commons/thumb/1/11/Escudo_de_Cordoba.jpg/320px-Escudo_de_Cordoba.jpg" }] },
+      { type: "image", title: "Archivo:Mapa_situacion.jpg", srcset: [{ src: "//upload.wikimedia.org/wikipedia/commons/thumb/2/22/Mapa_situacion.jpg/320px-Mapa_situacion.jpg" }] },
+      { type: "image", title: "Archivo:Puente_romano_Cordoba.jpg", srcset: [{ src: "//upload.wikimedia.org/wikipedia/commons/thumb/3/33/Puente_romano_Cordoba.jpg/320px-Puente_romano_Cordoba.jpg" }] }] });
+  const f = ((await api("/api/foto")).cuerpo as any).foto; assert.equal(f, "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Puente_romano_Cordoba.jpg/800px-Puente_romano_Cordoba.jpg");
+  await api("/api/foto"); assert.equal(pedidas, 1);
 });

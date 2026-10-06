@@ -10,6 +10,7 @@ import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "
 import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
 import { iguales } from "./webhook";
+import { fotoCiudad } from "./fotoCiudad";
 import { horaLocal, leerResumen, resumenesDeHoy } from "./resumen";
 import { enlaceWhatsApp, MensajeWa, normalizarTelefono } from "./whatsapp";
 import { claveVapid, suscripcionValida } from "./webpush";
@@ -242,7 +243,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       // Con `guardado`, si hoy ya se pidió esa sección se devuelve lo guardado sin volver a prepararla.
       if (c.guardado === true && c.ref !== "todo") {
         const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
-        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, hora: horaLocal(g.hora, u.zona), guardado: true }] });
+        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, tiempo: g.tiempo, hora: horaLocal(g.hora, u.zona), guardado: true }] });
       }
       const conocidas = new Set([...ORDEN_SECCIONES.map(String), ...u.temas.map((t) => `tema:${t.id}`)]);
       // «refs»: varias secciones a la vez (actualizar el resumen de hoy); «todo»: las activadas; si no, una sola
@@ -251,10 +252,16 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       const hechas = await Promise.all(refs.map(async (ref) => {
         try {
           const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref }) : await contenidoDeSeccion(deps, u, ref);
-          return { ref, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, hora: horaLocal(ahora.toISOString(), u.zona) };
+          return { ref, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, tiempo: cont.tiempo, hora: horaLocal(ahora.toISOString(), u.zona) };
         } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
       }));
       return ok({ secciones: hechas });
+    }
+
+    case "/api/foto": {
+      // Foto real de la ciudad del usuario para la cabecera del tiempo (se pide aparte para no retrasar el tiempo).
+      if (!u.ciudad) return ok({ foto: "" });
+      return ok({ foto: await fotoCiudad(deps.http, deps.almacen, ahora, u.ciudad.nombre, u.ciudad.provincia) });
     }
 
     case "/api/acceso/enlace": {

@@ -2,7 +2,7 @@ import { esc } from "../canal";
 import { fechaIso, formatearFechaHora, localAUtc, partesEnZona } from "../fechas";
 import { edadDias, faseDelDia, iluminacion, proximoDia } from "../luna";
 import { cabecera, cacheado, conReintentos, grados, num0, num1, sparkline } from "../util";
-import { Contenido, Contexto, NAV_MENU } from "./tipos";
+import { Contenido, Contexto, NAV_MENU, PanelTiempo } from "./tipos";
 
 export interface HoraTiempo {
   fecha: string; hora: number; temp: number; codigo: number; prob: number; mm: number; viento: number;
@@ -133,6 +133,47 @@ export function renderLuna(ahora: Date, zona: string): string {
   ].join("\n");
 }
 
+const hora0 = (zona: string, ahora: Date) => { const p = partesEnZona(ahora, zona); return `${hh(p.h)}:${hh(p.mi)}`; };
+
+/** Datos del resumen del tiempo para las tarjetas de la app. */
+export function panelResumen(d: DatosTiempo, ciudad: string, zona: string, ahora: Date): PanelTiempo {
+  const p = partesEnZona(ahora, zona);
+  const temps = d.horas.map((h) => h.temp), primera = d.horas[0], ultima = d.horas[d.horas.length - 1];
+  const iMax = temps.length ? temps.indexOf(Math.max(...temps)) : 0, iMin = temps.length ? temps.indexOf(Math.min(...temps)) : 0;
+  const luz = d.amanece && d.anochece ? minutos(d.anochece) - minutos(d.amanece) : 0;
+  const f = faseDelDia(p.y, p.m, p.d, zona);
+  const r = (n: number) => Math.round(n);
+  return {
+    vista: "resumen", ciudad, actualizado: hora0(zona, ahora),
+    resumen: {
+      emoji: emojiTiempo(d.codigo), desc: descTiempo(d.codigo).replace(/^./, (c) => c.toUpperCase()), temp: r(primera?.temp ?? (d.tMin + d.tMax) / 2), tMin: r(d.tMin), tMax: r(d.tMax),
+      humedad: r(primera?.humedad ?? 0), viento: r(primera?.viento ?? d.vientoMax), dir: brujula(primera?.dir ?? d.dir), dirGrados: r(primera?.dir ?? d.dir), vientoMax: r(d.vientoMax), rachaMax: r(d.rachaMax),
+      uv: Math.round(d.uvMax * 10) / 10, uvNivel: nivelUv(d.uvMax), amanece: d.amanece, anochece: d.anochece, luz: luz > 0 ? `${Math.floor(luz / 60)} h ${luz % 60} min de luz` : "",
+      horasDesde: primera?.hora ?? p.h, horasHasta: ultima?.hora ?? p.h, maxima: { v: r(temps[iMax] ?? d.tMax), hora: d.horas[iMax]?.hora ?? 0 }, minima: { v: r(temps[iMin] ?? d.tMin), hora: d.horas[iMin]?.hora ?? 0 },
+      lluvia: { horas: d.horas.length, tramos: tramosLluvia(d.horas).map((t) => ({ desde: t.desde, hasta: t.hasta, mm: Math.round(t.mm * 10) / 10, prob: t.probMax })) },
+      luna: { emoji: f.emoji, nombre: f.nombre, iluminada: Math.round(iluminacion(p.y, p.m, p.d, zona) * 100) },
+      ...(d.lluviaAyer !== undefined && d.lluviaAnio !== undefined ? { caida: { ayer: Math.round(d.lluviaAyer * 10) / 10, anio: d.anio, total: Math.round(d.lluviaAnio * 10) / 10 } } : {}),
+    },
+  };
+}
+
+export function panelHoras(d: DatosTiempo, ciudad: string, zona: string, ahora: Date): PanelTiempo {
+  return { vista: "horas", ciudad, actualizado: hora0(zona, ahora), horas: d.horas.map((h) => ({ hora: h.hora, emoji: emojiTiempo(h.codigo), desc: descTiempo(h.codigo), temp: Math.round(h.temp), prob: Math.round(h.prob), mm: Math.round(h.mm * 10) / 10, viento: Math.round(h.viento), humedad: Math.round(h.humedad) })) };
+}
+
+export function panelLuna(ciudad: string, ahora: Date, zona: string): PanelTiempo {
+  const p = partesEnZona(ahora, zona);
+  const hoy = faseDelDia(p.y, p.m, p.d, zona);
+  const fmt = (x: { y: number; m: number; d: number }) => formatearFechaHora(localAUtc(x.y, x.m, x.d, 12, 0, zona), zona).split(" · ")[0];
+  const llena = proximoDia(p.y, p.m, p.d, true, zona), nueva = proximoDia(p.y, p.m, p.d, false, zona);
+  const mes = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: zona }).format(ahora);
+  const dias = new Date(Date.UTC(p.y, p.m, 0)).getUTCDate();
+  const primerDow = (new Date(Date.UTC(p.y, p.m - 1, 1)).getUTCDay() + 6) % 7; // lunes = 0
+  const semanas: ({ d: number; emoji: string } | null)[][] = [];
+  for (let ini = 1 - primerDow; ini <= dias; ini += 7) semanas.push(Array.from({ length: 7 }, (_, i) => { const d = ini + i; return d >= 1 && d <= dias ? { d, emoji: faseDelDia(p.y, p.m, d, zona).emoji } : null; }));
+  return { vista: "luna", ciudad, actualizado: hora0(zona, ahora), luna: { mes, hoy: { emoji: hoy.emoji, nombre: hoy.nombre, iluminada: Math.round(iluminacion(p.y, p.m, p.d, zona) * 100), dias: Math.round(edadDias(p.y, p.m, p.d, zona)), dia: p.d }, llena: fmt(llena), nueva: fmt(nueva), semanas } };
+}
+
 async function pedirPrevision(ctx: Contexto): Promise<DatosTiempo> {
   const { usuario: u, ahora } = ctx;
   const c = u.ciudad!;
@@ -166,6 +207,7 @@ export async function contenidoTiempo(ctx: Contexto): Promise<Contenido> {
   const d = await pedirPrevision(ctx);
   return {
     html: renderTiempo(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora),
+    tiempo: panelResumen(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora),
     teclado: [[{ texto: "🕐 Hora a hora", datos: "sev:tiempo:horas" }, { texto: "🌙 Calendario lunar", datos: "sev:tiempo:luna" }], NAV_MENU],
   };
 }
@@ -173,9 +215,9 @@ export async function contenidoTiempo(ctx: Contexto): Promise<Contenido> {
 export async function contenidoHoraAHora(ctx: Contexto): Promise<Contenido> {
   if (!ctx.usuario.ciudad) return contenidoTiempo(ctx);
   const d = await pedirPrevision(ctx);
-  return { html: renderHoraAHora(d, ctx.usuario.ciudad.nombre), teclado: [[{ texto: "⬅️ Resumen", datos: "sev:tiempo" }], NAV_MENU] };
+  return { html: renderHoraAHora(d, ctx.usuario.ciudad.nombre), tiempo: panelHoras(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora), teclado: [[{ texto: "⬅️ Resumen", datos: "sev:tiempo" }], NAV_MENU] };
 }
 
 export async function contenidoLuna(ctx: Contexto): Promise<Contenido> {
-  return { html: renderLuna(ctx.ahora, ctx.usuario.zona), teclado: [[{ texto: "⬅️ Resumen del tiempo", datos: "sev:tiempo" }], NAV_MENU] };
+  return { html: renderLuna(ctx.ahora, ctx.usuario.zona), tiempo: panelLuna(ctx.usuario.ciudad?.nombre ?? "", ctx.ahora, ctx.usuario.zona), teclado: [[{ texto: "⬅️ Resumen del tiempo", datos: "sev:tiempo" }], NAV_MENU] };
 }

@@ -2490,6 +2490,69 @@ function renderLuna(ahora, zona) {
   ].join("\n");
 }
 __name(renderLuna, "renderLuna");
+var hora0 = /* @__PURE__ */ __name((zona, ahora) => {
+  const p = partesEnZona(ahora, zona);
+  return `${hh(p.h)}:${hh(p.mi)}`;
+}, "hora0");
+function panelResumen(d, ciudad, zona, ahora) {
+  const p = partesEnZona(ahora, zona);
+  const temps = d.horas.map((h) => h.temp), primera = d.horas[0], ultima = d.horas[d.horas.length - 1];
+  const iMax = temps.length ? temps.indexOf(Math.max(...temps)) : 0, iMin = temps.length ? temps.indexOf(Math.min(...temps)) : 0;
+  const luz = d.amanece && d.anochece ? minutos(d.anochece) - minutos(d.amanece) : 0;
+  const f = faseDelDia(p.y, p.m, p.d, zona);
+  const r = /* @__PURE__ */ __name((n) => Math.round(n), "r");
+  return {
+    vista: "resumen",
+    ciudad,
+    actualizado: hora0(zona, ahora),
+    resumen: {
+      emoji: emojiTiempo(d.codigo),
+      desc: descTiempo(d.codigo).replace(/^./, (c) => c.toUpperCase()),
+      temp: r(primera?.temp ?? (d.tMin + d.tMax) / 2),
+      tMin: r(d.tMin),
+      tMax: r(d.tMax),
+      humedad: r(primera?.humedad ?? 0),
+      viento: r(primera?.viento ?? d.vientoMax),
+      dir: brujula(primera?.dir ?? d.dir),
+      dirGrados: r(primera?.dir ?? d.dir),
+      vientoMax: r(d.vientoMax),
+      rachaMax: r(d.rachaMax),
+      uv: Math.round(d.uvMax * 10) / 10,
+      uvNivel: nivelUv(d.uvMax),
+      amanece: d.amanece,
+      anochece: d.anochece,
+      luz: luz > 0 ? `${Math.floor(luz / 60)} h ${luz % 60} min de luz` : "",
+      horasDesde: primera?.hora ?? p.h,
+      horasHasta: ultima?.hora ?? p.h,
+      maxima: { v: r(temps[iMax] ?? d.tMax), hora: d.horas[iMax]?.hora ?? 0 },
+      minima: { v: r(temps[iMin] ?? d.tMin), hora: d.horas[iMin]?.hora ?? 0 },
+      lluvia: { horas: d.horas.length, tramos: tramosLluvia(d.horas).map((t) => ({ desde: t.desde, hasta: t.hasta, mm: Math.round(t.mm * 10) / 10, prob: t.probMax })) },
+      luna: { emoji: f.emoji, nombre: f.nombre, iluminada: Math.round(iluminacion(p.y, p.m, p.d, zona) * 100) },
+      ...d.lluviaAyer !== void 0 && d.lluviaAnio !== void 0 ? { caida: { ayer: Math.round(d.lluviaAyer * 10) / 10, anio: d.anio, total: Math.round(d.lluviaAnio * 10) / 10 } } : {}
+    }
+  };
+}
+__name(panelResumen, "panelResumen");
+function panelHoras(d, ciudad, zona, ahora) {
+  return { vista: "horas", ciudad, actualizado: hora0(zona, ahora), horas: d.horas.map((h) => ({ hora: h.hora, emoji: emojiTiempo(h.codigo), desc: descTiempo(h.codigo), temp: Math.round(h.temp), prob: Math.round(h.prob), mm: Math.round(h.mm * 10) / 10, viento: Math.round(h.viento), humedad: Math.round(h.humedad) })) };
+}
+__name(panelHoras, "panelHoras");
+function panelLuna(ciudad, ahora, zona) {
+  const p = partesEnZona(ahora, zona);
+  const hoy = faseDelDia(p.y, p.m, p.d, zona);
+  const fmt = /* @__PURE__ */ __name((x) => formatearFechaHora(localAUtc(x.y, x.m, x.d, 12, 0, zona), zona).split(" \xB7 ")[0], "fmt");
+  const llena = proximoDia(p.y, p.m, p.d, true, zona), nueva = proximoDia(p.y, p.m, p.d, false, zona);
+  const mes = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: zona }).format(ahora);
+  const dias = new Date(Date.UTC(p.y, p.m, 0)).getUTCDate();
+  const primerDow = (new Date(Date.UTC(p.y, p.m - 1, 1)).getUTCDay() + 6) % 7;
+  const semanas = [];
+  for (let ini = 1 - primerDow; ini <= dias; ini += 7) semanas.push(Array.from({ length: 7 }, (_, i) => {
+    const d = ini + i;
+    return d >= 1 && d <= dias ? { d, emoji: faseDelDia(p.y, p.m, d, zona).emoji } : null;
+  }));
+  return { vista: "luna", ciudad, actualizado: hora0(zona, ahora), luna: { mes, hoy: { emoji: hoy.emoji, nombre: hoy.nombre, iluminada: Math.round(iluminacion(p.y, p.m, p.d, zona) * 100), dias: Math.round(edadDias(p.y, p.m, p.d, zona)), dia: p.d }, llena: fmt(llena), nueva: fmt(nueva), semanas } };
+}
+__name(panelLuna, "panelLuna");
 async function pedirPrevision(ctx) {
   const { usuario: u, ahora } = ctx;
   const c = u.ciudad;
@@ -2522,6 +2585,7 @@ async function contenidoTiempo(ctx) {
   const d = await pedirPrevision(ctx);
   return {
     html: renderTiempo(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora),
+    tiempo: panelResumen(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora),
     teclado: [[{ texto: "\u{1F550} Hora a hora", datos: "sev:tiempo:horas" }, { texto: "\u{1F319} Calendario lunar", datos: "sev:tiempo:luna" }], NAV_MENU]
   };
 }
@@ -2529,11 +2593,11 @@ __name(contenidoTiempo, "contenidoTiempo");
 async function contenidoHoraAHora(ctx) {
   if (!ctx.usuario.ciudad) return contenidoTiempo(ctx);
   const d = await pedirPrevision(ctx);
-  return { html: renderHoraAHora(d, ctx.usuario.ciudad.nombre), teclado: [[{ texto: "\u2B05\uFE0F Resumen", datos: "sev:tiempo" }], NAV_MENU] };
+  return { html: renderHoraAHora(d, ctx.usuario.ciudad.nombre), tiempo: panelHoras(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora), teclado: [[{ texto: "\u2B05\uFE0F Resumen", datos: "sev:tiempo" }], NAV_MENU] };
 }
 __name(contenidoHoraAHora, "contenidoHoraAHora");
 async function contenidoLuna(ctx) {
-  return { html: renderLuna(ctx.ahora, ctx.usuario.zona), teclado: [[{ texto: "\u2B05\uFE0F Resumen del tiempo", datos: "sev:tiempo" }], NAV_MENU] };
+  return { html: renderLuna(ctx.ahora, ctx.usuario.zona), tiempo: panelLuna(ctx.usuario.ciudad?.nombre ?? "", ctx.ahora, ctx.usuario.zona), teclado: [[{ texto: "\u2B05\uFE0F Resumen del tiempo", datos: "sev:tiempo" }], NAV_MENU] };
 }
 __name(contenidoLuna, "contenidoLuna");
 
@@ -2649,9 +2713,10 @@ var esSeccion = /* @__PURE__ */ __name((ref2) => !ref2.includes(":") || ref2.sta
 async function guardarResumen(ctx, ref2, c) {
   if (!esSeccion(ref2)) return;
   const u = ctx.usuario, fecha = fechaIso(ctx.ahora, u.zona), hora2 = ctx.ahora.toISOString();
-  const previa = c.grupos?.[0]?.noticias[0]?.titulo ?? textoPlano(c.html, 150);
+  const t = c.tiempo?.resumen;
+  const previa = t ? `${c.tiempo.ciudad} \xB7 ${t.temp}\xB0 \xB7 ${t.desc} (m\xEDn ${t.tMin}\xB0 / m\xE1x ${t.tMax}\xB0)` : c.grupos?.[0]?.noticias[0]?.titulo ?? textoPlano(c.html, 150);
   await ctx.almacen.cacheSet(claveP(u.id, fecha, ref2), JSON.stringify({ hora: hora2, previa }), VIGENCIA_MS, ctx.ahora);
-  await ctx.almacen.cacheSet(claveC(u.id, fecha, ref2), JSON.stringify({ html: c.html, teclado: c.teclado, grupos: c.grupos, hora: hora2 }), VIGENCIA_MS, ctx.ahora);
+  await ctx.almacen.cacheSet(claveC(u.id, fecha, ref2), JSON.stringify({ html: c.html, teclado: c.teclado, grupos: c.grupos, tiempo: c.tiempo, hora: hora2 }), VIGENCIA_MS, ctx.ahora);
 }
 __name(guardarResumen, "guardarResumen");
 async function resumenesDeHoy(almacen, u, ahora) {
@@ -4159,12 +4224,12 @@ async function terminar(c, omitido) {
   for (const s of ORDEN_SECCIONES) c.u.secciones[s].activa = elegidas.includes(s);
   if (!c.u.ciudad) c.u.secciones.tiempo.activa = false;
   if (!c.u.nacimiento) c.u.secciones.horoscopo.activa = false;
-  const hora0 = 8 * 60 + 30;
+  const hora02 = 8 * 60 + 30;
   const nuevos = [
     ...TEMAS.filter((t) => (d.temas ?? []).includes(t.titulo)).map((t) => ({ id: slug(t.titulo), titulo: t.titulo, emoji: t.emoji, consulta: t.consulta })),
     ...(d.extra ?? []).map((t) => ({ id: slug(t), titulo: t, emoji: "\u2B50", consulta: t }))
   ].filter((t, i, a) => a.findIndex((x) => x.id === t.id) === i && !c.u.temas.some((x) => x.id === t.id));
-  nuevos.forEach((t, i) => c.u.temas.push({ ...t, hora: `${String(Math.floor((hora0 + i * 5) / 60)).padStart(2, "0")}:${String((hora0 + i * 5) % 60).padStart(2, "0")}`, activa: true }));
+  nuevos.forEach((t, i) => c.u.temas.push({ ...t, hora: `${String(Math.floor((hora02 + i * 5) / 60)).padStart(2, "0")}:${String((hora02 + i * 5) % 60).padStart(2, "0")}`, activa: true }));
   c.u.onboardingHecho = true;
   c.u.estado = null;
   await c.guardar();
@@ -4870,6 +4935,48 @@ async function procesarWebhook(deps, secreto, p, log3 = () => void 0) {
 }
 __name(procesarWebhook, "procesarWebhook");
 
+// ../firebase/functions/src/fotoCiudad.ts
+var CABECERAS3 = { "User-Agent": "AgendaPersonal/1.0 (bot personal de agenda; contacto: admin@agenda.invalid)", Accept: "application/json" };
+var NO_FOTO = /escudo|bandera|flag|coat[_ ]of|mapa|map[_ .-]|locator|logo|sello|firma|plano|situaci[oó]n|ubicaci[oó]n|location|blason|seal|icon|\.svg|\.png|\.gif|\.webm|\.ogv/i;
+var API = "https://es.wikipedia.org/api/rest_v1/page";
+var TREINTA_DIAS = 30 * 24 * 36e5;
+var TRES_DIAS = 3 * 24 * 36e5;
+var ampliar = /* @__PURE__ */ __name((src) => {
+  const u = src.startsWith("//") ? `https:${src}` : src;
+  return /^https:\/\/upload\.wikimedia\.org\//.test(u) ? u.replace(/\/\d+px-/, "/800px-") : "";
+}, "ampliar");
+async function buscar(http, titulo) {
+  const t = encodeURIComponent(titulo.replace(/ /g, "_"));
+  const resumen = (await http.get(`${API}/summary/${t}`, { timeout: 5e3, headers: CABECERAS3 })).data ?? {};
+  if (!resumen || resumen.type !== "standard") return "";
+  const lista2 = (await http.get(`${API}/media-list/${t}`, { timeout: 5e3, headers: CABECERAS3, maxBytes: 2e5 }).catch(() => ({ data: {} }))).data ?? {};
+  for (const it of lista2.items ?? []) {
+    if (it.type !== "image" || !/\.jpe?g$|\.webp$/i.test(String(it.title ?? "")) || NO_FOTO.test(String(it.title ?? ""))) continue;
+    const src = ampliar(String(it.srcset?.[0]?.src ?? ""));
+    if (src) return src;
+  }
+  const mini = String(resumen.thumbnail?.source ?? "");
+  return mini && !NO_FOTO.test(decodeURIComponent(mini.split("/").pop() ?? "")) && /\.jpe?g/i.test(mini) ? ampliar(mini) : "";
+}
+__name(buscar, "buscar");
+async function fotoCiudad(http, almacen, ahora, nombre, provincia) {
+  const clave = `foto:${nombre}|${provincia}`.toLowerCase();
+  const guardada = await almacen.cacheGet(clave, ahora).catch(() => null);
+  if (guardada !== null) return guardada;
+  let url = "";
+  const titulos = [...new Set([nombre, provincia && provincia.toLowerCase() !== nombre.toLowerCase() ? `${nombre} (${provincia})` : ""].filter(Boolean))];
+  for (const t of titulos) {
+    try {
+      url = await buscar(http, t);
+    } catch {
+    }
+    if (url) break;
+  }
+  await almacen.cacheSet(clave, url, url ? TREINTA_DIAS : TRES_DIAS, ahora).catch(() => void 0);
+  return url;
+}
+__name(fotoCiudad, "fotoCiudad");
+
 // ../firebase/functions/src/miniapp.ts
 var VIGENCIA_S = 24 * 3600;
 function validarInitData(initData, token, ahora) {
@@ -5106,7 +5213,7 @@ async function manejarApi(deps, u, ruta, c) {
     case "/api/ver": {
       if (c.guardado === true && c.ref !== "todo") {
         const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
-        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, hora: horaLocal(g.hora, u.zona), guardado: true }] });
+        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, tiempo: g.tiempo, hora: horaLocal(g.hora, u.zona), guardado: true }] });
       }
       const conocidas = /* @__PURE__ */ new Set([...ORDEN_SECCIONES.map(String), ...u.temas.map((t) => `tema:${t.id}`)]);
       const refs = Array.isArray(c.refs) ? [...new Set(c.refs.map(String).filter((r) => conocidas.has(r)))].slice(0, 20) : c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
@@ -5114,12 +5221,16 @@ async function manejarApi(deps, u, ruta, c) {
       const hechas = await Promise.all(refs.map(async (ref2) => {
         try {
           const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref: ref2 }) : await contenidoDeSeccion(deps, u, ref2);
-          return { ref: ref2, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, hora: horaLocal(ahora.toISOString(), u.zona) };
+          return { ref: ref2, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, tiempo: cont.tiempo, hora: horaLocal(ahora.toISOString(), u.zona) };
         } catch (e) {
           return { ref: ref2, error: String(e.message ?? e).slice(0, 100) };
         }
       }));
       return ok({ secciones: hechas });
+    }
+    case "/api/foto": {
+      if (!u.ciudad) return ok({ foto: "" });
+      return ok({ foto: await fotoCiudad(deps.http, deps.almacen, ahora, u.ciudad.nombre, u.ciudad.provincia) });
     }
     case "/api/acceso/enlace": {
       if (!deps.urlBase) return error3(409, "La app a\xFAn no tiene direcci\xF3n p\xFAblica");
@@ -5297,7 +5408,7 @@ function dependencias(env2, s, remoto, urlBase) {
       const r = await llamarInterno(env2, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");
       if (r.error || !r.html) throw new Error(r.error ?? "respuesta vac\xEDa");
-      return { html: r.html, teclado: r.teclado, grupos: r.grupos };
+      return { html: r.html, teclado: r.teclado, grupos: r.grupos, tiempo: r.tiempo };
     } : void 0
   };
 }
@@ -5315,7 +5426,7 @@ async function manejarInterno(req, env2, ruta, fabrica) {
     if (!u) return Response.json({ error: "usuario no encontrado" });
     try {
       const c = await conPlazo(contenidoDeSeccion(dep, u, String(cuerpo.ref)), PLAZO_SECCION_MS, "la secci\xF3n tard\xF3 demasiado");
-      return Response.json({ html: c.html, teclado: c.teclado, grupos: c.grupos });
+      return Response.json({ html: c.html, teclado: c.teclado, grupos: c.grupos, tiempo: c.tiempo });
     } catch (e) {
       console.warn(`secci\xF3n ${cuerpo.ref}: ${e.message}`);
       return Response.json({ error: String(e.message ?? e).slice(0, 120) });
