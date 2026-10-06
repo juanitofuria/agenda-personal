@@ -25,8 +25,26 @@ async function buscar(http: HttpGet, titulo: string): Promise<string> {
     const src = ampliar(String(it.srcset?.[0]?.src ?? ""));
     if (src) return src;
   }
+  // La miniatura principal de la página suele ser la mejor representación de la propia ciudad.
   const mini = String(resumen.thumbnail?.source ?? "");
-  return mini && !NO_FOTO.test(decodeURIComponent(mini.split("/").pop() ?? "")) && /\.jpe?g/i.test(mini) ? ampliar(mini) : "";
+  if (mini && !NO_FOTO.test(decodeURIComponent(mini.split("/").pop() ?? "")) && /\.jpe?g/i.test(mini)) return ampliar(mini);
+
+  // Si no hay miniatura, elegimos entre las fotos de la página la que tenga un nombre más claramente urbano.
+  const tituloCiudad = titulo.toLowerCase();
+  const candidatas = ((lista.items ?? []) as any[])
+    .filter((it) => it.type === "image" && /\.jpe?g$|\.webp$/i.test(String(it.title ?? "")) && !NO_FOTO.test(String(it.title ?? "")))
+    .map((it) => {
+      const titulo = String(it.title ?? "").toLowerCase();
+      const src = ampliar(String(it.srcset?.[0]?.src ?? ""));
+      if (!src) return null;
+      let puntos = 0;
+      if (titulo.includes(tituloCiudad)) puntos += 8;
+      if (/city|ciudad|centro|centre|plaza|square|calle|street|avenida|avenue|puente|bridge|castillo|castle|iglesia|church|catedral|cathedral|ayuntamiento|town hall|monument|monumento|panoram/.test(titulo)) puntos += 5;
+      if (/mountain|montana|montaña|paisaje|landscape|nature|naturaleza|forest|bosque/.test(titulo)) puntos -= 4;
+      return { src, puntos };
+    }).filter(Boolean) as { src: string; puntos: number }[];
+  candidatas.sort((a, b) => b.puntos - a.puntos);
+  if (candidatas[0]) return candidatas[0].src;
 }
 
 export async function fotoCiudad(http: HttpGet, almacen: Almacen, ahora: Date, nombre: string, provincia: string): Promise<string> {
