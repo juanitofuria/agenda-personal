@@ -218,6 +218,45 @@ html[data-estilo=formal] .tm{--tm-azul:#2f6fd6}
 html[data-estilo=formal][data-modo=oscuro] .tm{--tm-azul:#4aa3ff}
 html[data-estilo=formal] .btn.sec{background:color-mix(in srgb,var(--azul) 12%,transparent);color:var(--azul)}
 html[data-estilo=formal] .btn.peligro{background:color-mix(in srgb,var(--rojo) 12%,transparent);color:var(--rojo)}
+/* ===== Ajustes visuales del tiempo: inspirado en las referencias del diseño ===== */
+.tm{gap:14px}
+.tm-hero{min-height:158px;padding:16px 18px}
+.tm-foto{width:63%;background-position:center center;filter:saturate(1.05)}
+.tm-tit{max-width:58%;align-items:flex-start;padding-top:4px}
+.tm-tit h1{font-size:28px}
+.tm-tit p{font-size:13px}
+.tm-hero::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(5,18,38,.06),transparent 55%)}
+html[data-modo=oscuro] .tm-hero::after{background:linear-gradient(90deg,rgba(3,12,28,.15),transparent 58%)}
+html[data-estilo=formal] .tm-hero{border-radius:14px;box-shadow:var(--sombra)}
+html[data-estilo=formal] .tm-tit h1{font-size:27px;letter-spacing:-.2px}
+html[data-estilo=formal] .tm-tit p{text-transform:none;letter-spacing:0}
+html[data-estilo=formal] .tm-hero:before{content:"";position:absolute;left:0;top:18px;bottom:18px;width:4px;background:var(--tm-azul);border-radius:0 3px 3px 0;z-index:1}
+html[data-estilo=informal][data-modo=claro] .tm-hero{background:linear-gradient(135deg,#e8f5ff,#ffffff)}
+html[data-estilo=informal][data-modo=oscuro] .tm-hero{background:linear-gradient(135deg,#142b50,#091a34)}
+.tm-c h3{font-size:17px}
+.tm-hour-intro{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.tm-hour-intro b{font:800 18px var(--titulo)}
+.tm-hour-intro small{color:var(--suave);font-weight:700}
+.tm-hour-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tm-hour-card{border:1px solid var(--linea);border-radius:14px;padding:10px;background:color-mix(in srgb,var(--tm-azul) 5%,transparent);display:grid;grid-template-columns:52px 36px 1fr;grid-template-rows:auto auto;column-gap:7px;row-gap:3px;align-items:center}
+.tm-hour-card .hora{font:800 15px var(--titulo)}
+.tm-hour-card .e{font-size:27px;line-height:1}
+.tm-hour-card .temp{font:800 20px var(--titulo);text-align:right}
+.tm-hour-card .meta{grid-column:1/-1;display:flex;justify-content:space-between;gap:6px;color:var(--suave);font-size:11px;font-weight:800}
+.tm-hour-card.llueve{background:color-mix(in srgb,#2f8bff 12%,transparent);box-shadow:inset 3px 0 0 var(--tm-azul)}
+html[data-estilo=informal][data-modo=claro] .tm-hour-card{background:rgba(255,255,255,.78)}
+html[data-estilo=informal][data-modo=oscuro] .tm-hour-card{background:rgba(20,42,77,.72)}
+html[data-estilo=formal] .tm-hour-card{border-radius:10px;background:color-mix(in srgb,var(--azul) 4%,transparent)}
+html[data-estilo=formal][data-modo=oscuro] .tm-hour-card{background:rgba(47,139,255,.07)}
+.tm-luna-portada{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.tm-luna-portada .moon{font-size:82px;line-height:1;filter:drop-shadow(0 8px 14px rgba(0,0,0,.25))}
+.tm-luna-portada b{display:block;font:800 23px var(--titulo)}
+.tm-luna-portada small{display:block;color:var(--suave);font-weight:700;margin-top:5px}
+html[data-modo=oscuro] .tm-luna-portada small{color:var(--suave)}
+.tm-cal .x{min-height:45px}
+.tm-cal .x.hoy{transform:translateY(-1px)}
+@media (min-width:700px){.app{max-width:760px}.tm-g2{gap:14px}.tm-hour-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.tm-hero{min-height:175px}}
+
 .cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
 </style>
 </head>
@@ -404,7 +443,7 @@ const hh2 = (h) => String(h).padStart(2, "0");
 function heroTiempo(t, titulo, sub, emoji, atras = true) {
   return `<div class="tm-hero ${atras ? "con-atras" : ""}">
     ${atras ? `<button class="tm-atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button>` : ""}
-    <div class="tm-foto sin" data-foto="${esc(t.ciudad)}"></div>
+    <div class="tm-foto sin" data-foto="${esc(t.ciudad)}" aria-label="Foto de ${esc(t.ciudad)}"></div>
     <div class="tm-act">🕒 Actualizado ${esc(t.actualizado)}<button data-actualizar="${esc(S.ver.ref)}" aria-label="Actualizar">↻</button></div>
     <div class="tm-tit"><div class="tm-ico">${emoji}</div><div><h1>${esc(titulo)}</h1><p>${esc(sub)}</p></div></div></div>`;
 }
@@ -439,24 +478,29 @@ function panelTiempoHTML(t) {
 }
 function panelHoras(t) {
   const hs = t.horas, mn = Math.min(...hs.map((h) => h.temp)), mx = Math.max(...hs.map((h) => h.temp)), rango = Math.max(1, mx - mn);
-  const W = 340, H = 100, x = (i) => 8 + (i * (W - 16)) / Math.max(1, hs.length - 1), y = (v) => 12 + (1 - (v - mn) / rango) * (H - 34);
+  const W = 340, H = 110, x = (i) => 8 + (i * (W - 16)) / Math.max(1, hs.length - 1), y = (v) => 12 + (1 - (v - mn) / rango) * (H - 36);
   const linea = hs.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(h.temp).toFixed(1)}`).join(" ");
-  const grafico = `<svg class="tm-graf" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a3d" stop-opacity=".45"/><stop offset="1" stop-color="#3d9bff" stop-opacity=".05"/></linearGradient></defs>
+  const grafico = `<svg class="tm-graf" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Evolución de la temperatura"><defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a3d" stop-opacity=".45"/><stop offset="1" stop-color="#3d9bff" stop-opacity=".05"/></linearGradient></defs>
     <path d="${linea} L${x(hs.length - 1).toFixed(1)} ${H} L${x(0).toFixed(1)} ${H} Z" fill="url(#tg)"/><path d="${linea}" fill="none" stroke="#ff8a3d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
     ${hs.map((h, i) => (i % 3 === 0 ? `<text x="${x(i)}" y="${y(h.temp) - 7}" text-anchor="middle" font-size="10" font-weight="800" fill="currentColor">${h.temp}°</text>` : "")).join("")}</svg>`;
+  const tarjetas = hs.map((h) => `<div class="tm-hour-card ${h.prob >= 60 || h.mm >= 0.1 ? "llueve" : ""}">
+      <span class="hora">${hh2(h.hora)}:00</span><span class="e">${h.emoji}</span><span class="temp">${h.temp}°</span>
+      <div class="meta"><span>💧 ${h.prob}%${h.mm >= 0.1 ? " · " + n1(h.mm) + " l/m²" : ""}</span><span>💨 ${h.viento} km/h · ${h.humedad}%</span></div>
+    </div>`).join("");
   return `<div class="tm">
-    ${heroTiempo(t, "Hora a hora", t.ciudad + " · próximas " + hs.length + " h", "🕐")}
-    <div class="tm-c tm-temp-c"><h3><i>🌡</i> Temperatura</h3>${grafico}</div>
-    <div class="tm-c tm-lluvia-c"><div class="tm-cab"><span>Hora</span><span></span><span>Temp.</span><span>💧</span><span>💨 km/h</span><span>🌫</span></div><div class="tm-horas">${hs.map((h) => `<div class="tm-h ${h.prob >= 60 || h.mm >= 0.1 ? "llueve" : ""}"><span>${hh2(h.hora)}:00</span><span class="e">${h.emoji}</span><span class="t">${h.temp}°</span><span class="l">${h.prob} %</span><span>${h.viento}</span><span>${h.humedad} %</span></div>`).join("")}</div></div>
+    ${heroTiempo(t, t.ciudad, "Hora a hora · próximas " + hs.length + " horas", "🕐")}
+    <div class="tm-c tm-temp-c"><div class="tm-hour-intro"><div><b>Temperatura por horas</b><small style="display:block">${hh2(hs[0]?.hora ?? 0)}:00 → ${hh2(hs[hs.length - 1]?.hora ?? 0)}:00</small></div><span>🌡</span></div>${grafico}</div>
+    <div class="tm-c tm-lluvia-c"><div class="tm-hour-intro"><div><b>Previsión detallada</b><small style="display:block">Lluvia · viento · humedad</small></div><span>🌦️</span></div><div class="tm-hour-grid">${tarjetas}</div></div>
     <div class="tm-btns"><button class="tm-btn" data-ver="tiempo"><span>‹</span>Resumen del tiempo</button><button class="tm-btn" data-ver="tiempo:luna"><span>🌙</span>Calendario lunar<span>›</span></button></div></div>`;
 }
 function panelLuna(t) {
   const l = t.luna, cab = ["L", "M", "X", "J", "V", "S", "D"];
+  const mes = l.mes.replace(/^./, (c) => c.toUpperCase());
   return `<div class="tm">
-    ${heroTiempo(t, "Calendario lunar", l.mes.replace(/^./, (c) => c.toUpperCase()) + " · " + t.ciudad, l.hoy.emoji)}
-    <div class="tm-c tm-luna-c"><div class="tm-lunagrande"><div class="e">${l.hoy.emoji}</div><div><b>${esc(l.hoy.nombre)}</b><small>${l.hoy.iluminada} % iluminada</small><small>Día ${l.hoy.dias} del ciclo</small></div></div></div>
-    <div class="tm-g2"><div class="tm-c tm-sol-c"><h3><i>🌕</i> Próxima llena</h3><b style="font:800 18px var(--titulo)">${esc(l.llena)}</b></div><div class="tm-c tm-hum-c"><h3><i>🌑</i> Próxima nueva</h3><b style="font:800 18px var(--titulo)">${esc(l.nueva)}</b></div></div>
-    <div class="tm-c tm-ppal-c"><h3><i>📅</i> ${esc(l.mes.replace(/^./, (c) => c.toUpperCase()))}</h3><div class="tm-cal">${cab.map((c) => `<div class="d">${c}</div>`).join("")}${l.semanas.flat().map((c) => c ? `<div class="x ${c.d === l.hoy.dia ? "hoy" : ""}"><span>${c.emoji}</span>${c.d}</div>` : `<div></div>`).join("")}</div></div>
+    ${heroTiempo(t, t.ciudad, "Calendario lunar · " + mes, l.hoy.emoji)}
+    <div class="tm-c tm-luna-c"><div class="tm-luna-portada"><div><b>${esc(l.hoy.nombre)}</b><small>${l.hoy.iluminada} % iluminada</small><small>Día ${l.hoy.dias} del ciclo</small></div><div class="moon">${l.hoy.emoji}</div></div></div>
+    <div class="tm-g2"><div class="tm-c tm-sol-c"><h3><i>🌕</i> Próxima luna llena</h3><b style="font:800 18px var(--titulo)">${esc(l.llena)}</b></div><div class="tm-c tm-hum-c"><h3><i>🌑</i> Próxima luna nueva</h3><b style="font:800 18px var(--titulo)">${esc(l.nueva)}</b></div></div>
+    <div class="tm-c tm-ppal-c"><h3><i>📅</i> ${esc(mes)}</h3><div class="tm-cal">${cab.map((c) => `<div class="d">${c}</div>`).join("")}${l.semanas.flat().map((c) => c ? `<div class="x ${c.d === l.hoy.dia ? "hoy" : ""}"><span>${c.emoji}</span>${c.d}</div>` : `<div></div>`).join("")}</div></div>
     <div class="tm-btns"><button class="tm-btn" data-ver="tiempo"><span>‹</span>Resumen del tiempo</button><button class="tm-btn" data-ver="tiempo:horas"><span>🕐</span>Hora a hora<span>›</span></button></div></div>`;
 }
 /* Foto real de la ciudad (Wikipedia): se pide aparte y se recuerda en el dispositivo. */
