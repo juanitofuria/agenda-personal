@@ -40,6 +40,7 @@ async function buscar(http: HttpGet, titulo: string): Promise<string> {
     }).filter(Boolean) as { src: string; puntos: number }[];
   candidatas.sort((a, b) => b.puntos - a.puntos);
   if (candidatas[0]) return candidatas[0].src;
+  return "";
 }
 
 export async function fotoCiudad(http: HttpGet, almacen: Almacen, ahora: Date, nombre: string, provincia: string): Promise<string> {
