@@ -4,7 +4,7 @@ import { Deps } from "./bot/ctx";
 import { contenidoDeSeccion } from "./bot/bot";
 import { buscarLugares } from "./geocoding";
 import { formatearFechaHora, localAUtc, Repeticion } from "./fechas";
-import { Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario } from "./modelo";
+import { ConfigSeccion, Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario } from "./modelo";
 import { slug } from "./bot/catalogo";
 import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "./avatares";
 import { Teclado } from "./canal";
@@ -59,7 +59,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
   const eventos = (await deps.almacen.listarEventos(u.id))
     .sort((a, b) => (a.fechaHora?.getTime() ?? Infinity) - (b.fechaHora?.getTime() ?? Infinity)).slice(0, 100);
   const secciones = [
-    ...ORDEN_SECCIONES.map((s) => ({ ref: s as string, emoji: SECCIONES[s].emoji, titulo: SECCIONES[s].titulo, descripcion: SECCIONES[s].descripcion, activa: u.secciones[s].activa, hora: u.secciones[s].hora })),
+    ...ORDEN_SECCIONES.map((s) => ({ ref: s as string, emoji: SECCIONES[s].emoji, titulo: SECCIONES[s].titulo, descripcion: SECCIONES[s].descripcion, activa: u.secciones[s].activa, hora: u.secciones[s].hora, oculta: !!u.secciones[s].oculta })),
     ...u.temas.map((t) => ({ ref: `tema:${t.id}`, emoji: t.emoji, titulo: t.titulo, descripcion: `Noticias sobre «${t.consulta}»`, activa: t.activa, hora: t.hora })),
   ];
   return ok({
@@ -181,6 +181,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         cfg.activa = c.activa;
       }
       if (typeof c.hora === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.hora)) cfg.hora = c.hora;
+      if (typeof c.oculta === "boolean" && !ref.startsWith("tema:")) { (cfg as ConfigSeccion).oculta = c.oculta; if (c.oculta) cfg.activa = false; } // «eliminar» una sección integrada: se quita de la lista y deja de enviarse
       await deps.almacen.guardarUsuario(u);
       await programarSeccion(deps.almacen, u, ref, ahora);
       return ok();

@@ -79,7 +79,7 @@ export function seccionesActivas(u: Usuario): { ref: string; emoji: string; titu
 
 export function tecladoHoy(u: Usuario): Teclado {
   const filas: Teclado = [];
-  const botones = [...ORDEN_SECCIONES.map((s) => ({ texto: `${SECCIONES[s].emoji} ${SECCIONES[s].titulo}`, datos: `sec:${s}` })),
+  const botones = [...ORDEN_SECCIONES.filter((s) => !u.secciones[s].oculta).map((s) => ({ texto: `${SECCIONES[s].emoji} ${SECCIONES[s].titulo}`, datos: `sec:${s}` })),
     ...u.temas.filter((t) => t.activa).map((t) => ({ texto: `${t.emoji} ${t.titulo}`, datos: `sec:tema:${t.id}` }))];
   for (let i = 0; i < botones.length; i += 2) filas.push(botones.slice(i, i + 2));
   filas.push([{ texto: "📋 Todo lo activado", datos: "sec:todo" }], [BTN_MENU]);

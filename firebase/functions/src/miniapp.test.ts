@@ -291,3 +291,17 @@ test("notas: se crean sin fecha, con título o a partir del texto", async () => 
   assert.equal((await api("/api/evento", { tipo: "nota", titulo: "Ideas", texto: "" })).estado, 200);
   assert.equal((await api("/api/evento", { tipo: "nota" })).estado, 400); // sin nada
 });
+
+test("secciones: las integradas se pueden eliminar (dejan de enviarse y se ocultan) y volver a añadir", async () => {
+  const { b, api } = await banco();
+  await api("/api/seccion", { ref: "tiempo", activa: true, hora: "07:30" });
+  assert.ok([...b.almacen.programaciones.values()].some((p) => p.ref === "tiempo"));
+  await api("/api/seccion", { ref: "tiempo", oculta: true });
+  const u = (await b.almacen.getUsuario("1"))!; assert.deepEqual([u.secciones.tiempo.oculta, u.secciones.tiempo.activa], [true, false]);
+  assert.ok(![...b.almacen.programaciones.values()].some((p) => p.ref === "tiempo")); // ya no se envía
+  const e = ((await api("/api/estado")).cuerpo as any).secciones.find((s: any) => s.ref === "tiempo"); assert.equal(e.oculta, true);
+  const { tecladoHoy } = await import("./bot/vistas"); assert.ok(!tecladoHoy(u).flat().some((x) => x.datos === "sec:tiempo")); // tampoco sale en el bot
+  await api("/api/seccion", { ref: "tiempo", oculta: false }); assert.equal((await b.almacen.getUsuario("1"))!.secciones.tiempo.oculta, false);
+  await api("/api/seccion", { ref: "tema:inexistente", oculta: true }); // los temas no se ocultan: se borran con /api/tema
+  assert.equal((await api("/api/seccion", { ref: "tema:x", oculta: true })).estado, 404);
+});

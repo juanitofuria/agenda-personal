@@ -14,7 +14,7 @@ export const SECCIONES: Record<SeccionId, InfoSeccion> = {
 };
 export const ORDEN_SECCIONES: SeccionId[] = ["tiempo", "noticias", "agenda", "horoscopo", "mercados"];
 
-export interface ConfigSeccion { activa: boolean; hora: string }
+export interface ConfigSeccion { activa: boolean; hora: string; /** Eliminada de la lista del usuario (se puede volver a añadir). Solo las secciones integradas; los temas se borran de verdad. */ oculta?: boolean }
 
 /** Tema de noticias creado por el usuario. */
 export interface Tema { id: string; titulo: string; emoji: string; consulta: string; hora: string; activa: boolean }

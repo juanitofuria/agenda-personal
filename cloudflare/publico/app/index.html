@@ -142,6 +142,7 @@ html[data-estilo=formal] .c7{--acento:#128c4a}
 .noti img{width:104px;height:80px;object-fit:cover;flex:none;margin:8px 8px 8px 0;border-radius:12px;background:var(--linea)}
 .noti.grande{flex-direction:column;align-items:stretch;gap:0}.noti.grande img{width:100%;height:178px;margin:0;border-radius:0}.noti.grande b{font-size:16.5px}
 .pie-ver{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 4px 12px}.pie-ver small{color:var(--suave);font-weight:700;font-size:12px}
+.ctrl{display:flex;gap:12px;align-items:center;justify-content:flex-end;width:100%}
 .cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
 </style>
 </head>
@@ -332,8 +333,9 @@ const vistas = {
     const resumen = hoy.length
       ? hoy.map((r) => `<button class="rcard" data-ver="${esc(r.ref)}" data-g="1"><div class="emo">${r.emoji}</div><div class="t"><b>${esc(r.titulo)}</b><small>${esc(r.hora)}</small><p>${esc(r.previa)}</p></div></button>`).join("")
       : `<div class="doc" style="white-space:normal">Aún no has pedido ningún resumen hoy.<div class="botones"><button class="btn chico" data-ir="resumen">📋 Pedir un resumen</button></div></div>`;
+    const otro = hoy.length ? `<button class="btn sec ancho" data-ir="resumen" style="margin-top:0">➕ Pedir otro resumen</button>` : "";
     return `${cabecera()}${bannerApp()}
-      <div class="etq">Tu resumen de hoy</div>${resumen}
+      <div class="etq">Tu resumen de hoy</div>${resumen}${otro}
       <div class="rejilla" style="margin-top:14px">
         ${tt("alarma", n("alarma", "pendiente", "pendientes", "Avisos a su hora"))}
         ${tt("cita", n("cita", "próxima", "próximas", "Tus citas"))}
@@ -345,10 +347,10 @@ const vistas = {
       </div>`;
   },
   resumen() {
-    const act = S.datos.secciones.filter((s) => s.activa), hoy = new Map((S.datos.resumenHoy || []).map((r) => [r.ref, r]));
+    const act = S.datos.secciones.filter((s) => s.activa && !s.oculta), hoy = new Map((S.datos.resumenHoy || []).map((r) => [r.ref, r]));
     return `${barra("Resumen de hoy")}
       <p class="nota">Toca una sección para verla. Lo que pidas hoy se queda en tu pantalla principal.</p>
-      <div class="lista">${S.datos.secciones.map((s) => `<button class="fila pulsable" data-ver="${esc(s.ref)}" data-g="${hoy.has(s.ref) ? 1 : 0}"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${hoy.has(s.ref) ? `✓ pedido hoy a las ${esc(hoy.get(s.ref).hora)}` : esc(s.descripcion)}</small></div><svg class="ch"><use href="#i-mas-der"/></svg></button>`).join("")}</div>
+      <div class="lista">${S.datos.secciones.filter((s) => !s.oculta).map((s) => `<button class="fila pulsable" data-ver="${esc(s.ref)}" data-g="${hoy.has(s.ref) ? 1 : 0}"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${hoy.has(s.ref) ? `✓ pedido hoy a las ${esc(hoy.get(s.ref).hora)}` : esc(s.descripcion)}</small></div><svg class="ch"><use href="#i-mas-der"/></svg></button>`).join("")}</div>
       <button class="btn ancho" data-ver="todo" ${act.length ? "" : "disabled style=opacity:.5"}>📋 Todo lo activado (${act.length})</button>`;
   },
   tipo() {
@@ -371,7 +373,7 @@ const vistas = {
       <label>Fecha de nacimiento (para el horóscopo)</label><input type="date" id="nac" value="${esc(u.nacimiento || "")}">
       <button class="btn ancho" data-perfil="1">Guardar</button>
       <div class="etq">Preferencias</div>
-      <div class="lista">${fila("resumen", "📋", "Resumen de hoy", "Pide el tiempo, las noticias y más")}${fila("secciones", "🧩", "Mis secciones", `${act} activa${act === 1 ? "" : "s"} · horas y temas`)}${fila("apariencia", "🎨", "Apariencia", "Estilo y tema")}${fila("dispositivos", "📲", "App y notificaciones", "Instalar, avisos y otros dispositivos")}</div>`;
+      <div class="lista">${fila("secciones", "🧩", "Mis secciones", `${act} activa${act === 1 ? "" : "s"} · horas y temas`)}${fila("apariencia", "🎨", "Apariencia", "Estilo y tema")}${fila("dispositivos", "📲", "App y notificaciones", "Instalar, avisos y otros dispositivos")}</div>`;
   },
   compra() {
     const l = S.datos.compra, pend = l.items.filter((x) => !x.hecho), hechos = l.items.filter((x) => x.hecho);
@@ -400,10 +402,14 @@ const vistas = {
     return `${barra(v.titulo)}${cuerpo}${v.secciones && v.ref !== "todo" ? `<button class="btn sec ancho" data-chat="${esc(v.ref)}">📨 Enviármelo también al chat</button>` : ""}`;
   },
   secciones() {
-    return `${barra("Mis secciones")}<p class="nota">Activa lo que quieres recibir cada día y a qué hora.</p>
-      <div class="lista">${S.datos.secciones.map((s) => `<div class="fila"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div>
-        <input type="time" value="${s.hora}" data-hora="${esc(s.ref)}" style="width:96px;padding:8px"><button class="interr ${s.activa ? "on" : ""}" data-tog="${esc(s.ref)}" aria-label="Activar"></button>${s.ref.startsWith("tema:") ? `<button class="btn chico peligro" data-temadel="${esc(s.ref.slice(5))}">🗑</button>` : ""}</div>`).join("")}</div>
-      <label>Añadir un tema de noticias</label><input type="text" id="tema" maxlength="60" placeholder="Por ejemplo: Ajedrez, Real Madrid…"><button class="btn ancho" data-tema="1">⭐ Añadir tema</button>`;
+    const vis = S.datos.secciones.filter((s) => !s.oculta), ocultas = S.datos.secciones.filter((s) => s.oculta);
+    return `${barra("Mis secciones")}
+      <div class="etq" style="margin-top:4px">Añadir un tema de noticias</div>
+      <div class="anadir"><input type="text" id="tema" maxlength="60" placeholder="Por ejemplo: Ajedrez, Real Madrid…" autocomplete="off"><button class="btn" data-tema="1" aria-label="Añadir tema">＋</button></div>
+      <p class="nota">Activa lo que quieres recibir cada día y a qué hora.</p>
+      <div class="lista">${vis.map((s) => `<div class="fila" style="flex-wrap:wrap"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div>
+        <div class="ctrl"><input type="time" value="${s.hora}" data-hora="${esc(s.ref)}" style="width:104px;padding:8px"><button class="interr ${s.activa ? "on" : ""}" data-tog="${esc(s.ref)}" aria-label="Activar"></button><button class="btn chico peligro" data-secdel="${esc(s.ref)}" aria-label="Eliminar">🗑</button></div></div>`).join("") || `<div class="vacio">No tienes secciones.</div>`}</div>
+      ${ocultas.length ? `<div class="etq">Secciones eliminadas</div><div class="lista">${ocultas.map((s) => `<div class="fila"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b></div><button class="btn chico sec" data-restaurar="${esc(s.ref)}">↩︎ Volver a añadir</button></div>`).join("")}</div>` : ""}`;
   },
   apariencia() {
     const u = S.datos.usuario, b = (campo, val, txt) => `<button class="${u[campo] === val ? "on" : ""}" data-ap="${campo}:${val}">${txt}</button>`;
@@ -848,6 +854,12 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-hecho]"))) return hacer(() => api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }));
   if ((el = q("[data-borrar]"))) { if (!confirm("¿Eliminar?")) return; return hacer(() => api("/api/evento/accion", { id: el.dataset.borrar, accion: "borrar" }), "🗑 Eliminado"); }
   if ((el = q("[data-nuevo]"))) return hojaNuevo(el.dataset.nuevo && TIPOS[el.dataset.nuevo] ? el.dataset.nuevo : "alarma");
+  if ((el = q("[data-secdel]"))) {
+    const ref = el.dataset.secdel, s = S.datos.secciones.find((x) => x.ref === ref); if (!s) return;
+    if (!confirm(ref.startsWith("tema:") ? `¿Eliminar el tema «${s.titulo}»?` : `¿Eliminar «${s.titulo}»? Podrás volver a añadirla cuando quieras.`)) return;
+    return hacer(() => ref.startsWith("tema:") ? api("/api/tema", { borrar: ref.slice(5) }) : api("/api/seccion", { ref, oculta: true }), "🗑 Eliminada");
+  }
+  if ((el = q("[data-restaurar]"))) return hacer(() => api("/api/seccion", { ref: el.dataset.restaurar, oculta: false }), "↩︎ Añadida de nuevo");
   if ((el = q("[data-tog]"))) { const s = S.datos.secciones.find((x) => x.ref === el.dataset.tog); return hacer(() => api("/api/seccion", { ref: s.ref, activa: !s.activa })); }
   if ((el = q("[data-ap]"))) { const [c, v] = el.dataset.ap.split(":"); S.datos.usuario[c] = v; aplicarTema(); pintar(); return hacer(() => api("/api/apariencia", { [c]: v })); }
   if (q("[data-buscar]")) {

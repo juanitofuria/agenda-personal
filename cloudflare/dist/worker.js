@@ -3287,7 +3287,7 @@ __name(seccionesActivas, "seccionesActivas");
 function tecladoHoy(u) {
   const filas = [];
   const botones = [
-    ...ORDEN_SECCIONES.map((s) => ({ texto: `${SECCIONES[s].emoji} ${SECCIONES[s].titulo}`, datos: `sec:${s}` })),
+    ...ORDEN_SECCIONES.filter((s) => !u.secciones[s].oculta).map((s) => ({ texto: `${SECCIONES[s].emoji} ${SECCIONES[s].titulo}`, datos: `sec:${s}` })),
     ...u.temas.filter((t) => t.activa).map((t) => ({ texto: `${t.emoji} ${t.titulo}`, datos: `sec:tema:${t.id}` }))
   ];
   for (let i = 0; i < botones.length; i += 2) filas.push(botones.slice(i, i + 2));
@@ -3336,7 +3336,7 @@ var info3 = /* @__PURE__ */ __name((c, ref2) => {
 async function listaSecciones(c) {
   const fila = /* @__PURE__ */ __name((ref2, emoji, titulo, cfg) => [{ texto: `${cfg.activa ? "\u2705" : "\u25AB\uFE0F"} ${emoji} ${titulo} \xB7 ${cfg.hora}`, datos: `s:ver:${ref2}` }], "fila");
   const filas = [
-    ...ORDEN_SECCIONES.map((s) => fila(s, SECCIONES[s].emoji, SECCIONES[s].titulo, c.u.secciones[s])),
+    ...ORDEN_SECCIONES.filter((s) => !c.u.secciones[s].oculta).map((s) => fila(s, SECCIONES[s].emoji, SECCIONES[s].titulo, c.u.secciones[s])),
     ...c.u.temas.map((t) => fila(`tema:${t.id}`, t.emoji, t.titulo, t)),
     [{ texto: "\u2795 A\xF1adir un tema", datos: "s:tema+" }, BTN_MENU]
   ];
@@ -4911,7 +4911,7 @@ async function estado(deps, u) {
   const ahora = deps.ahora();
   const eventos = (await deps.almacen.listarEventos(u.id)).sort((a, b) => (a.fechaHora?.getTime() ?? Infinity) - (b.fechaHora?.getTime() ?? Infinity)).slice(0, 100);
   const secciones = [
-    ...ORDEN_SECCIONES.map((s) => ({ ref: s, emoji: SECCIONES[s].emoji, titulo: SECCIONES[s].titulo, descripcion: SECCIONES[s].descripcion, activa: u.secciones[s].activa, hora: u.secciones[s].hora })),
+    ...ORDEN_SECCIONES.map((s) => ({ ref: s, emoji: SECCIONES[s].emoji, titulo: SECCIONES[s].titulo, descripcion: SECCIONES[s].descripcion, activa: u.secciones[s].activa, hora: u.secciones[s].hora, oculta: !!u.secciones[s].oculta })),
     ...u.temas.map((t) => ({ ref: `tema:${t.id}`, emoji: t.emoji, titulo: t.titulo, descripcion: `Noticias sobre \xAB${t.consulta}\xBB`, activa: t.activa, hora: t.hora }))
   ];
   return ok({
@@ -5039,6 +5039,10 @@ async function manejarApi(deps, u, ruta, c) {
         cfg.activa = c.activa;
       }
       if (typeof c.hora === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(c.hora)) cfg.hora = c.hora;
+      if (typeof c.oculta === "boolean" && !ref2.startsWith("tema:")) {
+        cfg.oculta = c.oculta;
+        if (c.oculta) cfg.activa = false;
+      }
       await deps.almacen.guardarUsuario(u);
       await programarSeccion(deps.almacen, u, ref2, ahora);
       return ok();

@@ -21,7 +21,7 @@ const info = (c: Ctx, ref: string) => {
 export async function listaSecciones(c: Ctx): Promise<void> {
   const fila = (ref: string, emoji: string, titulo: string, cfg: Cfg) => [{ texto: `${cfg.activa ? "✅" : "▫️"} ${emoji} ${titulo} · ${cfg.hora}`, datos: `s:ver:${ref}` }];
   const filas: Teclado = [
-    ...ORDEN_SECCIONES.map((s) => fila(s, SECCIONES[s].emoji, SECCIONES[s].titulo, c.u.secciones[s])),
+    ...ORDEN_SECCIONES.filter((s) => !c.u.secciones[s].oculta).map((s) => fila(s, SECCIONES[s].emoji, SECCIONES[s].titulo, c.u.secciones[s])),
     ...c.u.temas.map((t) => fila(`tema:${t.id}`, t.emoji, t.titulo, t)),
     [{ texto: "➕ Añadir un tema", datos: "s:tema+" }, BTN_MENU],
   ];
