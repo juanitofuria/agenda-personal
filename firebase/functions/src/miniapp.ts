@@ -244,7 +244,9 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
         if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, hora: horaLocal(g.hora, u.zona), guardado: true }] });
       }
-      const refs = c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
+      const conocidas = new Set([...ORDEN_SECCIONES.map(String), ...u.temas.map((t) => `tema:${t.id}`)]);
+      // «refs»: varias secciones a la vez (actualizar el resumen de hoy); «todo»: las activadas; si no, una sola
+      const refs = Array.isArray(c.refs) ? [...new Set(c.refs.map(String).filter((r: string) => conocidas.has(r)))].slice(0, 20) : c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
       if (!refs.length) return error(409, "No tienes ninguna sección activada");
       const hechas = await Promise.all(refs.map(async (ref) => {
         try {

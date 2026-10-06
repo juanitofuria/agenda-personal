@@ -305,3 +305,12 @@ test("secciones: las integradas se pueden eliminar (dejan de enviarse y se ocult
   await api("/api/seccion", { ref: "tema:inexistente", oculta: true }); // los temas no se ocultan: se borran con /api/tema
   assert.equal((await api("/api/seccion", { ref: "tema:x", oculta: true })).estado, 404);
 });
+
+test("actualizar el resumen de hoy: «refs» prepara varias secciones a la vez (y solo las que existen)", async () => {
+  const { api } = await banco();
+  await api("/api/seccion", { ref: "agenda", activa: true });
+  const r = (await api("/api/ver", { refs: ["agenda", "inventada", "agenda", "tema:nada"] })).cuerpo as any;
+  assert.deepEqual(r.secciones.map((s: any) => s.ref), ["agenda"]); assert.ok(r.secciones[0].hora);
+  assert.equal((await api("/api/ver", { refs: ["inventada"] })).estado, 409);
+  assert.equal(((await api("/api/estado")).cuerpo as any).resumenHoy.length, 1);
+});

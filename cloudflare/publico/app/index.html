@@ -28,7 +28,10 @@ button,input,select{font:inherit;color:inherit}
 .app{max-width:560px;margin:0 auto;padding:14px 16px}
 /* ===== Cabecera ===== */
 .cab{padding:18px 16px 14px;border-radius:var(--radio);background:var(--tarjeta);box-shadow:var(--sombra);border:1px solid var(--linea);position:relative;overflow:hidden}
-.cab .fila1{display:flex;align-items:center;gap:14px}
+.cab .fila1{display:flex;align-items:center;gap:14px;padding-right:40px}
+.engranaje{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:12px;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--suave)}
+.engranaje svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.engranaje:active{background:var(--linea)}
 .cab .logo{flex:none;width:58px;height:58px}
 .cab h1{margin:0;font:800 23px/1.1 var(--titulo);letter-spacing:-.3px}
 html[data-estilo=formal] .cab h1{font-weight:700;font-size:23px}
@@ -158,7 +161,7 @@ html[data-estilo=formal] .c7{--acento:#128c4a}
 <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
 <symbol id="i-nota" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
 <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 4v-4H4z"/><path d="M8 9h8M8 12h5"/></symbol>
-<symbol id="i-ajustes" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></symbol>
+<symbol id="i-ajustes" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
 <symbol id="i-mas-der" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
 <symbol id="i-atras" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
 <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -307,7 +310,7 @@ function bannerApp() {
   S.bannerClave = clave; marcarBanner(clave); // se queda en pantalla durante esta sesión; la próxima vez no sale
   return S.bannerOculto === clave ? "" : html;
 }
-const cabecera = () => `<div class="cab"><div class="fila1">${botonAvatar()}<div><h1>${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}! 👋` : "¡Hola! 👋"}</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
+const cabecera = () => `<div class="cab"><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="fila1">${botonAvatar()}<div><h1>${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}! 👋` : "¡Hola! 👋"}</h1><p>Organiza · Disfruta · Avanza</p></div></div><div class="dia">La frase del día:</div><div class="frase">${esc(S.frase)}</div></div>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -333,18 +336,17 @@ const vistas = {
     const resumen = hoy.length
       ? hoy.map((r) => `<button class="rcard" data-ver="${esc(r.ref)}" data-g="1"><div class="emo">${r.emoji}</div><div class="t"><b>${esc(r.titulo)}</b><small>${esc(r.hora)}</small><p>${esc(r.previa)}</p></div></button>`).join("")
       : `<div class="doc" style="white-space:normal">Aún no has pedido ningún resumen hoy.<div class="botones"><button class="btn chico" data-ir="resumen">📋 Pedir un resumen</button></div></div>`;
-    const otro = hoy.length ? `<button class="btn sec ancho" data-ir="resumen" style="margin-top:0">➕ Pedir otro resumen</button>` : "";
+    const otro = hoy.length ? `<button class="btn sec ancho" data-actualizar-resumen="1" style="margin-top:0">↻ Actualizar resumen</button>` : "";
     return `${cabecera()}${bannerApp()}
-      <div class="etq">Tu resumen de hoy</div>${resumen}${otro}
-      <div class="rejilla" style="margin-top:14px">
+      <div class="rejilla" style="margin-top:16px">
         ${tt("alarma", n("alarma", "pendiente", "pendientes", "Avisos a su hora"))}
         ${tt("cita", n("cita", "próxima", "próximas", "Tus citas"))}
         ${tt("tarea", n("tarea", "por hacer", "por hacer", "Todo al día"))}
         ${tt("nota", ev.filter((e) => e.tipo === "nota").length ? `${ev.filter((e) => e.tipo === "nota").length} guardadas` : "Apuntes rápidos")}
         ${tt("mensaje", n("mensaje", "programado", "programados", "Envíos en un toque"))}
         ${t("c5", "cesta", "Lista de la compra", cp ? `${cp} por comprar` : "Todo al día", "compra")}
-        ${t("c4", "ajustes", "Ajustes", "Perfil, secciones y más", "ajustes", "ancha")}
-      </div>`;
+      </div>
+      <div class="etq" style="margin-top:22px">Tu resumen de hoy</div>${resumen}${otro}`;
   },
   resumen() {
     const act = S.datos.secciones.filter((s) => s.activa && !s.oculta), hoy = new Map((S.datos.resumenHoy || []).map((r) => [r.ref, r]));
@@ -406,8 +408,8 @@ const vistas = {
     return `${barra("Mis secciones")}
       <div class="etq" style="margin-top:4px">Añadir un tema de noticias</div>
       <div class="anadir"><input type="text" id="tema" maxlength="60" placeholder="Por ejemplo: Ajedrez, Real Madrid…" autocomplete="off"><button class="btn" data-tema="1" aria-label="Añadir tema">＋</button></div>
-      <p class="nota">Activa lo que quieres recibir cada día y a qué hora.</p>
-      <div class="lista">${vis.map((s) => `<div class="fila" style="flex-wrap:wrap"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div>
+      <p class="nota">Activa lo que quieres recibir cada día y a qué hora. Toca una sección para verla ahora.</p>
+      <div class="lista">${vis.map((s) => `<div class="fila" style="flex-wrap:wrap"><div style="display:flex;gap:12px;align-items:center;flex:1;min-width:0;cursor:pointer" data-ver="${esc(s.ref)}" data-g="0"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b><small>${esc(s.descripcion)}</small></div></div>
         <div class="ctrl"><input type="time" value="${s.hora}" data-hora="${esc(s.ref)}" style="width:104px;padding:8px"><button class="interr ${s.activa ? "on" : ""}" data-tog="${esc(s.ref)}" aria-label="Activar"></button><button class="btn chico peligro" data-secdel="${esc(s.ref)}" aria-label="Eliminar">🗑</button></div></div>`).join("") || `<div class="vacio">No tienes secciones.</div>`}</div>
       ${ocultas.length ? `<div class="etq">Secciones eliminadas</div><div class="lista">${ocultas.map((s) => `<div class="fila"><div class="emo">${s.emoji}</div><div class="t"><b>${esc(s.titulo)}</b></div><button class="btn chico sec" data-restaurar="${esc(s.ref)}">↩︎ Volver a añadir</button></div>`).join("")}</div>` : ""}`;
   },
@@ -820,6 +822,12 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-ir]"))) return ir(el.dataset.ir, el.dataset.tipo);
   if (q("[data-a=volver]")) return atras();
   if ((el = q("[data-ver]"))) return abrirVer(el.dataset.ver, undefined, el.dataset.g === "1");
+  if ((el = q("[data-actualizar-resumen]"))) {
+    el.disabled = true; el.textContent = "Actualizando…";
+    const refs = [...new Set([...S.datos.secciones.filter((s) => s.activa && !s.oculta).map((s) => s.ref), ...(S.datos.resumenHoy || []).map((r) => r.ref)])];
+    try { await api("/api/ver", { refs }); await cargar(); aviso("✅ Resumen actualizado"); } catch (err) { aviso(err.message); }
+    return pintar();
+  }
   if ((el = q("[data-actualizar]"))) return abrirVer(el.dataset.actualizar, S.ver && S.ver.titulo, false);
   if (q("[data-ciudad]")) return hojaCiudad();
   if ((el = q("[data-nota]"))) return hojaNota(S.datos.eventos.find((x) => x.id === el.dataset.nota));

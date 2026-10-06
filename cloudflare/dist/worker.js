@@ -5108,7 +5108,8 @@ async function manejarApi(deps, u, ruta, c) {
         const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
         if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, hora: horaLocal(g.hora, u.zona), guardado: true }] });
       }
-      const refs = c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
+      const conocidas = /* @__PURE__ */ new Set([...ORDEN_SECCIONES.map(String), ...u.temas.map((t) => `tema:${t.id}`)]);
+      const refs = Array.isArray(c.refs) ? [...new Set(c.refs.map(String).filter((r) => conocidas.has(r)))].slice(0, 20) : c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
       if (!refs.length) return error3(409, "No tienes ninguna secci\xF3n activada");
       const hechas = await Promise.all(refs.map(async (ref2) => {
         try {
