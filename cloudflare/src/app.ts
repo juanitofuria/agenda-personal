@@ -5,6 +5,7 @@ import { Deps } from "../../firebase/functions/src/bot/ctx";
 import { Canal, Teclado } from "../../firebase/functions/src/canal";
 import { actualizarTodos } from "../../firebase/functions/src/horoscopo";
 import { Programacion } from "../../firebase/functions/src/modelo";
+import { Contenido } from "../../firebase/functions/src/secciones/tipos";
 import { FEED_PODCAST } from "../../firebase/functions/src/podcast";
 import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/functions/src/scheduler";
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
@@ -78,10 +79,10 @@ function dependencias(env: Env, s: Servicios, remoto: boolean, urlBase?: string)
     almacen, canal: s.canal, push: crearEmisorPush(almacen, () => new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status, (m) => console.warn(m)), http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
     podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined, urlBase,
     construirRemoto: remoto && env.SELF ? async (p) => {
-      const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);
+      const r = await llamarInterno<{ html?: string; teclado?: Teclado; grupos?: Contenido["grupos"]; error?: string }>(env, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecución interna");
       if (r.error || !r.html) throw new Error(r.error ?? "respuesta vacía");
-      return { html: r.html, teclado: r.teclado };
+      return { html: r.html, teclado: r.teclado, grupos: r.grupos };
     } : undefined,
   };
 }
@@ -103,7 +104,7 @@ async function manejarInterno(req: Request, env: Env, ruta: string, fabrica: Fab
     if (!u) return Response.json({ error: "usuario no encontrado" });
     try {
       const c = await conPlazo(contenidoDeSeccion(dep, u, String(cuerpo.ref)), PLAZO_SECCION_MS, "la sección tardó demasiado");
-      return Response.json({ html: c.html, teclado: c.teclado });
+      return Response.json({ html: c.html, teclado: c.teclado, grupos: c.grupos });
     } catch (e) {
       console.warn(`sección ${cuerpo.ref}: ${(e as Error).message}`);
       return Response.json({ error: String((e as Error).message ?? e).slice(0, 120) });

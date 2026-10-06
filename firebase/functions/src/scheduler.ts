@@ -103,7 +103,7 @@ async function enviarEvento(dep: DepsTick, u: Usuario, p: Programacion, ahora: D
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 60_000);
       const aviso: Aviso = ev.mensaje
         ? { titulo: `💬 Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "…" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "💬 Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } }
-        : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` };
+        : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
       await entregar(dep, u, { html, teclado }, aviso);
       r.enviados++;
     } catch (e) {

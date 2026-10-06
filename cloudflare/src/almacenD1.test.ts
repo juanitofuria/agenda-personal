@@ -397,3 +397,10 @@ test("worker: acceso fuera de Telegram con enlace de un solo uso y sesión del d
   assert.equal((await api("/api/estado", { authorization: `sesion ${t2}` }, {})).status, 200);
   assert.equal((await manejarFetch(new Request("https://x.workers.dev/api/estado", { method: "POST", headers: { authorization: `sesion ${t2}` }, body: "{}" }), privado)).status, 403);
 });
+
+test("D1: varias claves de caché de una vez (solo las vigentes)", async () => {
+  const { almacen } = nuevo(); const t = new Date("2026-10-05T10:00:00Z");
+  await almacen.cacheSet("a", "1", 60_000, t); await almacen.cacheSet("b", "2", 60_000, t); await almacen.cacheSet("c", "3", 1_000, t);
+  assert.deepEqual(await almacen.cacheGetVarios(["a", "b", "c", "z"], new Date(t.getTime() + 5_000)), { a: "1", b: "2" }); // c caducó y z no existe
+  assert.deepEqual(await almacen.cacheGetVarios([], t), {});
+});

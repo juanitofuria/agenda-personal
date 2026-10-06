@@ -1,7 +1,7 @@
 import { esc } from "../canal";
 import { Noticia, leerRss, lineaNoticia, urlBingNews, urlGoogleNews } from "../rss";
 import { cabecera, cacheado, conReintentos } from "../util";
-import { Contenido, Contexto, NAV_MENU } from "./tipos";
+import { Contenido, Contexto, GrupoNoticias, NAV_MENU } from "./tipos";
 
 /** Cabeceras de navegador: sin ellas algunos buscadores tardan o rechazan las peticiones desde servidores. */
 const CABECERAS = { "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept-Language": "es-ES,es;q=0.9", Accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8" };
@@ -42,10 +42,13 @@ export async function noticiasDe(ctx: Contexto, consulta: string): Promise<Notic
 
 export interface SeccionNoticias { titulo: string; consulta: string }
 
-/** Pinta varias consultas como secciones sin repetir noticias. Falla si no se pudo obtener ninguna. */
-export async function resumenNoticias(ctx: Contexto, cabecera: string, secciones: SeccionNoticias[], porSeccion = 4): Promise<string> {
+const sinEtiquetas = (t: string) => t.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+
+/** Pinta varias consultas como secciones sin repetir noticias. Falla si no se pudo obtener ninguna. Devuelve el texto y las noticias estructuradas. */
+export async function armarNoticias(ctx: Contexto, cabecera: string, secciones: SeccionNoticias[], porSeccion = 4): Promise<{ html: string; grupos: GrupoNoticias[] }> {
   const vistas = new Set<string>();
   const bloques: string[] = [];
+  const grupos: GrupoNoticias[] = [];
   let ok = 0;
   let motivo = "";
   // Se piden todas a la vez; luego se recorren en orden para que la deduplicación sea la misma de siempre.
@@ -57,9 +60,14 @@ export async function resumenNoticias(ctx: Contexto, cabecera: string, secciones
     ok++;
     const t = s.titulo ? `${s.titulo}\n` : "";
     bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
+    if (items.length) grupos.push({ titulo: sinEtiquetas(s.titulo), noticias: items.map((n) => ({ titulo: n.titulo, fuente: n.fuente, enlace: n.enlace, fecha: n.fecha, ...(n.imagen ? { imagen: n.imagen } : {}) })) });
   });
   if (ok === 0) throw new Error(motivo || "no se pudo obtener ninguna noticia");
-  return [cabecera, ...bloques].join("\n\n");
+  return { html: [cabecera, ...bloques].join("\n\n"), grupos };
+}
+
+export async function resumenNoticias(ctx: Contexto, cabecera: string, secciones: SeccionNoticias[], porSeccion = 4): Promise<string> {
+  return (await armarNoticias(ctx, cabecera, secciones, porSeccion)).html;
 }
 
 export async function contenidoNoticias(ctx: Contexto): Promise<Contenido> {
@@ -75,11 +83,13 @@ export async function contenidoNoticias(ctx: Contexto): Promise<Contenido> {
       { titulo: `📍 <b>${esc(c.nombre)}</b>`, consulta: `"${c.nombre}" España${prov} when:7d` },
     );
   }
-  return { html: await resumenNoticias(ctx, cabecera("📰", "Noticias del día"), secciones), teclado: [NAV_MENU] };
+  const r = await armarNoticias(ctx, cabecera("📰", "Noticias del día"), secciones);
+  return { html: r.html, grupos: r.grupos, teclado: [NAV_MENU] };
 }
 
 export async function contenidoTema(ctx: Contexto, temaId: string): Promise<Contenido> {
   const t = ctx.usuario.temas.find((x) => x.id === temaId);
   if (!t) return { html: "No encuentro ese tema.", teclado: [NAV_MENU] };
-  return { html: await resumenNoticias(ctx, cabecera(esc(t.emoji), esc(t.titulo)), [{ titulo: "", consulta: `${t.consulta} when:2d` }], 7), teclado: [NAV_MENU] };
+  const r = await armarNoticias(ctx, cabecera(esc(t.emoji), esc(t.titulo)), [{ titulo: "", consulta: `${t.consulta} when:2d` }], 7);
+  return { html: r.html, grupos: r.grupos, teclado: [NAV_MENU] };
 }

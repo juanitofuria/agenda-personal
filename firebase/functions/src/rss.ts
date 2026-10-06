@@ -1,6 +1,6 @@
 import { esc, escAttr } from "./canal";
 
-export interface Noticia { titulo: string; fuente: string; enlace: string; fecha: number }
+export interface Noticia { titulo: string; fuente: string; enlace: string; fecha: number; /** Miniatura de la noticia (Bing News la incluye en el RSS). */ imagen?: string }
 
 const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0" };
 
@@ -57,9 +57,18 @@ export function leerRss(xml: string): Noticia[] {
     const i = titulo.lastIndexOf(" - ");
     if (i > 0 && (!fuente || titulo.endsWith(` - ${fuente}`))) { if (!fuente) fuente = titulo.slice(i + 3); titulo = titulo.slice(0, i); }
     const fecha = Date.parse(etiqueta(it, "pubDate"));
-    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha });
+    const imagen = imagenSegura(etiqueta(it, "News:Image"));
+    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha, ...(imagen ? { imagen } : {}) });
   }
   return noticias;
+}
+
+/** Miniatura https de la noticia (las de Bing admiten el tamaño en la dirección). "" si no hay o no es segura. */
+function imagenSegura(url: string): string {
+  if (!url) return "";
+  const u = url.replace(/^http:\/\//i, "https://");
+  if (!/^https:\/\//i.test(u) || u.length > 400) return "";
+  return /bing\.com\/th/i.test(u) && !/[?&]w=/.test(u) ? `${u}&w=360&h=220&c=7&rs=1` : u;
 }
 
 /** Los enlaces de Bing News pasan por un redirector (bing.com/news/apiclick…?url=<la noticia>): se enlaza la noticia directamente. */

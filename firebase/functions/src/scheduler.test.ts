@@ -357,13 +357,13 @@ test("avisos por la app: «app» no escribe en Telegram si llega; «ambos» mand
   const sinDisp = await probar("app", {}); assert.equal(sinDisp.telegram, true); // sin ningún dispositivo: Telegram
 });
 
-test("avisos por la app: una alarma llega como notificación con su título y lleva a Mis eventos", async () => {
+test("avisos por la app: una alarma llega como notificación con su título y lleva a la sección de alarmas", async () => {
   const b = await usuarioListo(); await sinResumenes(b);
   const ev = await nuevaAlarma(b, "Tomar la pastilla", "hoy 09:00");
   const u = (await b.almacen.getUsuario(U))!; u.notificaciones = { canal: "app", suscripciones: [{ endpoint: "https://push.example/x", p256dh: "p", auth: "a", dispositivo: "móvil", desde: "2026-10-01" }] }; await b.almacen.guardarUsuario(u);
   const vistos: { titulo: string; cuerpo: string; url: string }[] = [];
   avanzar(b, "2026-10-04T07:01:00Z"); // 09:01
   await tick({ almacen: b.almacen, canal: b.canal, http: b.http, ahora: b.deps.ahora, push: async (_s, aviso) => { vistos.push(aviso); return "ok"; } });
-  assert.equal(vistos.length, 1); assert.match(vistos[0].titulo, /Tomar la pastilla/); assert.equal(vistos[0].url, "/app/?ir=eventos"); assert.ok(ev.id);
+  assert.equal(vistos.length, 1); assert.match(vistos[0].titulo, /Tomar la pastilla/); assert.equal(vistos[0].url, "/app/?ir=alarma"); // lleva a la sección de alarmas assert.ok(ev.id);
   assert.equal(b.canal.textos(U).length, 0); // nada por Telegram
 });

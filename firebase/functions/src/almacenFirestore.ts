@@ -22,6 +22,7 @@ export function eventoDesdeDoc(uid: string, id: string, d: Record<string, any>):
     id, uid, tipo: d.tipo, titulo: d.titulo ?? "", lugar: d.lugar ?? "", fechaHora: aFecha(d.fechaHora),
     antelacionMin: d.antelacionMin ?? 0, repeticion: (d.repeticion ?? "ninguna") as Repeticion, avisado: !!d.avisado,
     hecho: !!d.hecho, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
+    ...(typeof d.nota === "string" && d.nota ? { nota: d.nota } : {}),
     ...(d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}),
   };
 }
@@ -121,6 +122,13 @@ export class AlmacenFirestore implements Almacen {
     const d = s.data();
     const expira = d ? aFecha(d.expira) : null;
     return d && expira && expira.getTime() > ahora.getTime() ? (d.valor as string) : null;
+  }
+  async cacheGetVarios(claves: string[], ahora: Date) {
+    const r: Record<string, string> = {};
+    if (!claves.length) return r;
+    const docs = await this.db.getAll(...claves.map((k) => this.db.collection("cache").doc(claveCache(k))));
+    docs.forEach((s, i) => { const d = s.data(); const expira = d ? aFecha(d.expira) : null; if (d && expira && expira.getTime() > ahora.getTime()) r[claves[i]] = d.valor as string; });
+    return r;
   }
   async cacheSet(clave: string, valor: string, ttlMs: number, ahora: Date) {
     await this.db.collection("cache").doc(claveCache(clave)).set({ valor, expira: Timestamp.fromDate(new Date(ahora.getTime() + ttlMs)) });

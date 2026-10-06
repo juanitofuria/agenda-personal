@@ -13,7 +13,10 @@ export interface Contexto {
   podcastFeed?: string;
 }
 
-/** Mensaje listo para enviar. */
-export interface Contenido { html: string; teclado?: Teclado }
+/** Noticias de un bloque (Economía, Política…), para pintarlas como tarjetas en la app. */
+export interface GrupoNoticias { titulo: string; noticias: { titulo: string; fuente: string; enlace: string; fecha: number; imagen?: string }[] }
+
+/** Mensaje listo para enviar. `grupos`: las mismas noticias de forma estructurada (la app las muestra con su foto). */
+export interface Contenido { html: string; teclado?: Teclado; grupos?: GrupoNoticias[] }
 
 export const NAV_MENU = [{ texto: "🏠 Menú", datos: "m:menu" }];

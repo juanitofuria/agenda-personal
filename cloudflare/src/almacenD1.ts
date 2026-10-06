@@ -32,6 +32,7 @@ export function eventoDesdeJson(uid: string, id: string, d: Record<string, any>)
     id, uid, tipo: d.tipo, titulo: d.titulo ?? "", lugar: d.lugar ?? "", fechaHora: aFecha(d.fechaHora),
     antelacionMin: d.antelacionMin ?? 0, repeticion: (d.repeticion ?? "ninguna") as Repeticion, avisado: !!d.avisado,
     hecho: !!d.hecho, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
+    ...(typeof d.nota === "string" && d.nota ? { nota: d.nota } : {}),
     ...(d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}),
   };
 }
@@ -162,6 +163,13 @@ export class AlmacenD1 implements Almacen {
   async cacheGet(clave: string, ahora: Date) {
     const f = await this.db.prepare("SELECT valor FROM cache WHERE clave = ? AND expira > ?").bind(clave, ahora.getTime()).first<{ valor: string }>();
     return f?.valor ?? null;
+  }
+  async cacheGetVarios(claves: string[], ahora: Date) {
+    const r: Record<string, string> = {};
+    if (!claves.length) return r;
+    const f = await this.db.prepare(`SELECT clave, valor FROM cache WHERE expira > ? AND clave IN (${claves.map(() => "?").join(",")})`).bind(ahora.getTime(), ...claves).all<{ clave: string; valor: string }>();
+    for (const x of f.results) r[x.clave] = x.valor;
+    return r;
   }
   async cacheSet(clave: string, valor: string, ttlMs: number, ahora: Date) {
     await this.db.prepare("INSERT INTO cache (clave, valor, expira) VALUES (?, ?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, expira = excluded.expira")

@@ -251,3 +251,43 @@ test("mini app: mensaje de WhatsApp programado (crear, validar y avisar con el b
   // repetición anual: se reprograma para el año que viene
   assert.equal((await b.almacen.getEvento("1", ev.id))!.fechaHora!.toISOString(), "2027-10-14T07:00:00.000Z");
 });
+
+test("noticias como tarjetas: el RSS de Bing trae la foto, y la sección entrega las noticias estructuradas", async () => {
+  const { leerRss } = await import("./rss");
+  const xml = `<rss><channel><item><title>Titular uno</title><link>https://www.bing.com/news/apiclick.aspx?url=https%3a%2f%2fdiario.example%2funo&amp;x=1</link><pubDate>Sun, 04 Oct 2026 08:00:00 GMT</pubDate><News:Source>Diario</News:Source><News:Image>http://www.bing.com/th?id=ON.ABC123&amp;pid=News</News:Image></item>
+    <item><title>Titular dos</title><link>https://d.example/dos</link><News:Image>https://x.example/foto.jpg</News:Image></item><item><title>Sin foto</title><link>https://d.example/tres</link></item></channel></rss>`;
+  const n = leerRss(xml);
+  assert.equal(n[0].enlace, "https://diario.example/uno"); assert.equal(n[0].imagen, "https://www.bing.com/th?id=ON.ABC123&pid=News&w=360&h=220&c=7&rs=1"); // https y con tamaño
+  assert.equal(n[1].imagen, "https://x.example/foto.jpg"); assert.equal(n[2].imagen, undefined);
+  const { b, api } = await banco();
+  b.http.añadir("bing.com/news", xml).añadir("news.google.com", xml);
+  await api("/api/seccion", { ref: "noticias", activa: true });
+  const r = (await api("/api/ver", { ref: "noticias" })).cuerpo as any; const s = r.secciones[0];
+  assert.ok(s.grupos.length >= 1); assert.equal(s.grupos[0].noticias[0].titulo, "Titular uno"); assert.equal(s.grupos[0].noticias[0].enlace, "https://diario.example/uno"); assert.match(s.grupos[0].noticias[0].imagen, /^https:\/\//);
+});
+
+test("resumen de hoy: lo que se pide se guarda y la pantalla principal lo muestra sin volver a prepararlo", async () => {
+  const { b, api } = await banco();
+  const estado = async () => ((await api("/api/estado")).cuerpo as any).resumenHoy as any[];
+  assert.deepEqual(await estado(), []); // aún no se ha pedido nada
+  await api("/api/seccion", { ref: "agenda", activa: true });
+  const r1 = (await api("/api/ver", { ref: "agenda" })).cuerpo as any; assert.match(r1.secciones[0].hora, /^\d\d:\d\d$/);
+  const hoy = await estado(); assert.equal(hoy.length, 1); assert.equal(hoy[0].ref, "agenda"); assert.equal(hoy[0].titulo, "Agenda"); assert.ok(hoy[0].previa.length > 3);
+  // lo guardado se devuelve sin preparar de nuevo (aunque haya cambiado la agenda)
+  await api("/api/evento", { tipo: "tarea", titulo: "Algo nuevo" });
+  const g = (await api("/api/ver", { ref: "agenda", guardado: true })).cuerpo as any; assert.equal(g.secciones[0].guardado, true); assert.equal(g.secciones[0].html, r1.secciones[0].html);
+  const f = (await api("/api/ver", { ref: "agenda" })).cuerpo as any; assert.equal(f.secciones[0].guardado, undefined); // sin «guardado» se vuelve a preparar
+  assert.equal(((await api("/api/ver", { ref: "tiempo:horas", guardado: true })).cuerpo as any).secciones[0].guardado, undefined); // las subpantallas no se guardan
+  b.reloj.ahora = new Date(b.reloj.ahora.getTime() + 24 * 3600_000); // al día siguiente, la pantalla principal vuelve a estar vacía
+  assert.deepEqual(await estado(), []);
+});
+
+test("notas: se crean sin fecha, con título o a partir del texto", async () => {
+  const { b, api } = await banco();
+  const r = await api("/api/evento", { tipo: "nota", texto: "Comprar regalo para Ana\nque le gusta el azul" }); assert.equal(r.estado, 200);
+  const ev = (r.cuerpo as any).evento; assert.equal(ev.titulo, "Comprar regalo para Ana"); assert.equal(ev.nota, "Comprar regalo para Ana\nque le gusta el azul"); assert.equal(ev.cuando, null);
+  assert.equal((await b.almacen.getEvento("1", ev.id))!.nota, "Comprar regalo para Ana\nque le gusta el azul");
+  assert.equal([...b.almacen.programaciones.values()].some((p) => p.ref === ev.id), false); // no avisa
+  assert.equal((await api("/api/evento", { tipo: "nota", titulo: "Ideas", texto: "" })).estado, 200);
+  assert.equal((await api("/api/evento", { tipo: "nota" })).estado, 400); // sin nada
+});

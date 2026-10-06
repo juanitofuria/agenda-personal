@@ -38,6 +38,8 @@ export interface Almacen {
   listarSolicitudes(estado?: Solicitud["estado"]): Promise<Solicitud[]>;
 
   cacheGet(clave: string, ahora: Date): Promise<string | null>;
+  /** Varias claves de caché de una vez (solo las que existen y no han caducado). */
+  cacheGetVarios(claves: string[], ahora: Date): Promise<Record<string, string>>;
   cacheSet(clave: string, valor: string, ttlMs: number, ahora: Date): Promise<void>;
 }
 
@@ -110,5 +112,6 @@ export class AlmacenMemoria implements Almacen {
     const c = this.cache.get(clave);
     return c && c.expira > ahora.getTime() ? c.valor : null;
   }
+  async cacheGetVarios(claves: string[], ahora: Date) { const r: Record<string, string> = {}; for (const k of claves) { const v = await this.cacheGet(k, ahora); if (v !== null) r[k] = v; } return r; }
   async cacheSet(clave: string, valor: string, ttlMs: number, ahora: Date) { this.cache.set(clave, { valor, expira: ahora.getTime() + ttlMs }); }
 }

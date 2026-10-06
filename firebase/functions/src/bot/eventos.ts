@@ -7,7 +7,7 @@ import { bloque, cabecera } from "../util";
 import { BTN_CANCELAR, BTN_MENU, Ctx } from "./ctx";
 import { enlaceWhatsApp } from "../whatsapp";
 
-const NOMBRE_TIPO: Record<TipoEvento, string> = { alarma: "Alarma", cita: "Cita", tarea: "Tarea", mensaje: "Mensaje de WhatsApp" };
+const NOMBRE_TIPO: Record<TipoEvento, string> = { alarma: "Alarma", cita: "Cita", tarea: "Tarea", mensaje: "Mensaje de WhatsApp", nota: "Nota" };
 const REP_TEXTO: Record<Repeticion, string> = { ninguna: "solo una vez", diaria: "cada día", semanal: "cada semana", laborables: "de lunes a viernes", anual: "cada año" };
 const ANT_TEXTO = (m: number) => (m === 0 ? "sin aviso previo" : m < 60 ? `${m} min antes` : m < 1440 ? `${m / 60} h antes` : `${m / 1440} día${m >= 2880 ? "s" : ""} antes`);
 
@@ -35,6 +35,7 @@ export function textoEvento(e: Evento, zona: string, ahora: Date): string {
   ];
   if (e.lugar) bloques.push("", bloque("📍", "Dónde", esc(e.lugar)));
   if (e.mensaje) bloques.push("", bloque("💬", `Para ${esc(e.mensaje.para || "quien elijas")}`, `«${esc(e.mensaje.texto)}»`));
+  if (e.nota) bloques.push("", bloque("📝", "Nota", esc(e.nota)));
   if (e.tipo === "cita") bloques.push("", bloque("🔔", "Aviso", ANT_TEXTO(e.antelacionMin)));
   if (e.tipo === "alarma" || e.repeticion !== "ninguna") bloques.push("", bloque("🔁", "Se repite", REP_TEXTO[e.repeticion]));
   if (e.tipo === "tarea" && e.hecho) bloques.push("", bloque("✅", "Estado", "Hecha"));

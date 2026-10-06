@@ -4,7 +4,7 @@ import { Evento } from "../modelo";
 import { cabecera } from "../util";
 import { Contenido, Contexto, NAV_MENU } from "./tipos";
 
-export const EMOJI_TIPO = { alarma: "⏰", cita: "🩺", tarea: "✅", mensaje: "💬" } as const;
+export const EMOJI_TIPO = { alarma: "⏰", cita: "🩺", tarea: "✅", mensaje: "💬", nota: "📝" } as const;
 
 const hhmm = (d: Date, zona: string) => { const p = partesEnZona(d, zona); return `${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`; };
 

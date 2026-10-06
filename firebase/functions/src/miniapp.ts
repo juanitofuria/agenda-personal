@@ -10,6 +10,7 @@ import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "
 import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
 import { iguales } from "./webhook";
+import { horaLocal, leerResumen, resumenesDeHoy } from "./resumen";
 import { enlaceWhatsApp, MensajeWa, normalizarTelefono } from "./whatsapp";
 import { claveVapid, suscripcionValida } from "./webpush";
 import { crearAcceso } from "./sesiones";
@@ -43,12 +44,13 @@ export interface RespuestaApi { estado: number; cuerpo: unknown }
 const ok = (cuerpo: unknown = { ok: true }): RespuestaApi => ({ estado: 200, cuerpo });
 const error = (estado: number, mensaje: string): RespuestaApi => ({ estado, cuerpo: { error: mensaje } });
 
-const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea", "mensaje"];
+const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea", "mensaje", "nota"];
 const REPS: Repeticion[] = ["ninguna", "diaria", "semanal", "laborables", "anual"];
 
 const eventoJson = (e: Evento, u: Usuario, ahora: Date) => ({
   id: e.id, tipo: e.tipo, titulo: e.titulo, lugar: e.lugar, hecho: e.hecho, repeticion: e.repeticion, antelacionMin: e.antelacionMin,
   ...(e.mensaje ? { mensaje: e.mensaje, enlaceWa: enlaceWhatsApp(e.mensaje) } : {}),
+  ...(e.nota ? { nota: e.nota } : {}),
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null, texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha",
 });
 
@@ -64,6 +66,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
     avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
     notificaciones: { canal: u.notificaciones.canal, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => { const info = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref as SeccionId]; return { ref: r.ref, emoji: info?.emoji ?? "📬", titulo: info?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa }; }),
     compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
 }
@@ -195,14 +198,16 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         mensaje = { para, telefono: tel, texto };
         if (!titulo) titulo = `Mensaje a ${para || "un contacto"}`;
       }
+      let nota: string | undefined;
+      if (tipo === "nota") { nota = String(c.texto ?? "").trim().slice(0, 4000); if (!titulo) titulo = nota.split("\n")[0].slice(0, 80); }
       if (!tipo || !titulo) return error(400, "Falta el título");
       const fecha = c.cuando ? fechaLocal(c.cuando, u.zona) : null;
       if (c.cuando && !fecha) return error(400, "La fecha no es válida");
-      if (tipo !== "tarea" && !fecha) return error(400, "Indica la fecha y la hora");
+      if (tipo !== "tarea" && tipo !== "nota" && !fecha) return error(400, "Indica la fecha y la hora");
       if (fecha && fecha.getTime() <= ahora.getTime() - 60_000) return error(400, "Esa fecha ya ha pasado");
       let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
       if (fecha && ant > 0 && fecha.getTime() - ant * 60_000 <= ahora.getTime()) ant = 0;
-      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? (c.repeticion as Repeticion) : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...(mensaje ? { mensaje } : {}) } satisfies Omit<Evento, "id">;
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? (c.repeticion as Repeticion) : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...(mensaje ? { mensaje } : {}), ...(nota ? { nota } : {}) } satisfies Omit<Evento, "id">;
       let ev = await deps.almacen.guardarEvento(base);
       ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
       await deps.almacen.guardarEvento(ev);
@@ -233,12 +238,17 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
 
     case "/api/ver": {
       // Prepara una o varias secciones para mostrarlas dentro de la mini app (no se manda nada al chat).
+      // Con `guardado`, si hoy ya se pidió esa sección se devuelve lo guardado sin volver a prepararla.
+      if (c.guardado === true && c.ref !== "todo") {
+        const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
+        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, hora: horaLocal(g.hora, u.zona), guardado: true }] });
+      }
       const refs = c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
       if (!refs.length) return error(409, "No tienes ninguna sección activada");
       const hechas = await Promise.all(refs.map(async (ref) => {
         try {
           const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref }) : await contenidoDeSeccion(deps, u, ref);
-          return { ref, html: cont.html, botones: botonesApp(cont.teclado) };
+          return { ref, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, hora: horaLocal(ahora.toISOString(), u.zona) };
         } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
       }));
       return ok({ secciones: hechas });

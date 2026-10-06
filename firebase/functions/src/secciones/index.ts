@@ -3,6 +3,7 @@ import { contenidoHoroscopo } from "./horoscopo";
 import { contenidoMercados } from "./mercados";
 import { contenidoNoticias, contenidoTema } from "./noticias";
 import { contenidoHoraAHora, contenidoLuna, contenidoTiempo } from "./tiempo";
+import { guardarResumen } from "../resumen";
 import { Contenido, Contexto } from "./tipos";
 
 export { Contenido, Contexto } from "./tipos";
@@ -12,6 +13,12 @@ export { Contenido, Contexto } from "./tipos";
  * Subvistas: "tiempo:horas" y "tiempo:luna".
  */
 export async function construirContenido(id: string, ctx: Contexto): Promise<Contenido> {
+  const c = await construir(id, ctx);
+  try { await guardarResumen(ctx, id, c); } catch { /* guardar el resumen para la pantalla principal no debe romper el envío */ }
+  return c;
+}
+
+async function construir(id: string, ctx: Contexto): Promise<Contenido> {
   switch (id) {
     case "tiempo": return contenidoTiempo(ctx);
     case "tiempo:horas": return contenidoHoraAHora(ctx);

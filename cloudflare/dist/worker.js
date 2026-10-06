@@ -965,6 +965,7 @@ function eventoDesdeJson(uid, id, d) {
     avisado: !!d.avisado,
     hecho: !!d.hecho,
     creadoEn: aFecha(d.creadoEn) ?? /* @__PURE__ */ new Date(0),
+    ...typeof d.nota === "string" && d.nota ? { nota: d.nota } : {},
     ...d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}
   };
 }
@@ -1089,6 +1090,13 @@ var AlmacenD1 = class {
   async cacheGet(clave, ahora) {
     const f = await this.db.prepare("SELECT valor FROM cache WHERE clave = ? AND expira > ?").bind(clave, ahora.getTime()).first();
     return f?.valor ?? null;
+  }
+  async cacheGetVarios(claves, ahora) {
+    const r = {};
+    if (!claves.length) return r;
+    const f = await this.db.prepare(`SELECT clave, valor FROM cache WHERE expira > ? AND clave IN (${claves.map(() => "?").join(",")})`).bind(ahora.getTime(), ...claves).all();
+    for (const x of f.results) r[x.clave] = x.valor;
+    return r;
   }
   async cacheSet(clave, valor, ttlMs, ahora) {
     await this.db.prepare("INSERT INTO cache (clave, valor, expira) VALUES (?, ?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, expira = excluded.expira").bind(clave, valor, ahora.getTime() + ttlMs).run();
@@ -1586,7 +1594,7 @@ __name(conReintentos, "conReintentos");
 var NAV_MENU = [{ texto: "\u{1F3E0} Men\xFA", datos: "m:menu" }];
 
 // ../firebase/functions/src/secciones/agenda.ts
-var EMOJI_TIPO = { alarma: "\u23F0", cita: "\u{1FA7A}", tarea: "\u2705", mensaje: "\u{1F4AC}" };
+var EMOJI_TIPO = { alarma: "\u23F0", cita: "\u{1FA7A}", tarea: "\u2705", mensaje: "\u{1F4AC}", nota: "\u{1F4DD}" };
 var hhmm = /* @__PURE__ */ __name((d, zona) => {
   const p = partesEnZona(d, zona);
   return `${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`;
@@ -2020,11 +2028,19 @@ function leerRss(xml) {
       titulo = titulo.slice(0, i);
     }
     const fecha = Date.parse(etiqueta2(it, "pubDate"));
-    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta2(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha });
+    const imagen = imagenSegura(etiqueta2(it, "News:Image"));
+    noticias.push({ titulo, fuente, enlace: enlaceReal(etiqueta2(it, "link")), fecha: Number.isNaN(fecha) ? 0 : fecha, ...imagen ? { imagen } : {} });
   }
   return noticias;
 }
 __name(leerRss, "leerRss");
+function imagenSegura(url) {
+  if (!url) return "";
+  const u = url.replace(/^http:\/\//i, "https://");
+  if (!/^https:\/\//i.test(u) || u.length > 400) return "";
+  return /bing\.com\/th/i.test(u) && !/[?&]w=/.test(u) ? `${u}&w=360&h=220&c=7&rs=1` : u;
+}
+__name(imagenSegura, "imagenSegura");
 function enlaceReal(enlace2) {
   try {
     const u = new URL(enlace2);
@@ -2084,9 +2100,11 @@ async function noticiasDe(ctx, consulta) {
   });
 }
 __name(noticiasDe, "noticiasDe");
-async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
+var sinEtiquetas = /* @__PURE__ */ __name((t) => t.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim(), "sinEtiquetas");
+async function armarNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
   const vistas = /* @__PURE__ */ new Set();
   const bloques = [];
+  const grupos = [];
   let ok2 = 0;
   let motivo = "";
   const respuestas = await Promise.allSettled(secciones.map((s) => noticiasDe(ctx, s.consulta)));
@@ -2108,9 +2126,14 @@ async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
     const t = s.titulo ? `${s.titulo}
 ` : "";
     bloques.push(items.length ? `${t}${items.map(lineaNoticia).join("\n")}` : `${t}<i>Sin novedades.</i>`);
+    if (items.length) grupos.push({ titulo: sinEtiquetas(s.titulo), noticias: items.map((n) => ({ titulo: n.titulo, fuente: n.fuente, enlace: n.enlace, fecha: n.fecha, ...n.imagen ? { imagen: n.imagen } : {} })) });
   });
   if (ok2 === 0) throw new Error(motivo || "no se pudo obtener ninguna noticia");
-  return [cabecera2, ...bloques].join("\n\n");
+  return { html: [cabecera2, ...bloques].join("\n\n"), grupos };
+}
+__name(armarNoticias, "armarNoticias");
+async function resumenNoticias(ctx, cabecera2, secciones, porSeccion = 4) {
+  return (await armarNoticias(ctx, cabecera2, secciones, porSeccion)).html;
 }
 __name(resumenNoticias, "resumenNoticias");
 async function contenidoNoticias(ctx) {
@@ -2126,13 +2149,15 @@ async function contenidoNoticias(ctx) {
       { titulo: `\u{1F4CD} <b>${esc(c.nombre)}</b>`, consulta: `"${c.nombre}" Espa\xF1a${prov} when:7d` }
     );
   }
-  return { html: await resumenNoticias(ctx, cabecera("\u{1F4F0}", "Noticias del d\xEDa"), secciones), teclado: [NAV_MENU] };
+  const r = await armarNoticias(ctx, cabecera("\u{1F4F0}", "Noticias del d\xEDa"), secciones);
+  return { html: r.html, grupos: r.grupos, teclado: [NAV_MENU] };
 }
 __name(contenidoNoticias, "contenidoNoticias");
 async function contenidoTema(ctx, temaId) {
   const t = ctx.usuario.temas.find((x) => x.id === temaId);
   if (!t) return { html: "No encuentro ese tema.", teclado: [NAV_MENU] };
-  return { html: await resumenNoticias(ctx, cabecera(esc(t.emoji), esc(t.titulo)), [{ titulo: "", consulta: `${t.consulta} when:2d` }], 7), teclado: [NAV_MENU] };
+  const r = await armarNoticias(ctx, cabecera(esc(t.emoji), esc(t.titulo)), [{ titulo: "", consulta: `${t.consulta} when:2d` }], 7);
+  return { html: r.html, grupos: r.grupos, teclado: [NAV_MENU] };
 }
 __name(contenidoTema, "contenidoTema");
 
@@ -2512,8 +2537,165 @@ async function contenidoLuna(ctx) {
 }
 __name(contenidoLuna, "contenidoLuna");
 
+// ../firebase/functions/src/webpush.ts
+var enc = new TextEncoder();
+var subtle = /* @__PURE__ */ __name(() => globalThis.crypto.subtle, "subtle");
+var b64u = /* @__PURE__ */ __name((b) => {
+  const u = b instanceof Uint8Array ? b : new Uint8Array(b);
+  let s = "";
+  for (const x of u) s += String.fromCharCode(x);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}, "b64u");
+var deB64u = /* @__PURE__ */ __name((s) => {
+  const t = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4));
+  return Uint8Array.from(t, (c) => c.charCodeAt(0));
+}, "deB64u");
+var concat = /* @__PURE__ */ __name((...p) => {
+  const r = new Uint8Array(p.reduce((n, x) => n + x.length, 0));
+  let o = 0;
+  for (const x of p) {
+    r.set(x, o);
+    o += x.length;
+  }
+  return r;
+}, "concat");
+async function hkdf(ikm, salt, info4, bytes) {
+  const k = await subtle().importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+  return new Uint8Array(await subtle().deriveBits({ name: "HKDF", hash: "SHA-256", salt, info: info4 }, k, bytes * 8));
+}
+__name(hkdf, "hkdf");
+async function cifrarPush(mensaje, p256dh, auth, alAzar) {
+  const uaPublica = deB64u(p256dh), secretoAuth = deB64u(auth);
+  const efimera = alAzar?.claves ?? await subtle().generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPublica = new Uint8Array(await subtle().exportKey("raw", efimera.publicKey));
+  const uaClave = await subtle().importKey("raw", uaPublica, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const compartido = new Uint8Array(await subtle().deriveBits({ name: "ECDH", public: uaClave }, efimera.privateKey, 256));
+  const ikm = await hkdf(compartido, secretoAuth, concat(enc.encode("WebPush: info\0"), uaPublica, asPublica), 32);
+  const salt = alAzar?.salt ?? globalThis.crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(ikm, salt, enc.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(ikm, salt, enc.encode("Content-Encoding: nonce\0"), 12);
+  const relleno = concat(enc.encode(mensaje), Uint8Array.of(2));
+  const clave = await subtle().importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const cifrado = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv: nonce }, clave, relleno));
+  return concat(salt, Uint8Array.of(0, 0, 16, 0), Uint8Array.of(asPublica.length), asPublica, cifrado);
+}
+__name(cifrarPush, "cifrarPush");
+var CLAVE_VAPID = "vapid:claves";
+var DIEZ_ANYOS_MS = 3650 * 24 * 36e5;
+async function claveVapid(almacen, ahora) {
+  const guardada = await almacen.cacheGet(CLAVE_VAPID, ahora);
+  if (guardada) {
+    try {
+      return JSON.parse(guardada);
+    } catch {
+    }
+  }
+  const par = await subtle().generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const c = { publica: b64u(await subtle().exportKey("raw", par.publicKey)), privada: await subtle().exportKey("jwk", par.privateKey) };
+  await almacen.cacheSet(CLAVE_VAPID, JSON.stringify(c), DIEZ_ANYOS_MS, ahora);
+  return c;
+}
+__name(claveVapid, "claveVapid");
+async function cabeceraVapid(endpoint, c, ahora, contacto = "mailto:admin@agenda.invalid") {
+  const cuerpo = b64u(enc.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(ahora.getTime() / 1e3) + 12 * 3600, sub: contacto })));
+  const dato = `${b64u(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })))}.${cuerpo}`;
+  const clave = await subtle().importKey("jwk", c.privada, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const firma = new Uint8Array(await subtle().sign({ name: "ECDSA", hash: "SHA-256" }, clave, enc.encode(dato)));
+  return `vapid t=${dato}.${b64u(firma)}, k=${c.publica}`;
+}
+__name(cabeceraVapid, "cabeceraVapid");
+function crearEmisorPush(almacen, ahora, post, log3 = () => void 0) {
+  return async (s, aviso) => {
+    try {
+      const vapid = await claveVapid(almacen, ahora());
+      const cuerpo = await cifrarPush(JSON.stringify(aviso), s.p256dh, s.auth);
+      const estado2 = await post(s.endpoint, {
+        authorization: await cabeceraVapid(s.endpoint, vapid, ahora()),
+        "content-encoding": "aes128gcm",
+        "content-type": "application/octet-stream",
+        ttl: "86400",
+        urgency: "normal"
+      }, cuerpo);
+      if (estado2 >= 200 && estado2 < 300) return "ok";
+      log3(`push ${new URL(s.endpoint).host}: respuesta ${estado2}`);
+      return estado2 === 404 || estado2 === 410 ? "caducada" : "error";
+    } catch (e) {
+      log3(`push ${s.dispositivo}: ${e.message}`);
+      return "error";
+    }
+  };
+}
+__name(crearEmisorPush, "crearEmisorPush");
+function textoPlano(html, max = 110) {
+  const t = html.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/[▬─━]+/g, " ").replace(/\s+/g, " ").trim();
+  return t.length > max ? t.slice(0, max - 1).trimEnd() + "\u2026" : t;
+}
+__name(textoPlano, "textoPlano");
+function suscripcionValida(v) {
+  if (!v || typeof v.endpoint !== "string" || v.endpoint.length > 600 || !/^https:\/\//.test(v.endpoint)) return false;
+  try {
+    return deB64u(String(v.p256dh)).length === 65 && deB64u(String(v.auth)).length === 16;
+  } catch {
+    return false;
+  }
+}
+__name(suscripcionValida, "suscripcionValida");
+
+// ../firebase/functions/src/resumen.ts
+var VIGENCIA_MS = 36 * 36e5;
+var claveP = /* @__PURE__ */ __name((uid, fecha, ref2) => `rp:${uid}:${fecha}:${ref2}`, "claveP");
+var claveC = /* @__PURE__ */ __name((uid, fecha, ref2) => `rc:${uid}:${fecha}:${ref2}`, "claveC");
+var esSeccion = /* @__PURE__ */ __name((ref2) => !ref2.includes(":") || ref2.startsWith("tema:"), "esSeccion");
+async function guardarResumen(ctx, ref2, c) {
+  if (!esSeccion(ref2)) return;
+  const u = ctx.usuario, fecha = fechaIso(ctx.ahora, u.zona), hora2 = ctx.ahora.toISOString();
+  const previa = c.grupos?.[0]?.noticias[0]?.titulo ?? textoPlano(c.html, 150);
+  await ctx.almacen.cacheSet(claveP(u.id, fecha, ref2), JSON.stringify({ hora: hora2, previa }), VIGENCIA_MS, ctx.ahora);
+  await ctx.almacen.cacheSet(claveC(u.id, fecha, ref2), JSON.stringify({ html: c.html, teclado: c.teclado, grupos: c.grupos, hora: hora2 }), VIGENCIA_MS, ctx.ahora);
+}
+__name(guardarResumen, "guardarResumen");
+async function resumenesDeHoy(almacen, u, ahora) {
+  const fecha = fechaIso(ahora, u.zona);
+  const refs = [...ORDEN_SECCIONES.map(String), ...u.temas.map((t) => `tema:${t.id}`)];
+  const r = await almacen.cacheGetVarios(refs.map((x) => claveP(u.id, fecha, x)), ahora);
+  const res = [];
+  for (const ref2 of refs) {
+    const v = r[claveP(u.id, fecha, ref2)];
+    if (!v) continue;
+    try {
+      const p = JSON.parse(v);
+      res.push({ ref: ref2, hora: p.hora, previa: p.previa });
+    } catch {
+    }
+  }
+  return res;
+}
+__name(resumenesDeHoy, "resumenesDeHoy");
+async function leerResumen(almacen, u, ref2, ahora) {
+  const v = esSeccion(ref2) ? await almacen.cacheGet(claveC(u.id, fechaIso(ahora, u.zona), ref2), ahora) : null;
+  try {
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
+}
+__name(leerResumen, "leerResumen");
+var horaLocal = /* @__PURE__ */ __name((iso, zona) => {
+  const p = partesEnZona(new Date(iso), zona);
+  return `${String(p.h).padStart(2, "0")}:${String(p.mi).padStart(2, "0")}`;
+}, "horaLocal");
+
 // ../firebase/functions/src/secciones/index.ts
 async function construirContenido(id, ctx) {
+  const c = await construir(id, ctx);
+  try {
+    await guardarResumen(ctx, id, c);
+  } catch {
+  }
+  return c;
+}
+__name(construirContenido, "construirContenido");
+async function construir(id, ctx) {
   switch (id) {
     case "tiempo":
       return contenidoTiempo(ctx);
@@ -2534,7 +2716,7 @@ async function construirContenido(id, ctx) {
       throw new Error(`secci\xF3n desconocida: ${id}`);
   }
 }
-__name(construirContenido, "construirContenido");
+__name(construir, "construir");
 
 // ../firebase/functions/src/sesiones.ts
 var ALFABETO = "abcdefghijkmnpqrstuvwxyz23456789";
@@ -3501,7 +3683,7 @@ __name(normalizarTelefono, "normalizarTelefono");
 var enlaceWhatsApp = /* @__PURE__ */ __name((m) => `https://wa.me/${m.telefono}?text=${encodeURIComponent(m.texto)}`, "enlaceWhatsApp");
 
 // ../firebase/functions/src/bot/eventos.ts
-var NOMBRE_TIPO = { alarma: "Alarma", cita: "Cita", tarea: "Tarea", mensaje: "Mensaje de WhatsApp" };
+var NOMBRE_TIPO = { alarma: "Alarma", cita: "Cita", tarea: "Tarea", mensaje: "Mensaje de WhatsApp", nota: "Nota" };
 var REP_TEXTO = { ninguna: "solo una vez", diaria: "cada d\xEDa", semanal: "cada semana", laborables: "de lunes a viernes", anual: "cada a\xF1o" };
 var ANT_TEXTO = /* @__PURE__ */ __name((m) => m === 0 ? "sin aviso previo" : m < 60 ? `${m} min antes` : m < 1440 ? `${m / 60} h antes` : `${m / 1440} d\xEDa${m >= 2880 ? "s" : ""} antes`, "ANT_TEXTO");
 var AYUDA_CUANDO = [
@@ -3527,6 +3709,7 @@ function textoEvento(e, zona, ahora) {
   ];
   if (e.lugar) bloques.push("", bloque("\u{1F4CD}", "D\xF3nde", esc(e.lugar)));
   if (e.mensaje) bloques.push("", bloque("\u{1F4AC}", `Para ${esc(e.mensaje.para || "quien elijas")}`, `\xAB${esc(e.mensaje.texto)}\xBB`));
+  if (e.nota) bloques.push("", bloque("\u{1F4DD}", "Nota", esc(e.nota)));
   if (e.tipo === "cita") bloques.push("", bloque("\u{1F514}", "Aviso", ANT_TEXTO(e.antelacionMin)));
   if (e.tipo === "alarma" || e.repeticion !== "ninguna") bloques.push("", bloque("\u{1F501}", "Se repite", REP_TEXTO[e.repeticion]));
   if (e.tipo === "tarea" && e.hecho) bloques.push("", bloque("\u2705", "Estado", "Hecha"));
@@ -4613,7 +4796,7 @@ async function enviarEvento(dep, u, p, ahora, r) {
   } else {
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 6e4);
-      const aviso = ev.mensaje ? { titulo: `\u{1F4AC} Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "\u2026" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "\u{1F4AC} Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } } : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: "/app/?ir=eventos", etiqueta: `evento-${ev.id}` };
+      const aviso = ev.mensaje ? { titulo: `\u{1F4AC} Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "\u2026" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "\u{1F4AC} Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } } : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
       await entregar(dep, u, { html, teclado }, aviso);
       r.enviados++;
     } catch (e) {
@@ -4687,105 +4870,6 @@ async function procesarWebhook(deps, secreto, p, log3 = () => void 0) {
 }
 __name(procesarWebhook, "procesarWebhook");
 
-// ../firebase/functions/src/webpush.ts
-var enc = new TextEncoder();
-var subtle = /* @__PURE__ */ __name(() => globalThis.crypto.subtle, "subtle");
-var b64u = /* @__PURE__ */ __name((b) => {
-  const u = b instanceof Uint8Array ? b : new Uint8Array(b);
-  let s = "";
-  for (const x of u) s += String.fromCharCode(x);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}, "b64u");
-var deB64u = /* @__PURE__ */ __name((s) => {
-  const t = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4));
-  return Uint8Array.from(t, (c) => c.charCodeAt(0));
-}, "deB64u");
-var concat = /* @__PURE__ */ __name((...p) => {
-  const r = new Uint8Array(p.reduce((n, x) => n + x.length, 0));
-  let o = 0;
-  for (const x of p) {
-    r.set(x, o);
-    o += x.length;
-  }
-  return r;
-}, "concat");
-async function hkdf(ikm, salt, info4, bytes) {
-  const k = await subtle().importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
-  return new Uint8Array(await subtle().deriveBits({ name: "HKDF", hash: "SHA-256", salt, info: info4 }, k, bytes * 8));
-}
-__name(hkdf, "hkdf");
-async function cifrarPush(mensaje, p256dh, auth, alAzar) {
-  const uaPublica = deB64u(p256dh), secretoAuth = deB64u(auth);
-  const efimera = alAzar?.claves ?? await subtle().generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
-  const asPublica = new Uint8Array(await subtle().exportKey("raw", efimera.publicKey));
-  const uaClave = await subtle().importKey("raw", uaPublica, { name: "ECDH", namedCurve: "P-256" }, false, []);
-  const compartido = new Uint8Array(await subtle().deriveBits({ name: "ECDH", public: uaClave }, efimera.privateKey, 256));
-  const ikm = await hkdf(compartido, secretoAuth, concat(enc.encode("WebPush: info\0"), uaPublica, asPublica), 32);
-  const salt = alAzar?.salt ?? globalThis.crypto.getRandomValues(new Uint8Array(16));
-  const cek = await hkdf(ikm, salt, enc.encode("Content-Encoding: aes128gcm\0"), 16);
-  const nonce = await hkdf(ikm, salt, enc.encode("Content-Encoding: nonce\0"), 12);
-  const relleno = concat(enc.encode(mensaje), Uint8Array.of(2));
-  const clave = await subtle().importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
-  const cifrado = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv: nonce }, clave, relleno));
-  return concat(salt, Uint8Array.of(0, 0, 16, 0), Uint8Array.of(asPublica.length), asPublica, cifrado);
-}
-__name(cifrarPush, "cifrarPush");
-var CLAVE_VAPID = "vapid:claves";
-var DIEZ_ANYOS_MS = 3650 * 24 * 36e5;
-async function claveVapid(almacen, ahora) {
-  const guardada = await almacen.cacheGet(CLAVE_VAPID, ahora);
-  if (guardada) {
-    try {
-      return JSON.parse(guardada);
-    } catch {
-    }
-  }
-  const par = await subtle().generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const c = { publica: b64u(await subtle().exportKey("raw", par.publicKey)), privada: await subtle().exportKey("jwk", par.privateKey) };
-  await almacen.cacheSet(CLAVE_VAPID, JSON.stringify(c), DIEZ_ANYOS_MS, ahora);
-  return c;
-}
-__name(claveVapid, "claveVapid");
-async function cabeceraVapid(endpoint, c, ahora, contacto = "mailto:admin@agenda.invalid") {
-  const cuerpo = b64u(enc.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(ahora.getTime() / 1e3) + 12 * 3600, sub: contacto })));
-  const dato = `${b64u(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })))}.${cuerpo}`;
-  const clave = await subtle().importKey("jwk", c.privada, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  const firma = new Uint8Array(await subtle().sign({ name: "ECDSA", hash: "SHA-256" }, clave, enc.encode(dato)));
-  return `vapid t=${dato}.${b64u(firma)}, k=${c.publica}`;
-}
-__name(cabeceraVapid, "cabeceraVapid");
-function crearEmisorPush(almacen, ahora, post, log3 = () => void 0) {
-  return async (s, aviso) => {
-    try {
-      const vapid = await claveVapid(almacen, ahora());
-      const cuerpo = await cifrarPush(JSON.stringify(aviso), s.p256dh, s.auth);
-      const estado2 = await post(s.endpoint, {
-        authorization: await cabeceraVapid(s.endpoint, vapid, ahora()),
-        "content-encoding": "aes128gcm",
-        "content-type": "application/octet-stream",
-        ttl: "86400",
-        urgency: "normal"
-      }, cuerpo);
-      if (estado2 >= 200 && estado2 < 300) return "ok";
-      log3(`push ${new URL(s.endpoint).host}: respuesta ${estado2}`);
-      return estado2 === 404 || estado2 === 410 ? "caducada" : "error";
-    } catch (e) {
-      log3(`push ${s.dispositivo}: ${e.message}`);
-      return "error";
-    }
-  };
-}
-__name(crearEmisorPush, "crearEmisorPush");
-function suscripcionValida(v) {
-  if (!v || typeof v.endpoint !== "string" || v.endpoint.length > 600 || !/^https:\/\//.test(v.endpoint)) return false;
-  try {
-    return deB64u(String(v.p256dh)).length === 65 && deB64u(String(v.auth)).length === 16;
-  } catch {
-    return false;
-  }
-}
-__name(suscripcionValida, "suscripcionValida");
-
 // ../firebase/functions/src/miniapp.ts
 var VIGENCIA_S = 24 * 3600;
 function validarInitData(initData, token, ahora) {
@@ -4808,7 +4892,7 @@ function validarInitData(initData, token, ahora) {
 __name(validarInitData, "validarInitData");
 var ok = /* @__PURE__ */ __name((cuerpo = { ok: true }) => ({ estado: 200, cuerpo }), "ok");
 var error3 = /* @__PURE__ */ __name((estado2, mensaje) => ({ estado: estado2, cuerpo: { error: mensaje } }), "error");
-var TIPOS = ["alarma", "cita", "tarea", "mensaje"];
+var TIPOS = ["alarma", "cita", "tarea", "mensaje", "nota"];
 var REPS = ["ninguna", "diaria", "semanal", "laborables", "anual"];
 var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
   id: e.id,
@@ -4819,6 +4903,7 @@ var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
   repeticion: e.repeticion,
   antelacionMin: e.antelacionMin,
   ...e.mensaje ? { mensaje: e.mensaje, enlaceWa: enlaceWhatsApp(e.mensaje) } : {},
+  ...e.nota ? { nota: e.nota } : {},
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null,
   texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha"
 }), "eventoJson");
@@ -4835,6 +4920,10 @@ async function estado(deps, u) {
     fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null,
     avatares: AVATARES,
     notificaciones: { canal: u.notificaciones.canal, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => {
+      const info4 = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref];
+      return { ref: r.ref, emoji: info4?.emoji ?? "\u{1F4EC}", titulo: info4?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa };
+    }),
     compra: u.compra,
     secciones,
     eventos: eventos.map((e) => eventoJson(e, u, ahora)),
@@ -4966,14 +5055,19 @@ async function manejarApi(deps, u, ruta, c) {
         mensaje = { para, telefono: tel, texto: texto4 };
         if (!titulo) titulo = `Mensaje a ${para || "un contacto"}`;
       }
+      let nota;
+      if (tipo === "nota") {
+        nota = String(c.texto ?? "").trim().slice(0, 4e3);
+        if (!titulo) titulo = nota.split("\n")[0].slice(0, 80);
+      }
       if (!tipo || !titulo) return error3(400, "Falta el t\xEDtulo");
       const fecha = c.cuando ? fechaLocal(c.cuando, u.zona) : null;
       if (c.cuando && !fecha) return error3(400, "La fecha no es v\xE1lida");
-      if (tipo !== "tarea" && !fecha) return error3(400, "Indica la fecha y la hora");
+      if (tipo !== "tarea" && tipo !== "nota" && !fecha) return error3(400, "Indica la fecha y la hora");
       if (fecha && fecha.getTime() <= ahora.getTime() - 6e4) return error3(400, "Esa fecha ya ha pasado");
       let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
       if (fecha && ant > 0 && fecha.getTime() - ant * 6e4 <= ahora.getTime()) ant = 0;
-      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...mensaje ? { mensaje } : {} };
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...mensaje ? { mensaje } : {}, ...nota ? { nota } : {} };
       let ev = await deps.almacen.guardarEvento(base);
       ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
       await deps.almacen.guardarEvento(ev);
@@ -5006,12 +5100,16 @@ async function manejarApi(deps, u, ruta, c) {
       return ok({ ciudad: l.nombre });
     }
     case "/api/ver": {
+      if (c.guardado === true && c.ref !== "todo") {
+        const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
+        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, hora: horaLocal(g.hora, u.zona), guardado: true }] });
+      }
       const refs = c.ref === "todo" ? refsActivas(u) : [String(c.ref ?? "")];
       if (!refs.length) return error3(409, "No tienes ninguna secci\xF3n activada");
       const hechas = await Promise.all(refs.map(async (ref2) => {
         try {
           const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref: ref2 }) : await contenidoDeSeccion(deps, u, ref2);
-          return { ref: ref2, html: cont.html, botones: botonesApp(cont.teclado) };
+          return { ref: ref2, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, hora: horaLocal(ahora.toISOString(), u.zona) };
         } catch (e) {
           return { ref: ref2, error: String(e.message ?? e).slice(0, 100) };
         }
@@ -5194,7 +5292,7 @@ function dependencias(env2, s, remoto, urlBase) {
       const r = await llamarInterno(env2, RUTA_SECCION, p);
       if (!r) throw new Error("no se pudo contactar con la ejecuci\xF3n interna");
       if (r.error || !r.html) throw new Error(r.error ?? "respuesta vac\xEDa");
-      return { html: r.html, teclado: r.teclado };
+      return { html: r.html, teclado: r.teclado, grupos: r.grupos };
     } : void 0
   };
 }
@@ -5212,7 +5310,7 @@ async function manejarInterno(req, env2, ruta, fabrica) {
     if (!u) return Response.json({ error: "usuario no encontrado" });
     try {
       const c = await conPlazo(contenidoDeSeccion(dep, u, String(cuerpo.ref)), PLAZO_SECCION_MS, "la secci\xF3n tard\xF3 demasiado");
-      return Response.json({ html: c.html, teclado: c.teclado });
+      return Response.json({ html: c.html, teclado: c.teclado, grupos: c.grupos });
     } catch (e) {
       console.warn(`secci\xF3n ${cuerpo.ref}: ${e.message}`);
       return Response.json({ error: String(e.message ?? e).slice(0, 120) });

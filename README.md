@@ -117,6 +117,8 @@ al chat el resumen, crear/completar/borrar alarmas, citas y tareas, activar secc
 El contenido (tiempo, noticias, horóscopo…) se ve dentro de la propia app, no en el chat. El menú del chat es solo el botón de entrada (y el botón fijo «📱 Agenda» junto al cuadro de texto abre también la app). Todo usa los mismos datos que el bot, y cada petición va firmada por Telegram (cabecera `Authorization: tma <initData>`, comprobada con el token del bot); en un bot privado
 solo entra quien tenga acceso. No hay que configurar nada más: el botón aparece solo. Para ver el diseño fuera de Telegram: `…/app/?demo=1&estilo=formal&modo=oscuro`.
 
+**Pantalla principal de la app:** arriba, el **resumen de hoy** (los resúmenes que se hayan pedido o enviado ese día, guardados 36 horas para no prepararlos otra vez), y debajo una sección por tipo: ⏰ Alarmas, 📅 Citas, ✅ Tareas pendientes, 📝 Notas, 💬 Mensajes de WhatsApp y 🛒 Lista de la compra, más ⚙️ **Ajustes** (perfil y ciudad —se cambia tocándola—, resumen de hoy, mis secciones, apariencia, app y notificaciones). Las noticias se ven como tarjetas con foto (la trae el RSS de Bing News) y al tocarlas se abre la noticia. El gesto de «atrás» del móvil vuelve a la pantalla anterior (o cierra la ventana abierta) en vez de salir de la app.
+
 ### App instalable y notificaciones (Android, iPhone, Windows y Mac)
 
 La mini app también es una **app instalable (PWA)**: se instala desde el navegador, sin tiendas ni cuentas de desarrollador, y funciona fuera de Telegram.

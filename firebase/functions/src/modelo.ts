@@ -65,7 +65,7 @@ export interface Usuario {
   creadoEn: Date;
 }
 
-export type TipoEvento = "alarma" | "cita" | "tarea" | "mensaje";
+export type TipoEvento = "alarma" | "cita" | "tarea" | "mensaje" | "nota";
 
 export interface Evento {
   id: string;
@@ -78,6 +78,8 @@ export interface Evento {
   repeticion: Repeticion;
   /** Solo en el tipo «mensaje»: a quién y qué se envía por WhatsApp cuando llegue la hora. */
   mensaje?: MensajeWa;
+  /** Solo en el tipo «nota»: el texto de la nota. */
+  nota?: string;
   avisado: boolean;           // ya se ha enviado el aviso (los repetitivos se rearman solos)
   hecho: boolean;
   creadoEn: Date;
