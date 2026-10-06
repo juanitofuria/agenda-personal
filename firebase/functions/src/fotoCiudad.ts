@@ -20,12 +20,7 @@ async function buscar(http: HttpGet, titulo: string): Promise<string> {
   const resumen = ((await http.get(`${API}/summary/${t}`, { timeout: 5000, headers: CABECERAS })).data ?? {}) as any;
   if (!resumen || resumen.type !== "standard") return ""; // no existe o es una página de desambiguación
   const lista = ((await http.get(`${API}/media-list/${t}`, { timeout: 5000, headers: CABECERAS, maxBytes: 200_000 }).catch(() => ({ data: {} }))).data ?? {}) as any;
-  for (const it of (lista.items ?? []) as any[]) {
-    if (it.type !== "image" || !/\.jpe?g$|\.webp$/i.test(String(it.title ?? "")) || NO_FOTO.test(String(it.title ?? ""))) continue;
-    const src = ampliar(String(it.srcset?.[0]?.src ?? ""));
-    if (src) return src;
-  }
-  // La miniatura principal de la página suele ser la mejor representación de la propia ciudad.
+  // Primero intentamos la miniatura principal: suele ser la fotografía representativa de la ciudad.
   const mini = String(resumen.thumbnail?.source ?? "");
   if (mini && !NO_FOTO.test(decodeURIComponent(mini.split("/").pop() ?? "")) && /\.jpe?g/i.test(mini)) return ampliar(mini);
 
