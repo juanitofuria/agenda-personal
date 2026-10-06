@@ -257,13 +257,18 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       if (!suscripcionValida(sub)) return error(400, "La suscripción no es válida");
       const nombre = String(c.dispositivo ?? "Dispositivo").trim().slice(0, 40) || "Dispositivo";
       const resto = u.notificaciones.suscripciones.filter((x) => x.endpoint !== sub.endpoint);
+      const primero = u.notificaciones.suscripciones.length === 0;
       u.notificaciones.suscripciones = [...resto, { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, dispositivo: nombre, desde: ahora.toISOString() }].slice(-6);
+      // Al activar el primer dispositivo, los avisos pasan a llegar también por la app (si no, se activaría y no llegaría nada). Se puede cambiar.
+      const cambiado = primero && u.notificaciones.canal === "telegram";
+      if (cambiado) u.notificaciones.canal = "ambos";
       await deps.almacen.guardarUsuario(u);
-      return ok();
+      return ok({ canal: u.notificaciones.canal, cambiado });
     }
 
     case "/api/push/quitar": {
       u.notificaciones.suscripciones = u.notificaciones.suscripciones.filter((x) => x.endpoint.slice(-24) !== c.id && x.endpoint !== c.endpoint);
+      if (!u.notificaciones.suscripciones.length) u.notificaciones.canal = "telegram"; // sin dispositivos, solo Telegram
       await deps.almacen.guardarUsuario(u);
       return ok();
     }

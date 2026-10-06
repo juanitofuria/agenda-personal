@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { AlmacenD1 } from "./almacenD1";
 import { d1Sqlite } from "./d1sqlite";
 import { usuarioNuevo } from "../../firebase/functions/src/modelo";
-import { CanalFalso, HttpFalso, rssFalso } from "../../firebase/functions/src/arnes";
+import { CanalFalso, graficoFalso, HttpFalso, rssFalso } from "../../firebase/functions/src/arnes";
 import { manejarEntrada } from "../../firebase/functions/src/bot/bot";
 import { Deps } from "../../firebase/functions/src/bot/ctx";
 import { idProgramacion } from "../../firebase/functions/src/almacen";
@@ -228,6 +228,7 @@ test("las rutas internas exigen el secreto: sin él (o por GET) no hacen nada", 
 test("el cron reparte cada programación vencida en su propia ejecución y se rearman; sin SELF las procesa una a una", async () => {
   for (const conSelf of [true, false]) {
     const e = entorno();
+    e.http.añadir("finance.yahoo.com", () => graficoFalso({ precio: 7722.7, previo: 7650.5, ultimaFecha: "2026-10-02" })); // según la hora del día, la primera programación puede ser la de mercados
     if (!conSelf) delete e.env.SELF;
     await e.escribir("/start"); await e.esperar(); await e.pulsar("o:omitir"); await e.esperar();
     e.canal.limpiar(); e.llamadas.length = 0;

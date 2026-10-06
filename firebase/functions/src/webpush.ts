@@ -76,7 +76,7 @@ export type ResultadoPush = "ok" | "caducada" | "error";
 export type EmisorPush = (s: SuscripcionPush, aviso: Aviso) => Promise<ResultadoPush>;
 
 /** Crea el emisor real. `post` hace la petición HTTP y devuelve el código de estado. */
-export function crearEmisorPush(almacen: Almacen, ahora: () => Date, post: (url: string, cabeceras: Record<string, string>, cuerpo: Uint8Array) => Promise<number>): EmisorPush {
+export function crearEmisorPush(almacen: Almacen, ahora: () => Date, post: (url: string, cabeceras: Record<string, string>, cuerpo: Uint8Array) => Promise<number>, log: (m: string) => void = () => undefined): EmisorPush {
   return async (s, aviso) => {
     try {
       const vapid = await claveVapid(almacen, ahora());
@@ -86,8 +86,9 @@ export function crearEmisorPush(almacen: Almacen, ahora: () => Date, post: (url:
         "content-encoding": "aes128gcm", "content-type": "application/octet-stream", ttl: "86400", urgency: "normal",
       }, cuerpo);
       if (estado >= 200 && estado < 300) return "ok";
+      log(`push ${new URL(s.endpoint).host}: respuesta ${estado}`);
       return estado === 404 || estado === 410 ? "caducada" : "error";
-    } catch { return "error"; }
+    } catch (e) { log(`push ${s.dispositivo}: ${(e as Error).message}`); return "error"; }
   };
 }
 

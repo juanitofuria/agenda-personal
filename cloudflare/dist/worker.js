@@ -4534,6 +4534,7 @@ async function entregar(dep, u, msg, aviso) {
       await dep.almacen.guardarUsuario(u);
     }
   }
+  if (canal !== "telegram" && !porApp) dep.log?.(`\u26A0 ${u.id}: la notificaci\xF3n de la app no lleg\xF3 a ning\xFAn dispositivo; se manda por Telegram`);
   if (canal === "app" && porApp) return;
   await dep.canal.enviar(u.id, msg.html, msg.teclado);
 }
@@ -4753,7 +4754,7 @@ async function cabeceraVapid(endpoint, c, ahora, contacto = "mailto:admin@agenda
   return `vapid t=${dato}.${b64u(firma)}, k=${c.publica}`;
 }
 __name(cabeceraVapid, "cabeceraVapid");
-function crearEmisorPush(almacen, ahora, post) {
+function crearEmisorPush(almacen, ahora, post, log3 = () => void 0) {
   return async (s, aviso) => {
     try {
       const vapid = await claveVapid(almacen, ahora());
@@ -4766,8 +4767,10 @@ function crearEmisorPush(almacen, ahora, post) {
         urgency: "normal"
       }, cuerpo);
       if (estado2 >= 200 && estado2 < 300) return "ok";
+      log3(`push ${new URL(s.endpoint).host}: respuesta ${estado2}`);
       return estado2 === 404 || estado2 === 410 ? "caducada" : "error";
-    } catch {
+    } catch (e) {
+      log3(`push ${s.dispositivo}: ${e.message}`);
       return "error";
     }
   };
@@ -5027,12 +5030,16 @@ async function manejarApi(deps, u, ruta, c) {
       if (!suscripcionValida(sub)) return error3(400, "La suscripci\xF3n no es v\xE1lida");
       const nombre = String(c.dispositivo ?? "Dispositivo").trim().slice(0, 40) || "Dispositivo";
       const resto = u.notificaciones.suscripciones.filter((x) => x.endpoint !== sub.endpoint);
+      const primero = u.notificaciones.suscripciones.length === 0;
       u.notificaciones.suscripciones = [...resto, { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, dispositivo: nombre, desde: ahora.toISOString() }].slice(-6);
+      const cambiado = primero && u.notificaciones.canal === "telegram";
+      if (cambiado) u.notificaciones.canal = "ambos";
       await deps.almacen.guardarUsuario(u);
-      return ok();
+      return ok({ canal: u.notificaciones.canal, cambiado });
     }
     case "/api/push/quitar": {
       u.notificaciones.suscripciones = u.notificaciones.suscripciones.filter((x) => x.endpoint.slice(-24) !== c.id && x.endpoint !== c.endpoint);
+      if (!u.notificaciones.suscripciones.length) u.notificaciones.canal = "telegram";
       await deps.almacen.guardarUsuario(u);
       return ok();
     }
@@ -5176,7 +5183,7 @@ function dependencias(env2, s, remoto, urlBase) {
   return {
     almacen,
     canal: s.canal,
-    push: crearEmisorPush(almacen, () => /* @__PURE__ */ new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status),
+    push: crearEmisorPush(almacen, () => /* @__PURE__ */ new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status, (m) => console.warn(m)),
     http: s.http,
     ahora: /* @__PURE__ */ __name(() => /* @__PURE__ */ new Date(), "ahora"),
     horoscopoCfg: horoscopoCfg(env2),

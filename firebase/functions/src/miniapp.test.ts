@@ -203,7 +203,7 @@ test("mini app: notificaciones (dispositivos, canal y prueba)", async () => {
   assert.equal((await api("/api/push/probar")).estado, 409); assert.equal((await api("/api/push/suscribir", { suscripcion: { ...suscripcion, auth: "x" } })).estado, 400);
   assert.equal((await api("/api/push/suscribir", { suscripcion, dispositivo: "  Mi móvil " })).estado, 200);
   await api("/api/push/suscribir", { suscripcion, dispositivo: "Mi móvil" }); // el mismo dispositivo no se duplica
-  let e1 = ((await api("/api/estado")).cuerpo as any).notificaciones; assert.equal(e1.dispositivos.length, 1); assert.equal(e1.dispositivos[0].nombre, "Mi móvil"); assert.equal(e1.canal, "telegram");
+  let e1 = ((await api("/api/estado")).cuerpo as any).notificaciones; assert.equal(e1.dispositivos.length, 1); assert.equal(e1.dispositivos[0].nombre, "Mi móvil"); assert.equal(e1.canal, "ambos"); // al activar el primer dispositivo, los avisos llegan también por la app
   assert.equal((await api("/api/notificaciones", { canal: "ambos" })).estado, 200); assert.equal((await api("/api/notificaciones", { canal: "otro" })).estado, 400);
   assert.equal((await api("/api/push/probar")).estado, 409); // sin emisor (no disponible aquí)
   const enviados: string[] = []; b.deps.push = async (s, aviso) => { enviados.push(`${s.dispositivo}:${aviso.titulo}`); return "ok"; };
@@ -212,6 +212,9 @@ test("mini app: notificaciones (dispositivos, canal y prueba)", async () => {
   e1 = ((await api("/api/estado")).cuerpo as any).notificaciones; assert.equal(e1.dispositivos.length, 0); // se olvidó el caducado
   await api("/api/push/suscribir", { suscripcion }); await api("/api/push/quitar", { id: suscripcion.endpoint.slice(-24) });
   assert.equal(((await api("/api/estado")).cuerpo as any).notificaciones.dispositivos.length, 0);
+  assert.equal(((await api("/api/estado")).cuerpo as any).notificaciones.canal, "telegram"); // sin dispositivos vuelve a solo Telegram
+  const primera = (await api("/api/push/suscribir", { suscripcion })).cuerpo as any; assert.deepEqual([primera.canal, primera.cambiado], ["ambos", true]);
+  await api("/api/notificaciones", { canal: "app" }); const segunda = (await api("/api/push/suscribir", { suscripcion: { ...suscripcion, endpoint: "https://push.example/otro" } })).cuerpo as any; assert.deepEqual([segunda.canal, segunda.cambiado], ["app", false]); // no se pisa lo elegido
 });
 
 test("WhatsApp en un toque: teléfonos, enlace y repetición anual", async () => {

@@ -186,7 +186,7 @@ async function api(ruta, cuerpo = {}) {
 }
 async function cargar() { S.datos = await api("/api/estado"); aplicarTema(); if (S.vista === "dispositivos" && typeof refrescarDispositivos === "function") await refrescarDispositivos(); }
 function aviso(t) { const d = document.createElement("div"); d.className = "aviso"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
-async function hacer(f, ok) { try { await f(); if (ok) aviso(ok); await cargar(); pintar(); } catch (e) { aviso(e.message); } }
+async function hacer(f, ok) { try { await f(); if (ok) aviso(typeof ok === "function" ? ok() : ok); await cargar(); pintar(); } catch (e) { aviso(e.message); } }
 
 /* ---------- Contenido de Telegram → HTML seguro (solo etiquetas simples y enlaces https) ---------- */
 function limpiar(html) {
@@ -669,7 +669,8 @@ async function activarPush() {
   const { clave } = await api("/api/push/clave");
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deB64u(clave) }));
   const j = sub.toJSON();
-  await api("/api/push/suscribir", { suscripcion: { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, dispositivo: nombreDispositivo() });
+  const r = await api("/api/push/suscribir", { suscripcion: { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, dispositivo: nombreDispositivo() });
+  S.canalCambiado = !!r.cambiado;
 }
 async function desactivarPush() {
   const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription());
@@ -716,11 +717,12 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-wa]"))) return hojaWa(S.datos.eventos.find((x) => x.id === el.dataset.wa));
   if ((el = q("[data-so]"))) { S.guiaSO = el.dataset.so; return pintar(); }
   if (q("[data-cerrar-banner]")) { S.bannerOculto = S.bannerClave; return pintar(); }
-  if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, "🔔 Notificaciones activadas");
+  const msgActivado = () => (S.canalCambiado ? "🔔 Activadas: ahora te llegan por la app y por Telegram" : "🔔 Notificaciones activadas");
+  if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, msgActivado);
   if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
   if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); const r = await peticionInstalar.userChoice.catch(() => ({})); peticionInstalar = null; S.instalacion = false; if (r.outcome === "accepted") aviso("✅ Instalada: ábrela desde su icono y activa los avisos"); pintar(); } return; }
   if ((el = q("[data-canal]"))) return hacer(() => api("/api/notificaciones", { canal: el.dataset.canal }));
-  if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? "🔔 Notificaciones activadas" : "🔕 Desactivadas");
+  if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? msgActivado : "🔕 Desactivadas");
   if ((el = q("[data-pushquitar]"))) return hacer(() => api("/api/push/quitar", { id: el.dataset.pushquitar }), "Dispositivo quitado");
   if (q("[data-probar]")) { try { await api("/api/push/probar"); aviso("🔔 Prueba enviada"); } catch (err) { aviso(err.message); } return; }
   if (q("[data-salir]")) { if (!confirm("¿Cerrar la sesión en este dispositivo?")) return; try { await api("/api/salir"); } catch (err) {} guardarSesion(""); location.href = "/app/"; return; }

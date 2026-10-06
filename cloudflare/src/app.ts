@@ -75,7 +75,7 @@ const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https:
 function dependencias(env: Env, s: Servicios, remoto: boolean, urlBase?: string): Deps & { almacen: AlmacenD1 } {
   const almacen = new AlmacenD1(env.DB);
   return {
-    almacen, canal: s.canal, push: crearEmisorPush(almacen, () => new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status), http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
+    almacen, canal: s.canal, push: crearEmisorPush(almacen, () => new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status, (m) => console.warn(m)), http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
     podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined, urlBase,
     construirRemoto: remoto && env.SELF ? async (p) => {
       const r = await llamarInterno<{ html?: string; teclado?: Teclado; error?: string }>(env, RUTA_SECCION, p);

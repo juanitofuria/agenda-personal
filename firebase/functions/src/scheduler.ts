@@ -45,6 +45,7 @@ async function entregar(dep: DepsTick, u: Usuario, msg: { html: string; teclado?
     for (const s of suscripciones) { const r = await dep.push(s, aviso); if (r === "ok") porApp = true; if (r !== "caducada") vivas.push(s); }
     if (vivas.length !== suscripciones.length) { u.notificaciones.suscripciones = vivas; await dep.almacen.guardarUsuario(u); } // se olvidan los dispositivos dados de baja
   }
+  if (canal !== "telegram" && !porApp) dep.log?.(`⚠ ${u.id}: la notificación de la app no llegó a ningún dispositivo; se manda por Telegram`);
   if (canal === "app" && porApp) return;
   await dep.canal.enviar(u.id, msg.html, msg.teclado);
 }
