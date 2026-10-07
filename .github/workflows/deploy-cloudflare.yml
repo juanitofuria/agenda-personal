@@ -1,21 +1,18 @@
 name: Desplegar en Cloudflare
 
 # Cada vez que se sube un cambio al bot (código del Worker o lógica común) se prueba y se despliega solo.
-# Reinicio limpio del despliegue web/PWA; el último lanzamiento tiene prioridad.
 on:
   push:
-    branches:
-      - main
-      - claude/android-notifications-app-pxj3sn
+    branches: [main, claude/android-notifications-app-pxj3sn]
+    paths:
+      - "cloudflare/**"
+      - "firebase/functions/src/**"
+      - ".github/workflows/deploy-cloudflare.yml"
   workflow_dispatch: # también se puede lanzar a mano desde la pestaña Actions
-  pull_request:
-    types: [opened, synchronize]
-    branches:
-      - main
 
 concurrency:
   group: deploy-cloudflare
-  cancel-in-progress: true # cancelar cualquier despliegue anterior al lanzar uno nuevo
+  cancel-in-progress: false # un despliegue en curso termina antes de empezar el siguiente
 
 jobs:
   desplegar:
