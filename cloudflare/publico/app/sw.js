@@ -28,7 +28,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Mi Agenda", cuerpo: e.data ? e.data.text() : "" }; }
   e.waitUntil((async () => { const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true }); cs.forEach((c) => c.postMessage({ tipo: "push-sonido", sonido: d.sonido || "signature" })); await self.registration.showNotification(d.titulo || "Mi Agenda Personal", {
-    body: d.cuerpo || "", icon: d.modo === "oscuro" ? "/app/icon-oscuro.webp" : "/app/icon-claro.webp", badge: "/app/icon-claro.webp", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
+    body: d.cuerpo || "", icon: d.modo === "oscuro" ? "/app/icon-oscuro.webp?v=20261008" : "/app/icon-claro.webp?v=20261008", badge: "/app/icon-claro.webp?v=20261008", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
     actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
     data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "", sonido: d.sonido || "signature" },
   })); })());
