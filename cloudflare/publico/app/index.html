@@ -982,7 +982,7 @@ function nombreDispositivo() {
 }
 async function registrarSW() {
   if (enTelegram() || DEMO || !("serviceWorker" in navigator)) return null;
-  try { return await navigator.serviceWorker.register("sw.js", { scope: "/app/" }); } catch (e) { return null; }
+  try { const reg = await navigator.serviceWorker.register("sw.js", { scope: "/app/" }); reg.update().catch(() => {}); return reg; } catch (e) { return null; }
 }
 async function suscritoAqui() {
   try { const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription()); return sub ? sub.endpoint.slice(-24) : ""; } catch (e) { return ""; }

@@ -1,6 +1,6 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
-const CACHE = "agenda-v4";
-const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest", "/app/icon-agenda.svg", "/app/icon-agenda-maskable.svg", "/app/icon-192.png", "/app/icon-512.png"];
+const CACHE = "agenda-v5";
+const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest", "/app/icon-agenda.svg?v=20261008", "/app/icon-agenda-maskable.svg?v=20261008", "/app/manifest.webmanifest?v=20261008"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(BASICOS)).catch(() => {}).then(() => self.skipWaiting()));
@@ -23,7 +23,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Mi Agenda", cuerpo: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.titulo || "Mi Agenda Personal", {
-    body: d.cuerpo || "", icon: "/app/icon-192.png", badge: "/app/icon-192.png", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
+    body: d.cuerpo || "", icon: "/app/icon-agenda.svg?v=20261008", badge: "/app/icon-agenda.svg?v=20261008", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
     actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
     data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
   }));
