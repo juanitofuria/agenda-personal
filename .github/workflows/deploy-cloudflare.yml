@@ -8,6 +8,10 @@ on:
       - main
       - claude/android-notifications-app-pxj3sn
   workflow_dispatch: # también se puede lanzar a mano desde la pestaña Actions
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
 
 concurrency:
   group: deploy-cloudflare
