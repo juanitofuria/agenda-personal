@@ -1,7 +1,7 @@
 name: Desplegar en Cloudflare
 
 # Cada vez que se sube un cambio al bot (código del Worker o lógica común) se prueba y se despliega solo.
-# Reinicio limpio del despliegue web/PWA.
+# Reinicio limpio del despliegue web/PWA; el último lanzamiento tiene prioridad.
 on:
   push:
     branches: [main, claude/android-notifications-app-pxj3sn]
@@ -13,7 +13,7 @@ on:
 
 concurrency:
   group: deploy-cloudflare
-  cancel-in-progress: false # un despliegue en curso termina antes de empezar el siguiente
+  cancel-in-progress: true # cancelar cualquier despliegue anterior al lanzar uno nuevo
 
 jobs:
   desplegar:
