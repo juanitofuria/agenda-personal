@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Mi Agenda Personal</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-claro.webp">
+<link id="favicon" rel="icon" type="image/webp" href="icon-claro.webp">
 <meta name="theme-color" content="#2f6fd6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -285,16 +285,31 @@ html[data-modo=oscuro] .tm-luna-portada small{color:var(--suave)}
 const TG = window.Telegram && Telegram.WebApp;
 const DEMO = new URLSearchParams(location.search).has("demo");
 const S = { datos: null, vista: "inicio", pila: [], tipo: "alarma" };
+const SONIDOS = {
+  signature: { nombre: "Signature", emoji: "✦" },
+  crystal: { nombre: "Crystal", emoji: "💎" },
+  pulse: { nombre: "Pulse", emoji: "💓" },
+  halo: { nombre: "Halo", emoji: "◉" },
+  orbit: { nombre: "Orbit", emoji: "🪐" },
+  velvet: { nombre: "Velvet", emoji: "🎵" },
+};
+const sonidoValido = (s) => Object.prototype.hasOwnProperty.call(SONIDOS, s) ? s : "signature";
+let audioSonido = null;
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
+function actualizarIconos(modo) {
+  const icono = modo === "oscuro" ? "icon-oscuro.webp" : "icon-claro.webp";
+  const f = document.getElementById("favicon"); if (f) f.href = icono;
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = icono;
+}
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
   const sistema = (TG && TG.colorScheme) || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   const modo = !u || u.modo === "auto" ? (sistema === "dark" ? "oscuro" : "claro") : u.modo;
-  root.dataset.estilo = u ? u.estilo : "informal"; root.dataset.modo = modo;
+  root.dataset.estilo = u ? u.estilo : "informal"; root.dataset.modo = modo; actualizarIconos(modo);
   const logo = modo === "oscuro" ? "--logo-fondo:#f4f8ff;--logo-borde:#dfe9f8;--logo-tapa:#ef4a5a;--logo-check:#3d6fcf" : "--logo-fondo:#fff;--logo-borde:#2f6fd6;--logo-tapa:#ef4a5a;--logo-check:#27a85a";
   const formal = root.dataset.estilo === "formal" ? "--logo-fondo:transparent;--logo-borde:currentColor;--logo-tapa:transparent;--logo-check:currentColor" : logo;
   root.style.cssText = formal;
@@ -616,6 +631,8 @@ const vistas = {
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     const canal = (v, txt) => `<button class="${n.canal === v ? "on" : ""}" data-canal="${v}">${txt}</button>`;
+    const sonido = sonidoValido(n.sonido);
+    const sonidos = Object.entries(SONIDOS).map(([id, x]) => `<button class="${sonido === id ? "on" : ""}" data-sonido="${id}"><span>${x.emoji}</span>${x.nombre}</button>`).join("");
     let notis;
     if (!fuera) notis = `<p class="nota">Las notificaciones de la app se activan desde la app instalada, no desde Telegram.</p>`;
     else if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
@@ -630,6 +647,10 @@ const vistas = {
       <label>Cómo recibir tus avisos</label>
       <div class="seg">${canal("telegram", "✈️ Telegram")}${canal("app", "📲 App")}${canal("ambos", "Ambos")}</div>
       <p class="nota">Resúmenes diarios y recordatorios. «App» envía una notificación al dispositivo; si no llega a ninguno, te lo mando por Telegram para que no se pierda.</p>
+      <label>Sonido de las notificaciones</label>
+      <div class="so">${sonidos}</div>
+      <button class="btn sec ancho" data-probar-sonido="${sonido}">🔊 Probar ${SONIDOS[sonido].nombre}</button>
+      <p class="nota">El sonido se guarda para todos tus dispositivos. Si la app está abierta, reproduce este sonido al recibir un aviso; cuando está cerrada, el sistema puede usar su sonido predeterminado.</p>
       ${notis}
       ${n.dispositivos.length ? `<label>Dispositivos con notificaciones</label><div class="lista">${n.dispositivos.map((d) => `<div class="fila"><div class="emo">📲</div><div class="t"><b>${esc(d.nombre)}</b><small>desde ${new Date(d.desde).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small></div><button class="btn chico peligro" data-pushquitar="${esc(d.id)}">✕</button></div>`).join("")}</div><button class="btn sec ancho" data-probar="1">🔔 Enviarme una prueba</button>` : ""}
       ${fuera && leerSesion() ? `<button class="btn peligro ancho" style="margin-top:22px" data-salir="1">Cerrar sesión en este dispositivo</button>` : ""}`;
@@ -965,6 +986,20 @@ async function registrarSW() {
 async function suscritoAqui() {
   try { const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription()); return sub ? sub.endpoint.slice(-24) : ""; } catch (e) { return ""; }
 }
+async function reproducirSonido(sonido) {
+  const id = sonidoValido(sonido);
+  try {
+    if (audioSonido) { audioSonido.pause(); audioSonido.currentTime = 0; }
+    audioSonido = new Audio("sonidos/agenda_" + id + ".wav");
+    audioSonido.preload = "auto";
+    audioSonido.volume = 0.85;
+    await audioSonido.play();
+  } catch (e) { /* el navegador puede bloquear audio iniciado fuera de una interacción */ }
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => {
+  if (e.data?.tipo === "push-sonido") reproducirSonido(e.data.sonido);
+  if (e.data?.tipo === "probar-sonido") reproducirSonido(e.data.sonido);
+});
 async function activarPush() {
   const perm = await Notification.requestPermission();
   if (perm !== "granted") throw new Error("Has bloqueado las notificaciones: actívalas en los ajustes del navegador para esta app");
@@ -1035,6 +1070,8 @@ document.addEventListener("click", async (e) => {
   if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
   if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); const r = await peticionInstalar.userChoice.catch(() => ({})); peticionInstalar = null; S.instalacion = false; if (r.outcome === "accepted") aviso("✅ Instalada: ábrela desde su icono y activa los avisos"); pintar(); } return; }
   if ((el = q("[data-canal]"))) return hacer(() => api("/api/notificaciones", { canal: el.dataset.canal }));
+  if ((el = q("[data-sonido]"))) return hacer(() => api("/api/notificaciones", { sonido: el.dataset.sonido }), "🔊 Sonido guardado");
+  if ((el = q("[data-probar-sonido]"))) return reproducirSonido(el.dataset.probarSonido);
   if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? msgActivado : "🔕 Desactivadas");
   if ((el = q("[data-pushquitar]"))) return hacer(() => api("/api/push/quitar", { id: el.dataset.pushquitar }), "Dispositivo quitado");
   if (q("[data-probar]")) { try { await api("/api/push/probar"); aviso("🔔 Prueba enviada"); } catch (err) { aviso(err.message); } return; }
