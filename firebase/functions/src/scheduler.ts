@@ -66,7 +66,7 @@ async function enviarSeccion(dep: DepsTick, u: Usuario, p: Programacion, ahora: 
   if (tarde) { r.omitidos++; return; }
   try {
     const cont = await construirContenido(p.ref, { usuario: u, http: dep.http, almacen: dep.almacen, ahora });
-    const sonido = u.notificaciones.sonido, modo = modoEfectivo(u, ahora);
+    const sonido = u.notificaciones.sonido ?? "signature", modo = modoEfectivo(u, ahora);
     await entregar(dep, u, cont, { sonido, modo, titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen está listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
     await dep.almacen.guardarProgramacion({ ...p, proximo: siguiente, intentos: 0 });
     r.enviados++;
