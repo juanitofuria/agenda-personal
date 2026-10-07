@@ -43,7 +43,7 @@ export type Avatar = { tipo: "emoji"; emoji: string; color: number } | { tipo: "
 export interface SuscripcionPush { endpoint: string; p256dh: string; auth: string; dispositivo: string; desde: string }
 /** Por dónde recibe los avisos y resúmenes programados: Telegram, la app instalada o ambos. */
 export type SonidoAviso = "signature" | "crystal" | "pulse" | "halo" | "orbit" | "velvet";
-export interface AjustesAvisos { canal: "telegram" | "app" | "ambos"; sonido: SonidoAviso; suscripciones: SuscripcionPush[] }
+export interface AjustesAvisos { canal: "telegram" | "app" | "ambos"; sonido?: SonidoAviso; suscripciones: SuscripcionPush[] }
 
 export interface Usuario {
   id: string;                 // id del chat
