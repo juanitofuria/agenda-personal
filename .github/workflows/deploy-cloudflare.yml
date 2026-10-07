@@ -4,11 +4,9 @@ name: Desplegar en Cloudflare
 # Reinicio limpio del despliegue web/PWA; el último lanzamiento tiene prioridad.
 on:
   push:
-    branches: [main, claude/android-notifications-app-pxj3sn]
-    paths:
-      - "cloudflare/**"
-      - "firebase/functions/src/**"
-      - ".github/workflows/deploy-cloudflare.yml"
+    branches:
+      - main
+      - claude/android-notifications-app-pxj3sn
   workflow_dispatch: # también se puede lanzar a mano desde la pestaña Actions
 
 concurrency:
