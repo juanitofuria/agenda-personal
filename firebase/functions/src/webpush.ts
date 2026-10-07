@@ -70,7 +70,7 @@ export async function cabeceraVapid(endpoint: string, c: ClavesVapid, ahora: Dat
 }
 
 /** Contenido de una notificación. `url` es a donde lleva al tocarla (dentro de la app). */
-export interface Aviso { titulo: string; cuerpo: string; url: string; etiqueta?: string; /** Botón de la notificación que abre un enlace con un solo toque (p. ej. enviar un WhatsApp). */ enlace?: { texto: string; url: string } }
+export interface Aviso { titulo: string; cuerpo: string; url: string; etiqueta?: string; sonido?: "signature" | "crystal" | "pulse" | "halo" | "orbit" | "velvet"; /** Botón de la notificación que abre un enlace con un solo toque (p. ej. enviar un WhatsApp). */ enlace?: { texto: string; url: string } }
 export type ResultadoPush = "ok" | "caducada" | "error";
 /** Envía un aviso a una suscripción. Lo implementa cada plataforma (en producción, `fetch`). */
 export type EmisorPush = (s: SuscripcionPush, aviso: Aviso) => Promise<ResultadoPush>;
