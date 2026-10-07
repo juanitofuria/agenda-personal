@@ -129,7 +129,7 @@ test("worker: rutas y secreto del webhook", async () => {
   assert.equal((await post({ "x-telegram-bot-api-secret-token": env.TELEGRAM_WEBHOOK_SECRET })).status, 200);
   assert.equal((await manejarFetch(new Request("https://x.workers.dev/telegram"), env)).status, 405);
   assert.equal((await manejarFetch(new Request("https://x.workers.dev/otra"), env)).status, 404);
-  assert.equal((await manejarFetch(new Request("https://x.workers.dev/"), env)).status, 200);
+  assert.equal((await manejarFetch(new Request("https://x.workers.dev/"), env)).status, 302);
   // sin nada vencido, el tick no hace nada y no llama a Internet
   assert.deepEqual(await manejarTick(env), { enviados: 0, omitidos: 0, fallidos: 0 });
 });
