@@ -1,3 +1,4 @@
+import { modoEfectivo } from "./apariencia";
 import { Almacen } from "./almacen";
 import { Canal } from "./canal";
 import { mensajeAviso } from "./bot/eventos";
@@ -39,6 +40,7 @@ async function bloquear(dep: DepsTick, u: Usuario): Promise<void> {
  */
 async function entregar(dep: DepsTick, u: Usuario, msg: { html: string; teclado?: Teclado }, aviso: Aviso): Promise<void> {
   const { canal, suscripciones, sonido } = u.notificaciones;
+  const modo = modoEfectivo(u, dep.ahora());
   let porApp = false;
   if (canal !== "telegram" && dep.push && suscripciones.length) {
     const vivas = [];
@@ -65,7 +67,7 @@ async function enviarSeccion(dep: DepsTick, u: Usuario, p: Programacion, ahora: 
   if (tarde) { r.omitidos++; return; }
   try {
     const cont = await construirContenido(p.ref, { usuario: u, http: dep.http, almacen: dep.almacen, ahora });
-    await entregar(dep, u, cont, { sonido, titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen está listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
+    await entregar(dep, u, cont, { sonido, modo, titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen está listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
     await dep.almacen.guardarProgramacion({ ...p, proximo: siguiente, intentos: 0 });
     r.enviados++;
   } catch (e) {
@@ -102,8 +104,8 @@ async function enviarEvento(dep: DepsTick, u: Usuario, p: Programacion, ahora: D
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 60_000);
       const aviso: Aviso = ev.mensaje
-        ? { sonido, titulo: `💬 Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "…" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "💬 Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } }
-        : { sonido, titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
+        ? { sonido, modo, titulo: `💬 Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "…" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "💬 Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } }
+        : { sonido, modo, titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
       await entregar(dep, u, { html, teclado }, aviso);
       r.enviados++;
     } catch (e) {
