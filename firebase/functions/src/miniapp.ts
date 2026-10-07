@@ -66,7 +66,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
   return ok({
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
     avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
-    notificaciones: { canal: u.notificaciones.canal, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    notificaciones: { canal: u.notificaciones.canal, sonido: u.notificaciones.sonido, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
     resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => { const info = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref as SeccionId]; return { ref: r.ref, emoji: info?.emoji ?? "📬", titulo: info?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa }; }),
     compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
@@ -306,11 +306,17 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
     }
 
     case "/api/notificaciones": {
-      if (c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error(400, "Opción desconocida");
-      if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error(409, "Primero activa las notificaciones en un dispositivo");
-      u.notificaciones.canal = c.canal;
+      if (c.sonido !== undefined) {
+        if (!["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(c.sonido)) return error(400, "Sonido desconocido");
+        u.notificaciones.sonido = c.sonido;
+      }
+      if (c.canal !== undefined && c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error(400, "Opción desconocida");
+      if (c.canal !== undefined) {
+        if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error(409, "Primero activa las notificaciones en un dispositivo");
+        u.notificaciones.canal = c.canal;
+      }
       await deps.almacen.guardarUsuario(u);
-      return ok();
+      return ok({ sonido: u.notificaciones.sonido });
     }
 
     case "/api/avatar": {
