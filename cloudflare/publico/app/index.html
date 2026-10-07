@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Mi Agenda Personal</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-claro.webp">
-<link id="favicon" rel="icon" type="image/webp" href="icon-claro.webp">
+<link rel="apple-touch-icon" href="icon-claro.webp?v=20261008">
+<link id="favicon" rel="icon" type="image/webp" href="icon-claro.webp?v=20261008">
 <meta name="theme-color" content="#2f6fd6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -259,6 +259,21 @@ html[data-modo=oscuro] .tm-luna-portada small{color:var(--suave)}
 
 .cargando{text-align:center;padding:60px 0;color:var(--suave);font-weight:800}
 </style>
+<script>
+(function(){
+  const iconVersion="20261008";
+  const aplicarIconoDispositivo=()=>{
+    const oscuro=window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const archivo=oscuro?"icon-oscuro.webp":"icon-claro.webp";
+    const url=archivo+"?v="+iconVersion;
+    document.querySelector("#favicon")?.setAttribute("href",url);
+    document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute("href",url);
+  };
+  aplicarIconoDispositivo();
+  const mq=window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener?.("change",aplicarIconoDispositivo);
+})();
+</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute"><defs>
