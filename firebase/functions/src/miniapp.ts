@@ -298,7 +298,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       if (!u.notificaciones.suscripciones.length) return error(409, "Ningún dispositivo tiene las notificaciones activadas");
       let enviadas = 0; const vivas = [];
       for (const sub of u.notificaciones.suscripciones) {
-        const r = await deps.push(sub, { sonido: u.notificaciones.sonido, titulo: "🔔 Notificaciones activadas", cuerpo: "Así te avisaré de tus resúmenes y recordatorios.", url: "/app/", etiqueta: "prueba" });
+        const r = await deps.push(sub, { sonido: u.notificaciones.sonido, modo: modoEfectivo(u, ahora), titulo: "🔔 Notificaciones activadas", cuerpo: "Así te avisaré de tus resúmenes y recordatorios.", url: "/app/", etiqueta: "prueba" });
         if (r === "ok") enviadas++; if (r !== "caducada") vivas.push(sub);
       }
       if (vivas.length !== u.notificaciones.suscripciones.length) { u.notificaciones.suscripciones = vivas; await deps.almacen.guardarUsuario(u); }
