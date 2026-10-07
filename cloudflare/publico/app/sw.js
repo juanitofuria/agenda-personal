@@ -1,6 +1,7 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
-const CACHE = "agenda-v2";
-const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest", "/app/icon-192.png", "/app/icon-512.png"];
+const CACHE = "agenda-v3";
+const SONIDOS = ["signature", "crystal", "pulse", "halo", "orbit", "velvet"];
+const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest", "/app/icon-claro.webp", "/app/icon-oscuro.webp", ...SONIDOS.map((s) => "/app/sonidos/agenda_" + s + ".wav")];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(BASICOS)).catch(() => {}).then(() => self.skipWaiting()));
@@ -19,14 +20,18 @@ self.addEventListener("fetch", (e) => {
   }).catch(() => caches.match(e.request).then((r) => r || caches.match("/app/"))));
 });
 
+self.addEventListener("message", (e) => {
+  if (e.data && e.data.tipo === "probar-sonido") self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => cs.forEach((c) => c.postMessage({ tipo: "probar-sonido", sonido: e.data.sonido })));
+});
+
 self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Mi Agenda", cuerpo: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.titulo || "Mi Agenda Personal", {
-    body: d.cuerpo || "", icon: "/app/icon-192.png", badge: "/app/icon-192.png", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
+  e.waitUntil((async () => { const cs = await self.clients.matchAll({ type: "window", includeUncontrolled: true }); cs.forEach((c) => c.postMessage({ tipo: "push-sonido", sonido: d.sonido || "signature" })); await self.registration.showNotification(d.titulo || "Mi Agenda Personal", {
+    body: d.cuerpo || "", icon: d.modo === "oscuro" ? "/app/icon-oscuro.webp" : "/app/icon-claro.webp", badge: "/app/icon-claro.webp", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
     actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
-    data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
-  }));
+    data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "", sonido: d.sonido || "signature" },
+  })); })());
 });
 
 self.addEventListener("notificationclick", (e) => {
