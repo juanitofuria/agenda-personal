@@ -1,6 +1,7 @@
 name: Desplegar en Cloudflare
 
 # Cada vez que se sube un cambio al bot (código del Worker o lógica común) se prueba y se despliega solo.
+# El despliegue se ejecuta también con cambios de este workflow.
 on:
   push:
     branches: [main, claude/android-notifications-app-pxj3sn]
