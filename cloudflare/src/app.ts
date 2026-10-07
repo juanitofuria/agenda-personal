@@ -168,7 +168,8 @@ export async function manejarFetch(req: Request, env: Env, ctx?: Ctx, fabrica: F
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env, url.pathname, fabrica);
   if (url.pathname === "/api/lista") return manejarListaCompartida(req, env, fabrica);
   if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env, url, fabrica);
-  if (url.pathname !== "/telegram") return new Response(url.pathname === "/" ? "agenda-personal" : "not found", { status: url.pathname === "/" ? 200 : 404 });
+  if (url.pathname === "/") return Response.redirect(new URL("/agenda/", url), 302);
+  if (url.pathname !== "/telegram") return new Response("not found", { status: 404 });
   const cuerpo = await req.json().catch(() => null);
   const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? undefined;
   const valido = req.method === "POST" && iguales(cabeceraSecreta ?? "", env.TELEGRAM_WEBHOOK_SECRET);
