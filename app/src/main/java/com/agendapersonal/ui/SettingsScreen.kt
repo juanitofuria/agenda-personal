@@ -149,6 +149,39 @@ fun SettingsScreen(onRerunOnboarding: () -> Unit = {}) {
             )
         }
 
+        Group(Icons.Rounded.NotificationsActive, LocalAccents.current.markets, "Notificaciones", "Sonido, pantalla de bloqueo y canales") {
+            var selectedSound by remember { mutableStateOf(prefs.notificationSound) }
+            Text("Recordatorios, citas y avisos importantes pueden sonar y aparecer en la pantalla de bloqueo. Noticias, tiempo y horóscopo son silenciosos.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Sonido", style = MaterialTheme.typography.titleSmall)
+            Notifier.soundOptions().forEach { (key, label) ->
+                Row(
+                    Modifier.fillMaxWidth().clickable {
+                        selectedSound = key
+                        prefs.notificationSound = key
+                        Notifier.recreateSoundChannels(ctx)
+                    }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(selected = selectedSound == key, onClick = {
+                        selectedSound = key
+                        prefs.notificationSound = key
+                        Notifier.recreateSoundChannels(ctx)
+                    })
+                    Text(label)
+                    if (key == "signature") Text("  ·  recomendado", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            OutlinedButton(onClick = {
+                if (Build.VERSION.SDK_INT >= 26) ctx.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                    putExtra(Settings.EXTRA_CHANNEL_ID, Notifier.CH_REMINDERS)
+                })
+            }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Rounded.Settings, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
+                Text("Ajustar notificaciones del sistema")
+            }
+        }
+
         Group(Icons.Rounded.NotificationsActive, LocalAccents.current.markets, "Avisos y batería", "Para que lleguen siempre a su hora") {
             val exact = Scheduler.canScheduleExact(ctx)
             StatusRow(exact, "Alarmas exactas", if (exact) "Concedido" else "Sin conceder: los avisos pueden retrasarse")
