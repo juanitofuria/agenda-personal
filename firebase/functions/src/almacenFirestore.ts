@@ -10,7 +10,7 @@ export function usuarioDesdeDoc(id: string, d: Record<string, any>): Usuario {
   return {
     id, nombre: d.nombre ?? "", estilo: d.estilo === "formal" ? "formal" : "informal", modo: d.modo === "oscuro" || d.modo === "auto" ? d.modo : "claro", nacimiento: d.nacimiento ?? null, zona: d.zona ?? "Europe/Madrid", ciudad: d.ciudad ?? null,
     avatar: d.avatar && ["emoji", "telegram", "foto"].includes(d.avatar.tipo) ? d.avatar : null,
-    notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
+    notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", sonido: ["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(d.notificaciones?.sonido) ? d.notificaciones.sonido : "signature", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
     secciones: d.secciones ?? {}, temas: d.temas ?? [], estado: d.estado ?? null, onboardingHecho: !!d.onboardingHecho,
     activo: d.activo !== false, ultimoUpdate: d.ultimoUpdate ?? 0, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
