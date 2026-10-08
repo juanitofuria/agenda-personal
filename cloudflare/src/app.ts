@@ -11,7 +11,7 @@ import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/funct
 import { CanalTelegram } from "../../firebase/functions/src/telegram";
 import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
 import { manejarApi, manejarListaPublica, validarInitData } from "../../firebase/functions/src/miniapp";
-import { canjearAcceso, cerrarSesion, usuarioDeSesion } from "../../firebase/functions/src/sesiones";
+import { canjearAcceso, cerrarSesion, crearSesionAnonima, usuarioDeSesion } from "../../firebase/functions/src/sesiones";
 import { crearEmisorPush } from "../../firebase/functions/src/webpush";
 import { iguales, procesarWebhook } from "../../firebase/functions/src/webhook";
 
@@ -138,8 +138,13 @@ async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica
 
   // Cambiar el enlace de acceso (de un solo uso) por una sesión en este dispositivo: es la única ruta que no pide estar ya identificado.
   if (url.pathname === "/api/sesion") {
-    const r = await canjearAcceso(dep.almacen, String(cuerpo.codigo ?? ""), new Date());
-    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se usó o ha caducado. Pide otro con /app en el bot." });
+    const codigo = String(cuerpo.codigo ?? "");
+    if (!codigo) {
+      const r = await crearSesionAnonima(dep.almacen, new Date());
+      return json(200, { token: r.token });
+    }
+    const r = await canjearAcceso(dep.almacen, codigo, new Date());
+    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se usó o ha caducado." });
   }
 
   // Identificación: dentro de Telegram, con los datos firmados por Telegram; fuera, con la sesión de un dispositivo vinculado.
@@ -151,7 +156,7 @@ async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica
   if (url.pathname === "/api/salir") { if (token) await cerrarSesion(dep.almacen, token, new Date()); return json(200, { ok: true }); }
 
   const admin = dep.adminId;
-  if (admin && uid !== admin && !(await dep.almacen.getAcceso(uid))) return json(403, { error: "No tienes acceso al bot" });
+  if (admin && uid !== admin && !uid.startsWith("web-") && !(await dep.almacen.getAcceso(uid))) return json(403, { error: "No tienes acceso al bot" });
   const u = await dep.almacen.getUsuario(uid);
   if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
   try {
