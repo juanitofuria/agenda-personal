@@ -14,10 +14,12 @@ export function usuarioDesdeDoc(id: string, d: Record<string, any>): Usuario {
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
     salud: { peso: Array.isArray(d.salud?.peso) ? d.salud.peso : [], entrenamientos: Array.isArray(d.salud?.entrenamientos) ? d.salud.entrenamientos : [], planes: Array.isArray(d.salud?.planes) ? d.salud.planes : [] },
     economia: {
-      movimientos: Array.isArray(d.economia?.movimientos) ? d.economia.movimientos : [],
+      movimientos: Array.isArray(d.economia?.movimientos) ? d.economia.movimientos.map((m:any)=>({...m,grupo:m.grupo==="fijo"?"fijo":m.grupo==="ahorro"?"ahorro":m.grupo==="variable"?"variable":undefined})) : [],
       facturas: Array.isArray(d.economia?.facturas) ? d.economia.facturas : [],
       presupuestoMensual: d.economia?.presupuestoMensual === null || d.economia?.presupuestoMensual === undefined ? null : Number(d.economia.presupuestoMensual),
       objetivos: Array.isArray(d.economia?.objetivos) ? d.economia.objetivos : [],
+      porcentajes: d.economia?.porcentajes ?? undefined,
+      historial: Array.isArray(d.economia?.historial) ? d.economia.historial.slice(0,60) : [],
     },
     secciones: d.secciones ?? {}, temas: d.temas ?? [], estado: d.estado ?? null, onboardingHecho: !!d.onboardingHecho,
     activo: d.activo !== false, ultimoUpdate: d.ultimoUpdate ?? 0, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
