@@ -25,7 +25,7 @@ export function usuarioDesdeJson(id: string, d: Record<string, any>): Usuario {
     economia: {
       movimientos: Array.isArray(d.economia?.movimientos) ? d.economia.movimientos.map((x: any) => ({ id:String(x.id??""), tipo:x.tipo==="ingreso"?"ingreso":"gasto", concepto:String(x.concepto??"").slice(0,100), categoria:String(x.categoria??"Otros").slice(0,40), importe:Math.max(0,Number(x.importe)||0), fecha:String(x.fecha??"").slice(0,20), recurrente:!!x.recurrente })).filter((x:any)=>x.id&&x.concepto&&x.importe>0) : [],
       facturas: Array.isArray(d.economia?.facturas) ? d.economia.facturas.map((x:any)=>({id:String(x.id??""),concepto:String(x.concepto??"").slice(0,100),importe:Math.max(0,Number(x.importe)||0),vencimiento:String(x.vencimiento??"").slice(0,20),pagada:!!x.pagada})).filter((x:any)=>x.id&&x.concepto&&x.importe>0) : [],
-      presupuestoMensual: Number.isFinite(Number(d.economia?.presupuestoMensual)) && Number(d.economia?.presupuestoMensual)>=0 ? Number(d.economia.presupuestoMensual) : null,
+      presupuestoMensual: d.economia?.presupuestoMensual === null || d.economia?.presupuestoMensual === undefined ? null : (Number.isFinite(Number(d.economia.presupuestoMensual)) && Number(d.economia.presupuestoMensual)>=0 ? Number(d.economia.presupuestoMensual) : null),
       objetivos: Array.isArray(d.economia?.objetivos) ? d.economia.objetivos.map((x:any)=>({id:String(x.id??""),titulo:String(x.titulo??"").slice(0,100),importe:Math.max(0,Number(x.importe)||0),ahorrado:Math.max(0,Number(x.ahorrado)||0),fechaObjetivo:String(x.fechaObjetivo??"").slice(0,20)})).filter((x:any)=>x.id&&x.titulo&&x.importe>0) : [],
     },
     secciones: d.secciones ?? {}, temas: d.temas ?? [], estado: d.estado ?? null, onboardingHecho: !!d.onboardingHecho,
