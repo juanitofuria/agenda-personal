@@ -116,7 +116,15 @@ label{display:block;font-weight:800;font-size:12.5px;color:var(--suave);margin:1
 .aviso{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--tinta);color:var(--fondo);padding:11px 18px;border-radius:14px;font-weight:800;font-size:14px;z-index:20;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .fab{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 20px);width:58px;height:58px;border-radius:20px;border:0;color:#fff;background:linear-gradient(145deg,var(--azul2),var(--azul));box-shadow:0 10px 24px rgba(47,111,214,.45);display:grid;place-items:center;cursor:pointer}
 html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
-.fab svg{width:28px;height:28px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round}
+.fab svg{width:28px;height:28px;stroke:#fff;fill:none;stroke-width:2.6;stroke-linecap:round}.fab-global{z-index:9;width:62px;height:62px;border-radius:21px;right:18px;bottom:calc(env(safe-area-inset-bottom) + 20px)}
+.fab-global svg{width:31px;height:31px}
+.subtareas{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.subtarea{display:flex;align-items:center;gap:9px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:13px;padding:9px 10px}
+.subtarea .caja{width:25px;height:25px;border-radius:8px}
+.subtarea .texto{flex:1;font-weight:700;font-size:13.5px;min-width:0}
+.subtarea.hecha .texto{text-decoration:line-through;opacity:.55}
+.tarea-progreso{display:block;margin-top:4px;color:var(--suave);font-size:11.5px;font-weight:700}
+
 .doc{background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);padding:16px;box-shadow:var(--sombra);margin-bottom:12px;white-space:pre-wrap;word-break:break-word;font-size:14.5px;line-height:1.5;font-weight:600}
 .doc b,.doc strong{font-weight:800}.doc a{color:var(--azul);font-weight:800}.doc code,.doc pre{font-family:ui-monospace,monospace;font-size:13px;background:var(--linea);border-radius:6px;padding:1px 5px}
 .doc blockquote{margin:6px 0;padding-left:10px;border-left:3px solid var(--azul)}.doc .err{color:var(--rojo);font-weight:800}
@@ -608,7 +616,7 @@ const vistas = {
         ${tt("mensaje", n("mensaje", "programado", "programados", "Envíos en un toque"))}
         ${t("c5", "cesta", "Lista de la compra", cp ? `${cp} por comprar` : "Todo al día", "compra")}
       </div>
-      ${resumenFila}`;
+      ${resumenFila}<button class="fab fab-global" data-abrir-anadir="1" aria-label="Añadir">${ic("mas")}</button>`;
   },
   resumen() {
     const act = S.datos.secciones.filter((s) => s.activa && !s.oculta), hoy = new Map((S.datos.resumenHoy || []).map((r) => [r.ref, r]));
@@ -619,8 +627,17 @@ const vistas = {
   },
   tipo() {
     const k = S.tipo, info = TIPOS[k], todos = S.datos.eventos.filter((e) => e.tipo === k);
-    const fila = (e) => `<div class="fila ${e.hecho ? "hecho" : ""}"><div class="emo">${info.emoji}</div><div class="t" ${k === "nota" ? `data-nota="${e.id}" style="cursor:pointer"` : ""}><b>${esc(e.titulo)}</b><small>${k === "nota" ? esc((e.nota || "").replace(/\s+/g, " ").slice(0, 70)) : esc(e.texto)}${e.lugar ? " · " + esc(e.lugar) : ""}${e.repeticion !== "ninguna" ? " · 🔁" : ""}${e.mensaje ? ` · «${esc(e.mensaje.texto.slice(0, 40))}${e.mensaje.texto.length > 40 ? "…" : ""}»` : ""}</small></div>
-      <div class="acciones">${e.mensaje ? `<button class="btn chico" data-wa="${e.id}" style="background:#25a85a">💬</button>` : ""}${k === "nota" ? "" : `<button class="btn chico sec" data-hecho="${e.id}">${e.hecho ? "↩︎" : "✓"}</button>`}<button class="btn chico peligro" data-borrar="${e.id}">🗑</button></div></div>`;
+    const fila = (e) => {
+      const sub = k === "tarea" ? (e.subtareas || []) : [], hechasSub = sub.filter((x) => x.hecho).length;
+      const detalle = k === "nota" ? esc((e.nota || "").replace(/\s+/g, " ").slice(0, 70)) : esc(e.texto);
+      return `<div class="fila ${e.hecho ? "hecho" : ""}" ${k === "tarea" ? `data-tarea="${e.id}" style="cursor:pointer"` : ""}>
+        <div class="emo">${info.emoji}</div><div class="t" ${k === "nota" ? `data-nota="${e.id}" style="cursor:pointer"` : ""}>
+          <b>${esc(e.titulo)}</b><small>${detalle}${e.lugar ? " · " + esc(e.lugar) : ""}${e.repeticion !== "ninguna" ? " · 🔁" : ""}${e.mensaje ? ` · «${esc(e.mensaje.texto.slice(0, 40))}${e.mensaje.texto.length > 40 ? "…" : ""}»` : ""}</small>
+          ${k === "tarea" && sub.length ? `<span class="tarea-progreso">${hechasSub}/${sub.length} subtareas completadas</span>` : ""}
+        </div>
+        <div class="acciones">${e.mensaje ? `<button class="btn chico" data-wa="${e.id}" style="background:#25a85a">💬</button>` : ""}${k === "nota" ? "" : `<button class="btn chico sec" data-hecho="${e.id}">${e.hecho ? "↩︎" : "✓"}</button>`}<button class="btn chico peligro" data-borrar="${e.id}">🗑</button></div>
+      </div>`;
+    };
     const pend = k === "tarea" ? todos.filter((e) => !e.hecho) : todos, hechas = k === "tarea" ? todos.filter((e) => e.hecho) : [];
     return `${barra(info.titulo)}
       <div class="lista">${pend.length ? pend.map(fila).join("") : `<div class="vacio">${info.vacio}<br>Pulsa + para crear una.</div>`}</div>
@@ -722,6 +739,65 @@ function pintar() {
   $("#app").innerHTML = vistas[S.vista]();
   botonAtras();
   if (S.vista === "ver") ponerFoto();
+}
+
+function hojaAnadir() {
+  const h = document.createElement("div"); h.className = "hoja";
+  const opcion = (tipo, emoji, titulo, desc) => `<button class="fila pulsable" data-anadir-tipo="${tipo}" style="text-align:left"><div class="emo">${emoji}</div><div class="t"><b>${titulo}</b><small>${desc}</small></div><svg class="ch"><use href="#i-mas-der"/></svg></button>`;
+  h.innerHTML = `<div><h3>＋ Añadir</h3><p class="nota">Elige qué quieres crear. Se abrirá directamente el formulario correspondiente.</p>
+    <div class="lista">
+      ${opcion("tarea","✅","Tarea pendiente","Una tarea con subtareas si las necesitas")}
+      ${opcion("cita","📅","Cita","Fecha, hora, lugar y aviso")}
+      ${opcion("alarma","⏰","Alarma","Un recordatorio a una hora concreta")}
+      ${opcion("nota","📝","Nota","Un apunte o texto para recordar")}
+      ${opcion("mensaje","💬","Mensaje de WhatsApp","Programa un mensaje para enviarlo más tarde")}
+      ${opcion("compra","🛒","Lista de la compra","Añadir uno o varios artículos")}
+    </div>
+    <button class="btn sec ancho" data-cerrar-anadir="1">Cancelar</button></div>`;
+  document.body.appendChild(h);
+  h.addEventListener("click", (e) => {
+    if (e.target === h || e.target.closest("[data-cerrar-anadir]")) return h.remove();
+    const o = e.target.closest("[data-anadir-tipo]");
+    if (!o) return;
+    const tipo = o.dataset.anadirTipo;
+    h.remove();
+    if (tipo === "compra") { irDirecto("compra"); setTimeout(() => $("#nuevo-art")?.focus(), 50); return; }
+    hojaNuevo(tipo);
+  });
+}
+function hojaTarea(e) {
+  if (!e || e.tipo !== "tarea") return;
+  const h = document.createElement("div"); h.className = "hoja";
+  let subs = [...(e.subtareas || [])];
+  const pintar = () => {
+    const hechas = subs.filter((x) => x.hecho).length;
+    h.querySelector("#tarea-detalle").innerHTML = `<div class="doc"><b>Progreso</b><small class="tarea-progreso">${hechas}/${subs.length} subtareas completadas</small></div>
+      <div class="subtareas">${subs.map((x) => `<div class="subtarea ${x.hecho ? "hecha" : ""}"><button class="caja ${x.hecho ? "on" : ""}" data-sub-hecha="${x.id}">${x.hecho ? "✓" : ""}</button><span class="texto">${esc(x.titulo)}</span><button class="btn chico peligro" data-sub-borrar="${x.id}">✕</button></div>`).join("") || '<div class="vacio">Todavía no hay subtareas.</div>'}</div>
+      <div class="anadir" style="margin-top:12px"><input type="text" id="nueva-subtarea" maxlength="120" placeholder="Añadir subtarea"><button class="btn" data-sub-anadir="1">＋</button></div>`;
+  };
+  h.innerHTML = `<div><h3>✅ ${esc(e.titulo)}</h3><p class="nota">Añade los pasos o partes de esta tarea. Por ejemplo: <b>Trabajo de matemáticas</b> → problemas, ejercicios, entregar.</p><div id="tarea-detalle"></div><button class="btn sec ancho" data-cerrar-tarea="1">Cerrar</button></div>`;
+  document.body.appendChild(h); pintar();
+  h.addEventListener("click", async (ev) => {
+    if (ev.target === h || ev.target.closest("[data-cerrar-tarea]")) return h.remove();
+    const id = ev.target.closest("[data-sub-hecha]")?.dataset.subHecha;
+    if (id) {
+      const r = await hacer(() => api("/api/evento/accion", { id:e.id, accion:"subtarea_hecha", subtareaId:id }));
+      if (r !== false) { const x=subs.find(s=>s.id===id); if(x) x.hecho=!x.hecho; pintar(); }
+      return;
+    }
+    const borrar = ev.target.closest("[data-sub-borrar]")?.dataset.subBorrar;
+    if (borrar) {
+      if (!confirm("¿Eliminar esta subtarea?")) return;
+      const r = await hacer(() => api("/api/evento/accion", { id:e.id, accion:"subtarea_borrar", subtareaId:borrar }), "🗑 Subtarea eliminada");
+      if (r !== false) { subs=subs.filter(s=>s.id!==borrar); pintar(); }
+      return;
+    }
+    if (ev.target.closest("[data-sub-anadir]")) {
+      const input=$("#nueva-subtarea",h), titulo=input?.value.trim(); if(!titulo) return;
+      const r = await hacer(() => api("/api/evento/accion", { id:e.id, accion:"subtarea_anadir", titulo }), "✅ Subtarea añadida");
+      if (r !== false) { subs.push(r.subtarea); input.value=""; pintar(); setTimeout(()=>input.focus(),20); }
+    }
+  });
 }
 
 /* ---------- Formulario de evento ---------- */
@@ -1147,7 +1223,9 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-temadel]"))) { if (!confirm("¿Eliminar este tema?")) return; return hacer(() => api("/api/tema", { borrar: el.dataset.temadel }), "🗑 Eliminado"); }
   if (q("[data-perfil]")) return hacer(() => api("/api/perfil", { nombre: $("#nombre").value, nacimiento: $("#nac").value }), "✅ Guardado");
   if ((el = q("[data-enviar]"))) { const b = el; b.disabled = true; await hacer(async () => { await api("/api/enviar", { ref: b.dataset.enviar }); }, "📨 Enviado al chat"); return; }
-  if ((el = q("[data-hecho]"))) return hacer(() => api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }));
+  if (q("[data-abrir-anadir]")) return hojaAnadir();
+  if ((el = q("[data-tarea]"))) { const e = S.datos.eventos.find((x) => x.id === el.dataset.tarea); if (e) return hojaTarea(e); }
+  if ((el = q("[data-hecho]"))) return hacer(async () => { const r = await api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }); const x=S.datos.eventos.find((v)=>v.id===el.dataset.hecho); if(x&&r.evento) Object.assign(x,r.evento); return r; });
   if ((el = q("[data-borrar]"))) { if (!confirm("¿Eliminar?")) return; return hacer(() => api("/api/evento/accion", { id: el.dataset.borrar, accion: "borrar" }), "🗑 Eliminado"); }
   if ((el = q("[data-nuevo]"))) return hojaNuevo(el.dataset.nuevo && TIPOS[el.dataset.nuevo] ? el.dataset.nuevo : "alarma");
   if ((el = q("[data-secdel]"))) {
