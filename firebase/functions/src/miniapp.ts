@@ -52,6 +52,7 @@ const eventoJson = (e: Evento, u: Usuario, ahora: Date) => ({
   id: e.id, tipo: e.tipo, titulo: e.titulo, lugar: e.lugar, hecho: e.hecho, repeticion: e.repeticion, antelacionMin: e.antelacionMin,
   ...(e.mensaje ? { mensaje: e.mensaje, enlaceWa: enlaceWhatsApp(e.mensaje) } : {}),
   ...(e.nota ? { nota: e.nota } : {}),
+  ...(e.subtareas ? { subtareas: e.subtareas } : {}),
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null, texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha",
 });
 
@@ -209,7 +210,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       if (fecha && fecha.getTime() <= ahora.getTime() - 60_000) return error(400, "Esa fecha ya ha pasado");
       let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
       if (fecha && ant > 0 && fecha.getTime() - ant * 60_000 <= ahora.getTime()) ant = 0;
-      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? (c.repeticion as Repeticion) : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...(mensaje ? { mensaje } : {}), ...(nota ? { nota } : {}) } satisfies Omit<Evento, "id">;
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? (c.repeticion as Repeticion) : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...(mensaje ? { mensaje } : {}), ...(nota ? { nota } : {}), ...(tipo === "tarea" ? { subtareas: [] } : {}) } satisfies Omit<Evento, "id">;
       let ev = await deps.almacen.guardarEvento(base);
       ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
       await deps.almacen.guardarEvento(ev);
@@ -219,6 +220,28 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
     case "/api/evento/accion": {
       const ev = await deps.almacen.getEvento(u.id, String(c.id ?? ""));
       if (!ev) return error(404, "Ese evento ya no existe");
+      if (ev.tipo === "tarea" && ["subtarea_anadir", "subtarea_hecha", "subtarea_borrar"].includes(String(c.accion))) {
+        const subs = [...(ev.subtareas ?? [])];
+        if (c.accion === "subtarea_anadir") {
+          const titulo = String(c.titulo ?? "").trim().slice(0, 120);
+          if (!titulo) return error(400, "Escribe la subtarea");
+          if (subs.length >= 50) return error(409, "Esta tarea ya tiene demasiadas subtareas");
+          const subtarea: Subtarea = { id: crypto.randomUUID().replace(/-/g, "").slice(0, 12), titulo, hecho: false };
+          subs.push(subtarea);
+          const nuevo = { ...ev, subtareas: subs };
+          await deps.almacen.guardarEvento(nuevo);
+          return ok({ subtarea, evento: eventoJson(nuevo, u, ahora) });
+        }
+        const sid = String(c.subtareaId ?? "");
+        const pos = subs.findIndex((x) => x.id === sid);
+        if (pos < 0) return error(404, "Esa subtarea ya no existe");
+        if (c.accion === "subtarea_hecha") subs[pos] = { ...subs[pos], hecho: !subs[pos].hecho };
+        else subs.splice(pos, 1);
+        const nuevo = { ...ev, subtareas: subs };
+        await deps.almacen.guardarEvento(nuevo);
+        return ok({ evento: eventoJson(nuevo, u, ahora) });
+      }
+
       if (c.accion === "borrar") { await cancelarEvento(deps.almacen, u.id, ev.id); return ok(); }
       if (c.accion === "hecho") {
         const nuevo = { ...ev, hecho: !ev.hecho };
