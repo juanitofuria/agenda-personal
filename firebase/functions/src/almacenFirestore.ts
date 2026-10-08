@@ -12,6 +12,7 @@ export function usuarioDesdeDoc(id: string, d: Record<string, any>): Usuario {
     avatar: d.avatar && ["emoji", "telegram", "foto"].includes(d.avatar.tipo) ? d.avatar : null,
     notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", sonido: ["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(d.notificaciones?.sonido) ? d.notificaciones.sonido : "signature", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
+    salud: { peso: Array.isArray(d.salud?.peso) ? d.salud.peso : [], entrenamientos: Array.isArray(d.salud?.entrenamientos) ? d.salud.entrenamientos : [], planes: Array.isArray(d.salud?.planes) ? d.salud.planes : [] },
     economia: {
       movimientos: Array.isArray(d.economia?.movimientos) ? d.economia.movimientos : [],
       facturas: Array.isArray(d.economia?.facturas) ? d.economia.facturas : [],
