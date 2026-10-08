@@ -4,7 +4,7 @@ import { Deps } from "./bot/ctx";
 import { contenidoDeSeccion } from "./bot/bot";
 import { buscarLugares } from "./geocoding";
 import { formatearFechaHora, localAUtc, Repeticion } from "./fechas";
-import { ConfigSeccion, Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario, Subtarea } from "./modelo";
+import { ConfigSeccion, Economia, Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario, Subtarea } from "./modelo";
 import { slug } from "./bot/catalogo";
 import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "./avatares";
 import { Teclado } from "./canal";
@@ -47,6 +47,8 @@ const error = (estado: number, mensaje: string): RespuestaApi => ({ estado, cuer
 
 const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea", "mensaje", "nota"];
 const REPS: Repeticion[] = ["ninguna", "diaria", "semanal", "laborables", "anual"];
+const economiaNormalizada = (u: Usuario): Economia => u.economia ?? { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] };
+const idEconomia = () => crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
 const eventoJson = (e: Evento, u: Usuario, ahora: Date) => ({
   id: e.id, tipo: e.tipo, titulo: e.titulo, lugar: e.lugar, hecho: e.hecho, repeticion: e.repeticion, antelacionMin: e.antelacionMin,
@@ -68,6 +70,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
     usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
     avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
     notificaciones: { canal: u.notificaciones.canal, sonido: u.notificaciones.sonido, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    economia: economiaNormalizada(u),
     resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => { const info = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref as SeccionId]; return { ref: r.ref, emoji: info?.emoji ?? "📬", titulo: info?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa }; }),
     compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
@@ -187,6 +190,30 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       await deps.almacen.guardarUsuario(u);
       await programarSeccion(deps.almacen, u, ref, ahora);
       return ok();
+    }
+
+    case "/api/economia": {
+      const ec = economiaNormalizada(u);
+      if (c.accion === "movimiento") {
+        const tipo = c.tipo === "ingreso" ? "ingreso" : c.tipo === "gasto" ? "gasto" : "";
+        const importe = Number(c.importe), concepto = String(c.concepto ?? "").trim().slice(0,100);
+        if (!tipo || !concepto || !Number.isFinite(importe) || importe <= 0) return error(400, "Indica concepto, tipo e importe válido");
+        ec.movimientos.unshift({id:idEconomia(),tipo,concepto,categoria:String(c.categoria??"Otros").trim().slice(0,40)||"Otros",importe:Math.round(importe*100)/100,fecha:/^\d{4}-\d{2}-\d{2}$/.test(String(c.fecha))?String(c.fecha):ahora.toISOString().slice(0,10),recurrente:!!c.recurrente});
+        ec.movimientos=ec.movimientos.slice(0,1000);
+      } else if(c.accion==="factura") {
+        const importe=Number(c.importe),concepto=String(c.concepto??"").trim().slice(0,100),vencimiento=String(c.vencimiento??"");
+        if(!concepto||!Number.isFinite(importe)||importe<=0||!/^\d{4}-\d{2}-\d{2}$/.test(vencimiento)) return error(400,"Completa concepto, importe y vencimiento");
+        ec.facturas.unshift({id:idEconomia(),concepto,importe:Math.round(importe*100)/100,vencimiento,pagada:false}); ec.facturas=ec.facturas.slice(0,200);
+      } else if(c.accion==="factura_pagar") {
+        const f=ec.facturas.find(x=>x.id===String(c.id)); if(!f)return error(404,"Factura no encontrada");
+        if(!f.pagada){f.pagada=true;ec.movimientos.unshift({id:idEconomia(),tipo:"gasto",concepto:f.concepto,categoria:"Facturas",importe:f.importe,fecha:ahora.toISOString().slice(0,10)});}
+      } else if(c.accion==="factura_borrar") ec.facturas=ec.facturas.filter(x=>x.id!==String(c.id));
+      else if(c.accion==="presupuesto"){const n=Number(c.importe);if(!Number.isFinite(n)||n<0)return error(400,"Presupuesto no válido");ec.presupuestoMensual=Math.round(n*100)/100;}
+      else if(c.accion==="objetivo"){const titulo=String(c.titulo??"").trim().slice(0,100),importe=Number(c.importe),fechaObjetivo=String(c.fechaObjetivo??"");if(!titulo||!Number.isFinite(importe)||importe<=0||!/^\d{4}-\d{2}-\d{2}$/.test(fechaObjetivo))return error(400,"Completa objetivo, importe y fecha");ec.objetivos.unshift({id:idEconomia(),titulo,importe:Math.round(importe*100)/100,ahorrado:0,fechaObjetivo});ec.objetivos=ec.objetivos.slice(0,30);}
+      else if(c.accion==="objetivo_aportar"){const o=ec.objetivos.find(x=>x.id===String(c.id)),n=Number(c.importe);if(!o||!Number.isFinite(n)||n<=0)return error(400,"Aportación no válida");o.ahorrado=Math.min(o.importe,Math.round((o.ahorrado+n)*100)/100);}
+      else if(c.accion==="objetivo_borrar") ec.objetivos=ec.objetivos.filter(x=>x.id!==String(c.id));
+      else return error(400,"Acción económica desconocida");
+      u.economia=ec;await deps.almacen.guardarUsuario(u);return ok({economia:ec});
     }
 
     case "/api/evento": {

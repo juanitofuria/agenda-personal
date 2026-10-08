@@ -35,6 +35,11 @@ export type Modo = "claro" | "oscuro" | "auto";
 export interface ArticuloCompra { id: string; texto: string; hecho: boolean }
 export interface CompraTerminada { id: string; fecha: string /* ISO */; items: string[] }
 export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTerminada[]; /** Código del enlace compartido de la lista actual (null si no se ha compartido). */ token?: string | null }
+export type TipoMovimiento = "ingreso" | "gasto";
+export interface MovimientoEconomico { id: string; tipo: TipoMovimiento; concepto: string; categoria: string; importe: number; fecha: string; recurrente?: boolean }
+export interface FacturaEconomica { id: string; concepto: string; importe: number; vencimiento: string; pagada: boolean }
+export interface ObjetivoEconomico { id: string; titulo: string; importe: number; ahorrado: number; fechaObjetivo: string }
+export interface Economia { movimientos: MovimientoEconomico[]; facturas: FacturaEconomica[]; presupuestoMensual: number | null; objetivos: ObjetivoEconomico[] }
 
 /** Imagen del usuario: un avatar (emoji sobre un fondo de color), su foto de Telegram o una foto subida (se guarda aparte). Sin elegir: burbuja con su inicial. */
 export type Avatar = { tipo: "emoji"; emoji: string; color: number } | { tipo: "telegram" } | { tipo: "foto" };
@@ -55,6 +60,7 @@ export interface Usuario {
   zona: string;               // zona horaria IANA
   ciudad: Ciudad | null;
   compra: ListaCompra;
+  economia: Economia;
   avatar: Avatar | null;
   notificaciones: AjustesAvisos;
   secciones: Record<SeccionId, ConfigSeccion>;
@@ -122,7 +128,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, avatar: null, notificaciones: { canal: "telegram", sonido: "signature", suscripciones: [] }, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, economia: { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] }, avatar: null, notificaciones: { canal: "telegram", sonido: "signature", suscripciones: [] }, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }
