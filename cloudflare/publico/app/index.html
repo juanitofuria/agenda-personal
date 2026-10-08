@@ -137,6 +137,7 @@ html[data-estilo=formal] .c7{--acento:#128c4a}
 .etq{margin:18px 4px 8px;font:800 12.5px var(--fuente);color:var(--suave);text-transform:uppercase;letter-spacing:.8px}
 .pulsable{width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
 .pulsable .ch{width:18px;height:18px;flex:none;fill:none;stroke:var(--suave);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.resumen-diario{position:relative;min-height:68px}.resumen-diario .resumen-refresco{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:9px;background:color-mix(in srgb,var(--azul) 10%,transparent);color:var(--azul);display:grid;place-items:center;font-size:18px;font-weight:800}.resumen-diario:active .resumen-refresco{transform:translateY(-50%) rotate(90deg)}
 .rcard{display:flex;gap:12px;align-items:flex-start;background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);padding:12px 14px;box-shadow:var(--sombra);margin-bottom:10px;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
 .rcard .t{flex:1;min-width:0}.rcard b{font:800 15px var(--titulo)}.rcard small{color:var(--suave);font-weight:700;font-size:12px;margin-left:6px}
 .rcard p{margin:3px 0 0;font-size:13px;line-height:1.35;color:var(--suave);font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -529,6 +530,38 @@ async function ponerFoto() {
   try { url = (await api("/api/foto")).foto || ""; if (url) { try { localStorage.setItem(clave, url); } catch (e) {} poner(url); } } catch (e) { /* se queda la ilustración */ }
 }
 
+async function hojaResumenDiario() {
+  const h=document.createElement("div"); h.className="hoja";
+  h.innerHTML=`<div><div class="barra"><button class="atras" data-cerrar-resumen aria-label="Cerrar"><svg><use href="#i-atras"/></svg></button><h2 style="margin:0;font:800 19px var(--titulo);flex:1">Resumen de hoy</h2><button class="atras" data-actualizar-resumen aria-label="Actualizar">↻</button></div><div id="resumen-diario-contenido"><div class="doc"><div class="esq"></div><div class="esq" style="width:85%"></div><div class="esq" style="width:70%"></div><div class="esq"></div></div></div></div>`;
+  document.body.appendChild(h);
+  const contenido=h.querySelector("#resumen-diario-contenido");
+  const cargarResumen=async()=>{
+    const btn=h.querySelector("[data-actualizar-resumen]");
+    if(btn){btn.disabled=true;btn.textContent="…";}
+    try{
+      const refs=S.datos.secciones.filter((x)=>x.activa&&!x.oculta).map((x)=>x.ref);
+      const r=await api("/api/ver",{ref:"todo",refs});
+      const secciones=r.secciones||[];
+      const botones=(x)=>x.botones&&x.botones.length?`<div class="botones">${x.botones.map((b)=>`<button class="btn chico sec" ${b.url?`data-url="${esc(b.url)}"`:b.ref?`data-ver="${esc(b.ref)}"`:`data-ir="${esc(IR[b.ir]||b.ir)}"`}>${esc(b.texto)}</button>`).join("")}</div>`:"";
+      const pie=(x)=>x.hora?`<div class="pie-ver"><small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small></div>`:"";
+      contenido.innerHTML=secciones.length?secciones.map((x)=>x.error
+        ?`<div class="doc"><span class="err">No he podido preparar esta sección.</span><br>${esc(x.error)}</div>`
+        :x.tiempo?panelTiempoHTML(x.tiempo)
+        :x.grupos&&x.grupos.length?`${noticiasHTML(x.grupos)}${botones(x)}${pie(x)}`
+        :`<div class="doc">${limpiar(x.html)}${botones(x)}</div>${pie(x)}`).join("")
+        :`<div class="vacio">Aún no hay secciones activadas para el resumen de hoy.</div>`;
+    }catch(e){contenido.innerHTML=`<div class="doc"><span class="err">No he podido cargar el resumen.</span><br>${esc(e.message)}</div>`;}
+    finally{if(btn){btn.disabled=false;btn.textContent="↻";}}
+  };
+  h.addEventListener("click",(e)=>{
+    if(e.target.closest("[data-cerrar-resumen]")||e.target===h)return h.remove();
+    if(e.target.closest("[data-actualizar-resumen]"))return cargarResumen();
+    const el=e.target.closest("[data-ver]");
+    if(el)return abrirVer(el.dataset.ver,undefined,el.dataset.g==="1");
+  });
+  await cargarResumen();
+}
+
 const vistas = {
   inicio() {
     const ev = S.datos.eventos, cuenta = (t) => ev.filter((e) => e.tipo === t && !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
@@ -536,10 +569,11 @@ const vistas = {
     const tt = (k, d) => t(TIPOS[k].color, TIPOS[k].icono, TIPOS[k].titulo, d, "tipo", "", `data-tipo="${k}"`);
     const n = (k, uno, varios, vacio) => { const c = cuenta(k); return c ? `${c} ${c === 1 ? uno : varios}` : vacio; };
     const hoy = S.datos.resumenHoy || [];
-    const resumen = hoy.length
-      ? hoy.map((r) => `<button class="rcard" data-ver="${esc(r.ref)}" data-g="1"><div class="emo">${r.emoji}</div><div class="t"><b>${esc(r.titulo)}</b><small>${esc(r.hora)}</small><p>${esc(r.previa)}</p></div></button>`).join("")
-      : `<div class="doc" style="white-space:normal">Aún no has pedido ningún resumen hoy.<div class="botones"><button class="btn chico" data-ir="resumen">📋 Pedir un resumen</button></div></div>`;
-    const otro = hoy.length ? `<button class="btn sec ancho" data-actualizar-resumen="1" style="margin-top:0">↻ Actualizar resumen</button>` : "";
+    const resumenFila = `<button class="fila pulsable resumen-diario" data-resumen-diario="1" style="margin-top:22px;padding-right:52px">
+      <div class="emo">📋</div>
+      <div class="t"><b>Ver tu resumen diario</b><small>${hoy.length ? `${hoy.length} ${hoy.length === 1 ? "sección disponible" : "secciones disponibles"} · toca para abrirlo` : "Toca para consultar tu resumen de hoy"}</small></div>
+      <span class="resumen-refresco" aria-hidden="true">↻</span>
+    </button>`;
     return `${cabecera()}${bannerApp()}
       <div class="rejilla" style="margin-top:16px">
         ${tt("alarma", n("alarma", "pendiente", "pendientes", "Avisos a su hora"))}
@@ -549,7 +583,7 @@ const vistas = {
         ${tt("mensaje", n("mensaje", "programado", "programados", "Envíos en un toque"))}
         ${t("c5", "cesta", "Lista de la compra", cp ? `${cp} por comprar` : "Todo al día", "compra")}
       </div>
-      <div class="etq" style="margin-top:22px">Tu resumen de hoy</div>${resumen}${otro}`;
+      ${resumenFila}`;
   },
   resumen() {
     const act = S.datos.secciones.filter((s) => s.activa && !s.oculta), hoy = new Map((S.datos.resumenHoy || []).map((r) => [r.ref, r]));
@@ -1048,6 +1082,7 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-ir]"))) return ir(el.dataset.ir, el.dataset.tipo);
   if (q("[data-a=volver]")) return atras();
   if ((el = q("[data-ver]"))) return abrirVer(el.dataset.ver, undefined, el.dataset.g === "1");
+  if (q("[data-resumen-diario]")) return hojaResumenDiario();
   if ((el = q("[data-actualizar-resumen]"))) {
     el.disabled = true; el.textContent = "Actualizando…";
     const refs = [...new Set([...S.datos.secciones.filter((s) => s.activa && !s.oculta).map((s) => s.ref), ...(S.datos.resumenHoy || []).map((r) => r.ref)])];
