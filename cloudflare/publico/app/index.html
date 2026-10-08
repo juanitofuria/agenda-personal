@@ -539,8 +539,7 @@ async function hojaResumenDiario() {
     const btn=h.querySelector("[data-actualizar-resumen]");
     if(btn){btn.disabled=true;btn.textContent="…";}
     try{
-      const refs=S.datos.secciones.filter((x)=>x.activa&&!x.oculta).map((x)=>x.ref);
-      const r=await api("/api/ver",{ref:"todo",refs});
+      const r=await api("/api/ver",{ref:"todo"});
       const secciones=r.secciones||[];
       const botones=(x)=>x.botones&&x.botones.length?`<div class="botones">${x.botones.map((b)=>`<button class="btn chico sec" ${b.url?`data-url="${esc(b.url)}"`:b.ref?`data-ver="${esc(b.ref)}"`:`data-ir="${esc(IR[b.ir]||b.ir)}"`}>${esc(b.texto)}</button>`).join("")}</div>`:"";
       const pie=(x)=>x.hora?`<div class="pie-ver"><small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small></div>`:"";
