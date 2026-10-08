@@ -1,6 +1,6 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
-const CACHE = "agenda-v6";
-const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261008", "/app/icon-claro.webp?v=20261008", "/app/icon-oscuro.webp?v=20261008"];
+const CACHE = "agenda-v7";
+const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261008", "/app/icon-claro.webp?v=20261008", "/app/icon-oscuro.webp?v=20261008", "/app/fondo-agenda.svg?v=20261008"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(BASICOS)).catch(() => {}).then(() => self.skipWaiting()));
