@@ -1,4 +1,5 @@
 import { Almacen } from "./almacen";
+import { usuarioNuevo } from "./modelo";
 
 /**
  * Entrar en la app desde fuera de Telegram (navegador, app instalada): el bot da un enlace de un solo uso (válido 10 minutos) que, al abrirlo,
@@ -38,6 +39,15 @@ export async function usuarioDeSesion(almacen: Almacen, token: string, ahora: Da
   const uid = await almacen.cacheGet(clave, ahora);
   if (uid && renovar) await almacen.cacheSet(clave, uid, VIGENCIA_SESION_MS, ahora);
   return uid || null;
+}
+
+/** Crea una sesión independiente para una instalación web que no viene de Telegram. Cada dispositivo obtiene su propio usuario. */
+export async function crearSesionAnonima(almacen: Almacen, ahora: Date): Promise<{ token: string; uid: string }> {
+  const uid = `web-${aleatorio(24)}`;
+  await almacen.guardarUsuario(usuarioNuevo(uid, "", ahora));
+  const token = aleatorio(40);
+  await almacen.cacheSet(await claveSesion(token), uid, VIGENCIA_SESION_MS, ahora);
+  return { token, uid };
 }
 
 export async function cerrarSesion(almacen: Almacen, token: string, ahora: Date): Promise<void> {
