@@ -100,9 +100,19 @@ label{display:block;font-weight:800;font-size:12.5px;color:var(--suave);margin:1
 .seg button{flex:1;border:0;background:transparent;padding:10px 6px;border-radius:11px;font-weight:800;font-size:13.5px;cursor:pointer;color:var(--suave)}
 .seg button.on{background:var(--tarjeta);color:var(--tinta);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .nota{font-size:12.5px;color:var(--suave);font-weight:600;margin:8px 4px}
-.hoja{position:fixed;inset:0;background:rgba(5,12,30,.55);display:flex;align-items:flex-end;z-index:10}
-.hoja>div{width:100%;max-width:560px;margin:0 auto;background-color:var(--fondo);background-image:linear-gradient(color-mix(in srgb,var(--fondo) 84%,transparent),color-mix(in srgb,var(--fondo) 84%,transparent)),url("fondo-agenda.svg?v=20261008");background-repeat:repeat;background-size:auto,320px 320px;border-radius:26px 26px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 20px);max-height:90vh;overflow:auto}
+.hoja{position:fixed;inset:0;background:rgba(5,12,30,.55);display:flex;align-items:stretch;z-index:10}
+.hoja>div{width:100%;max-width:720px;margin:0 auto;background-color:var(--fondo);background-image:linear-gradient(color-mix(in srgb,var(--fondo) 84%,transparent),color-mix(in srgb,var(--fondo) 84%,transparent)),url("fondo-agenda.svg?v=20261008");background-repeat:repeat;background-size:auto,320px 320px;border-radius:0;padding:18px 16px calc(env(safe-area-inset-bottom) + 20px);height:100%;max-height:none;overflow:auto}
 .hoja h3{margin:0 0 4px;font:800 19px var(--titulo)}
+.resumen-pantalla{max-width:900px!important;padding:14px 18px calc(env(safe-area-inset-bottom) + 24px)!important}
+.resumen-secciones{display:flex;flex-direction:column;gap:18px;padding-bottom:10px}
+.resumen-seccion{background:color-mix(in srgb,var(--tarjeta) 82%,transparent);border:1px solid var(--linea);border-radius:20px;padding:16px;box-shadow:var(--sombra)}
+.resumen-seccion>.resumen-seccion-cab{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--linea)}
+.resumen-seccion>.resumen-seccion-cab .emo{width:40px;height:40px;font-size:22px}
+.resumen-seccion>.resumen-seccion-cab b{font:800 17px var(--titulo)}
+.resumen-seccion>.resumen-seccion-cab small{display:block;color:var(--suave);font-size:11.5px;font-weight:700;margin-top:2px}
+.resumen-seccion .tm{gap:12px}
+.resumen-seccion .doc:last-child,.resumen-seccion .noticias:last-child{margin-bottom:0}
+.resumen-seccion .pie-ver{margin-bottom:0}
 .aviso{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%);background:var(--tinta);color:var(--fondo);padding:11px 18px;border-radius:14px;font-weight:800;font-size:14px;z-index:20;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .fab{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 20px);width:58px;height:58px;border-radius:20px;border:0;color:#fff;background:linear-gradient(145deg,var(--azul2),var(--azul));box-shadow:0 10px 24px rgba(47,111,214,.45);display:grid;place-items:center;cursor:pointer}
 html[data-estilo=formal] .fab{border-radius:14px;background:var(--azul)}
@@ -542,7 +552,7 @@ async function ponerFoto() {
 
 async function hojaResumenDiario() {
   const h=document.createElement("div"); h.className="hoja";
-  h.innerHTML=`<div><div class="barra"><button class="atras" data-cerrar-resumen aria-label="Cerrar"><svg><use href="#i-atras"/></svg></button><h2 style="margin:0;font:800 19px var(--titulo);flex:1">Resumen de hoy</h2><button class="atras" data-actualizar-resumen aria-label="Actualizar">↻</button></div><div id="resumen-diario-contenido"><div class="doc"><div class="esq"></div><div class="esq" style="width:85%"></div><div class="esq" style="width:70%"></div><div class="esq"></div></div></div></div>`;
+  h.innerHTML=`<div class="resumen-pantalla"><div class="barra"><button class="atras" data-cerrar-resumen aria-label="Cerrar"><svg><use href="#i-atras"/></svg></button><h2 style="margin:0;font:800 19px var(--titulo);flex:1">Resumen de hoy</h2><button class="atras" data-actualizar-resumen aria-label="Actualizar">↻</button></div><div id="resumen-diario-contenido"><div class="doc"><div class="esq"></div><div class="esq" style="width:85%"></div><div class="esq" style="width:70%"></div><div class="esq"></div></div></div></div>`;
   document.body.appendChild(h);
   const contenido=h.querySelector("#resumen-diario-contenido");
   const cargarResumen=async()=>{
@@ -553,11 +563,17 @@ async function hojaResumenDiario() {
       const secciones=r.secciones||[];
       const botones=(x)=>x.botones&&x.botones.length?`<div class="botones">${x.botones.map((b)=>`<button class="btn chico sec" ${b.url?`data-url="${esc(b.url)}"`:b.ref?`data-ver="${esc(b.ref)}"`:`data-ir="${esc(IR[b.ir]||b.ir)}"`}>${esc(b.texto)}</button>`).join("")}</div>`:"";
       const pie=(x)=>x.hora?`<div class="pie-ver"><small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small></div>`:"";
-      contenido.innerHTML=secciones.length?secciones.map((x)=>x.error
-        ?`<div class="doc"><span class="err">No he podido preparar esta sección.</span><br>${esc(x.error)}</div>`
-        :x.tiempo?panelTiempoHTML({ ...x.tiempo, ref:x.ref })
-        :x.grupos&&x.grupos.length?`${noticiasHTML(x.grupos)}${botones(x)}${pie(x)}`
-        :`<div class="doc">${limpiar(x.html)}${botones(x)}</div>${pie(x)}`).join("")
+      contenido.innerHTML=secciones.length?`<div class="resumen-secciones">${secciones.map((x)=>`
+        <section class="resumen-seccion">
+          <div class="resumen-seccion-cab"><div class="emo">${esc(x.emoji||"📋")}</div><div><b>${esc(x.titulo||x.ref||"Sección")}</b>${x.hora?`<small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small>`:""}</div></div>
+          ${x.error
+            ? `<div class="doc"><span class="err">No he podido preparar esta sección.</span><br>${esc(x.error)}</div>`
+            : x.tiempo
+              ? panelTiempoHTML({ ...x.tiempo, ref:x.ref })
+              : x.grupos&&x.grupos.length
+                ? `${noticiasHTML(x.grupos)}${botones(x)}`
+                : `<div class="doc">${limpiar(x.html)}${botones(x)}</div>`}
+        </section>`).join("")}</div>`
         :`<div class="vacio">Aún no hay secciones activadas para el resumen de hoy.</div>`;
     }catch(e){contenido.innerHTML=`<div class="doc"><span class="err">No he podido cargar el resumen.</span><br>${esc(e.message)}</div>`;}
     finally{if(btn){btn.disabled=false;btn.textContent="↻";}}
