@@ -133,7 +133,7 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, economia: { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] }, avatar: null, notificaciones: { canal: "telegram", sonido: "signature", suscripciones: [] }, secciones, temas: [], estado: null,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, economia: { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] }, salud: { peso: [], entrenamientos: [], planes: [] }, avatar: null, notificaciones: { canal: "telegram", sonido: "signature", suscripciones: [] }, secciones, temas: [], estado: null,
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }
