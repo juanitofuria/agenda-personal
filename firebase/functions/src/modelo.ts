@@ -132,3 +132,4 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
     onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
   };
 }
+
