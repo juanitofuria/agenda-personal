@@ -1227,7 +1227,10 @@ document.addEventListener("click", async (e) => {
   if ((el = q("[data-actualizar]"))) return abrirVer(el.dataset.actualizar, S.ver && S.ver.titulo, false);
   if (q("[data-ciudad]")) return hojaCiudad();
   if ((el = q("[data-nota]"))) return hojaNota(S.datos.eventos.find((x) => x.id === el.dataset.nota));
-  if (q("[data-health-peso]")) return hojaSaludPeso();\n  if (q("[data-health-ent]")) return hojaSaludEntrenamiento();\n  if (q("[data-health-plan]")) return hojaSaludPlan();\n  if (q("[data-econ-mov]")) return hojaEconomiaMovimiento(q("[data-econ-mov]").dataset.econMov);
+  if (q("[data-health-peso]")) return hojaSaludPeso();
+  if (q("[data-health-ent]")) return hojaSaludEntrenamiento();
+  if (q("[data-health-plan]")) return hojaSaludPlan();
+  if (q("[data-econ-mov]")) return hojaEconomiaMovimiento(q("[data-econ-mov]").dataset.econMov);
   if (q("[data-econ-factura]")) return hojaEconomiaFactura();
   if (q("[data-econ-objetivo]")) return hojaEconomiaObjetivo();
   if (q("[data-econ-presupuesto]")) return hojaEconomiaPresupuesto();
