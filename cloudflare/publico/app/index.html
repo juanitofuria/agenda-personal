@@ -365,7 +365,7 @@ async function api(ruta, cuerpo = {}, reintentar = true) {
 }
 async function cargar() { S.datos = await api("/api/estado"); aplicarTema(); if (S.vista === "dispositivos" && typeof refrescarDispositivos === "function") await refrescarDispositivos(); }
 function aviso(t) { const d = document.createElement("div"); d.className = "aviso"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
-async function hacer(f, ok) { try { await f(); if (ok) aviso(typeof ok === "function" ? ok() : ok); await cargar(); pintar(); } catch (e) { aviso(e.message); } }
+async function hacer(f, ok) { try { const r = await f(); if (ok) aviso(typeof ok === "function" ? ok(r) : ok); await cargar(); pintar(); return r; } catch (e) { aviso(e.message); return false; } }
 
 /* ---------- Contenido de Telegram → HTML seguro (solo etiquetas simples y enlaces https) ---------- */
 function limpiar(html) {
@@ -1224,9 +1224,9 @@ document.addEventListener("click", async (e) => {
   if (q("[data-perfil]")) return hacer(() => api("/api/perfil", { nombre: $("#nombre").value, nacimiento: $("#nac").value }), "✅ Guardado");
   if ((el = q("[data-enviar]"))) { const b = el; b.disabled = true; await hacer(async () => { await api("/api/enviar", { ref: b.dataset.enviar }); }, "📨 Enviado al chat"); return; }
   if (q("[data-abrir-anadir]")) return hojaAnadir();
-  if ((el = q("[data-tarea]"))) { const e = S.datos.eventos.find((x) => x.id === el.dataset.tarea); if (e) return hojaTarea(e); }
   if ((el = q("[data-hecho]"))) return hacer(async () => { const r = await api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }); const x=S.datos.eventos.find((v)=>v.id===el.dataset.hecho); if(x&&r.evento) Object.assign(x,r.evento); return r; });
   if ((el = q("[data-borrar]"))) { if (!confirm("¿Eliminar?")) return; return hacer(() => api("/api/evento/accion", { id: el.dataset.borrar, accion: "borrar" }), "🗑 Eliminado"); }
+  if ((el = q("[data-tarea]"))) { const e = S.datos.eventos.find((x) => x.id === el.dataset.tarea); if (e) return hojaTarea(e); }
   if ((el = q("[data-nuevo]"))) return hojaNuevo(el.dataset.nuevo && TIPOS[el.dataset.nuevo] ? el.dataset.nuevo : "alarma");
   if ((el = q("[data-secdel]"))) {
     const ref = el.dataset.secdel, s = S.datos.secciones.find((x) => x.ref === ref); if (!s) return;
