@@ -1,6 +1,6 @@
 import { Firestore, Timestamp } from "firebase-admin/firestore";
 import { Almacen } from "./almacen";
-import { Acceso, Evento, HoroscopoDoc, Invitacion, Programacion, Solicitud, Usuario } from "./modelo";
+import { Acceso, Economia, Evento, HoroscopoDoc, Invitacion, Programacion, Solicitud, Usuario } from "./modelo";
 import { Repeticion } from "./fechas";
 
 const aFecha = (v: unknown): Date | null => (v instanceof Timestamp ? v.toDate() : v instanceof Date ? v : null);
@@ -12,6 +12,12 @@ export function usuarioDesdeDoc(id: string, d: Record<string, any>): Usuario {
     avatar: d.avatar && ["emoji", "telegram", "foto"].includes(d.avatar.tipo) ? d.avatar : null,
     notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", sonido: ["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(d.notificaciones?.sonido) ? d.notificaciones.sonido : "signature", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
+    economia: {
+      movimientos: Array.isArray(d.economia?.movimientos) ? d.economia.movimientos : [],
+      facturas: Array.isArray(d.economia?.facturas) ? d.economia.facturas : [],
+      presupuestoMensual: d.economia?.presupuestoMensual === null || d.economia?.presupuestoMensual === undefined ? null : Number(d.economia.presupuestoMensual),
+      objetivos: Array.isArray(d.economia?.objetivos) ? d.economia.objetivos : [],
+    },
     secciones: d.secciones ?? {}, temas: d.temas ?? [], estado: d.estado ?? null, onboardingHecho: !!d.onboardingHecho,
     activo: d.activo !== false, ultimoUpdate: d.ultimoUpdate ?? 0, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
   };
