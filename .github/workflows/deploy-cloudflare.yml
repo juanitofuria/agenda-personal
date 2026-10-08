@@ -46,7 +46,7 @@ jobs:
           console.log("Comprobando", scripts.length, "bloques JavaScript");
           NODE
           for f in /tmp/agenda-web-*.js; do node --check "$f"; done
-          if grep -q 'S\\.ver\\.ref' publico/app/index.html; then echo "::error::El panel del tiempo depende de S.ver.ref"; exit 1; fi
+          if grep -q 'data-actualizar="\${esc(S.ver.ref)}"' publico/app/index.html; then echo "::error::El panel del tiempo depende de S.ver.ref"; exit 1; fi
       - name: Tests de la lógica común (bot, secciones, planificador)
         working-directory: firebase/functions
         run: |
