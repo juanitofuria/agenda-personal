@@ -36,10 +36,10 @@ export interface ArticuloCompra { id: string; texto: string; hecho: boolean }
 export interface CompraTerminada { id: string; fecha: string /* ISO */; items: string[] }
 export interface ListaCompra { items: ArticuloCompra[]; historial: CompraTerminada[]; /** Código del enlace compartido de la lista actual (null si no se ha compartido). */ token?: string | null }
 export type TipoMovimiento = "ingreso" | "gasto";
-export interface MovimientoEconomico { id: string; tipo: TipoMovimiento; concepto: string; categoria: string; importe: number; fecha: string; recurrente?: boolean }
+export interface MovimientoEconomico { id: string; tipo: TipoMovimiento; concepto: string; categoria: string; grupo?: "fijo" | "variable" | "ahorro"; importe: number; fecha: string; recurrente?: boolean }
 export interface FacturaEconomica { id: string; concepto: string; importe: number; vencimiento: string; pagada: boolean }
 export interface ObjetivoEconomico { id: string; titulo: string; importe: number; ahorrado: number; fechaObjetivo: string }
-export interface Economia { movimientos: MovimientoEconomico[]; facturas: FacturaEconomica[]; presupuestoMensual: number | null; objetivos: ObjetivoEconomico[] }
+export interface Economia { movimientos: MovimientoEconomico[]; facturas: FacturaEconomica[]; presupuestoMensual: number | null; objetivos: ObjetivoEconomico[]; porcentajes?: { fijo:number; variable:number; ahorro:number }; historial?: Array<{ mes:string; ingresos:number; gastos:number; saldo:number; gastosFijos:number; gastosVariables:number; objetivoAhorro:number; movimientos:MovimientoEconomico[] }> }
 export interface RegistroPeso { id:string; kg:number; fecha:string }
 export interface EntrenamientoSalud { id:string; titulo:string; tipo:string; duracion:number; fecha:string }
 export interface PlanSalud { id:string; titulo:string; dias:string; enfoque:string; detalle:string; inicio?:string; fin?:string; ejercicios?:string[] }
