@@ -40,7 +40,7 @@ jobs:
           node - <<'NODE'
           const fs = require("fs");
           const html = fs.readFileSync("publico/app/index.html", "utf8");
-          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)].map((m) => m[1]).filter((s) => s.trim());
+          const scripts = [...html.matchAll(/<script[^>]*>([\\s\\S]*?)<\\/script>/gi)].map((m) => m[1]).filter((s) => s.trim());
           if (!scripts.length) throw new Error("No se encontró JavaScript inline en index.html");
           for (let i = 0; i < scripts.length; i++) fs.writeFileSync("/tmp/agenda-web-" + i + ".js", scripts[i]);
           console.log("Comprobando", scripts.length, "bloques JavaScript");
