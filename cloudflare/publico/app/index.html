@@ -325,12 +325,22 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarT
 const enTelegram = () => !!(TG && TG.initData);
 const leerSesion = () => { try { return localStorage.getItem("sesion") || ""; } catch (e) { return ""; } };
 const guardarSesion = (t) => { try { t ? localStorage.setItem("sesion", t) : localStorage.removeItem("sesion"); } catch (e) {} };
-async function api(ruta, cuerpo = {}) {
+async async function api(ruta, cuerpo = {}, reintentar = true) {
   if (DEMO) return demo(ruta, cuerpo);
+  if (!enTelegram() && !leerSesion() && ruta !== "/api/sesion") {
+    const sr = await fetch("/api/sesion", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const sj = await sr.json().catch(() => ({}));
+    if (!sr.ok || !sj.token) throw new Error(sj.error || "No he podido iniciar tu agenda");
+    guardarSesion(sj.token);
+  }
   const cab = { "content-type": "application/json" };
   if (enTelegram()) cab.authorization = "tma " + TG.initData; else if (leerSesion()) cab.authorization = "sesion " + leerSesion();
   const r = await fetch(ruta, { method: "POST", headers: cab, body: JSON.stringify(cuerpo) });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && !enTelegram() && ruta !== "/api/sesion" && reintentar) {
+    guardarSesion("");
+    return api(ruta, cuerpo, false);
+  }
   if (r.status === 401 && !enTelegram() && ruta !== "/api/sesion") { guardarSesion(""); const e = new Error(j.error || "Tu sesión ha caducado"); e.sesion = true; throw e; }
   if (!r.ok) throw new Error(j.error || "Algo ha fallado");
   return j;
@@ -545,7 +555,7 @@ async function hojaResumenDiario() {
       const pie=(x)=>x.hora?`<div class="pie-ver"><small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small></div>`:"";
       contenido.innerHTML=secciones.length?secciones.map((x)=>x.error
         ?`<div class="doc"><span class="err">No he podido preparar esta sección.</span><br>${esc(x.error)}</div>`
-        :x.tiempo?panelTiempoHTML(x.tiempo)
+        :x.tiempo?panelTiempoHTML({ ...x.tiempo, ref:x.ref })
         :x.grupos&&x.grupos.length?`${noticiasHTML(x.grupos)}${botones(x)}${pie(x)}`
         :`<div class="doc">${limpiar(x.html)}${botones(x)}</div>${pie(x)}`).join("")
         :`<div class="vacio">Aún no hay secciones activadas para el resumen de hoy.</div>`;
