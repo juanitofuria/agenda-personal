@@ -4,7 +4,7 @@ import { Deps } from "./bot/ctx";
 import { contenidoDeSeccion } from "./bot/bot";
 import { buscarLugares } from "./geocoding";
 import { formatearFechaHora, localAUtc, Repeticion } from "./fechas";
-import { ConfigSeccion, Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario } from "./modelo";
+import { ConfigSeccion, Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario, Subtarea } from "./modelo";
 import { slug } from "./bot/catalogo";
 import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "./avatares";
 import { Teclado } from "./canal";
