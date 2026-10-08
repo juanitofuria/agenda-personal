@@ -471,7 +471,7 @@ function heroTiempo(t, titulo, sub, emoji, atras = true) {
   return `<div class="tm-hero ${atras ? "con-atras" : ""}">
     ${atras ? `<button class="tm-atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button>` : ""}
     <div class="tm-foto sin" data-foto="${esc(t.ciudad)}" aria-label="Foto de ${esc(t.ciudad)}"></div>
-    <div class="tm-act">🕒 Actualizado ${esc(t.actualizado)}<button data-actualizar="${esc(S.ver.ref)}" aria-label="Actualizar">↻</button></div>
+    <div class="tm-act">🕒 Actualizado ${esc(t.actualizado)}<button data-actualizar="${esc(t.ref || "")}" aria-label="Actualizar">↻</button></div>
     <div class="tm-tit"><div class="tm-ico">${emoji}</div><div><h1>${esc(titulo)}</h1><p>${esc(sub)}</p></div></div></div>`;
 }
 function panelTiempoHTML(t) {
@@ -645,7 +645,7 @@ const vistas = {
     const pie = (x) => x.hora ? `<div class="pie-ver"><small>${x.guardado ? "Pedido" : "Actualizado"} hoy a las ${esc(x.hora)}</small><button class="btn chico sec" data-actualizar="${esc(x.ref)}">↻ Actualizar</button></div>` : "";
     const cuerpo = !v.secciones ? `<div class="doc"><div class="esq"></div><div class="esq" style="width:85%"></div><div class="esq" style="width:70%"></div><div class="esq"></div></div>`
       : v.secciones.map((x) => x.error ? `<div class="doc"><span class="err">No he podido preparar esta sección.</span><br>${esc(x.error)}<div class="botones"><button class="btn chico" data-ver="${esc(x.ref)}">↻ Reintentar</button></div></div>`
-        : x.tiempo ? panelTiempoHTML(x.tiempo)
+        : x.tiempo ? panelTiempoHTML({ ...x.tiempo, ref: x.ref })
         : x.grupos && x.grupos.length ? `${noticiasHTML(x.grupos)}${botones(x)}${pie(x)}`
         : `<div class="doc">${limpiar(x.html)}${botones(x)}</div>${pie(x)}`).join("");
     const conPanel = v.secciones && v.secciones.length === 1 && v.secciones[0].tiempo;

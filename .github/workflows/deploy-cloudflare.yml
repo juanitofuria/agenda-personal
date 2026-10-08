@@ -35,6 +35,18 @@ jobs:
       - run: npm ci
       - name: Tests del Worker
         run: npm test
+      - name: Comprobar JavaScript de la webapp
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const html = fs.readFileSync("publico/app/index.html", "utf8");
+          const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)].map((m) => m[1]).filter((s) => s.trim());
+          if (!scripts.length) throw new Error("No se encontró JavaScript inline en index.html");
+          for (let i = 0; i < scripts.length; i++) fs.writeFileSync("/tmp/agenda-web-" + i + ".js", scripts[i]);
+          console.log("Comprobando", scripts.length, "bloques JavaScript");
+          NODE
+          for f in /tmp/agenda-web-*.js; do node --check "$f"; done
+          if grep -q 'S\\.ver\\.ref' publico/app/index.html; then echo "::error::El panel del tiempo depende de S.ver.ref"; exit 1; fi
       - name: Tests de la lógica común (bot, secciones, planificador)
         working-directory: firebase/functions
         run: |
