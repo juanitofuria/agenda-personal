@@ -33,6 +33,7 @@ export function eventoDesdeJson(uid: string, id: string, d: Record<string, any>)
     antelacionMin: d.antelacionMin ?? 0, repeticion: (d.repeticion ?? "ninguna") as Repeticion, avisado: !!d.avisado,
     hecho: !!d.hecho, creadoEn: aFecha(d.creadoEn) ?? new Date(0),
     ...(typeof d.nota === "string" && d.nota ? { nota: d.nota } : {}),
+    ...(Array.isArray(d.subtareas) ? { subtareas: d.subtareas.map((x: any) => ({ id: String(x.id ?? ""), titulo: String(x.titulo ?? "").slice(0, 120), hecho: !!x.hecho })).filter((x: any) => x.id && x.titulo) } : {}),
     ...(d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}),
   };
 }
