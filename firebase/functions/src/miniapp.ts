@@ -48,6 +48,7 @@ const error = (estado: number, mensaje: string): RespuestaApi => ({ estado, cuer
 const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea", "mensaje", "nota"];
 const REPS: Repeticion[] = ["ninguna", "diaria", "semanal", "laborables", "anual"];
 const economiaNormalizada = (u: Usuario): Economia => u.economia ?? { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] };
+const saludNormalizada = (u: Usuario) => u.salud ?? { peso: [], entrenamientos: [], planes: [] };
 const idEconomia = () => crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
 const eventoJson = (e: Evento, u: Usuario, ahora: Date) => ({
@@ -71,6 +72,7 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
     avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
     notificaciones: { canal: u.notificaciones.canal, sonido: u.notificaciones.sonido, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
     economia: economiaNormalizada(u),
+    salud: saludNormalizada(u),
     resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => { const info = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref as SeccionId]; return { ref: r.ref, emoji: info?.emoji ?? "📬", titulo: info?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa }; }),
     compra: u.compra, secciones, eventos: eventos.map((e) => eventoJson(e, u, ahora)), ahora: ahora.toISOString(),
   });
@@ -190,6 +192,15 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       await deps.almacen.guardarUsuario(u);
       await programarSeccion(deps.almacen, u, ref, ahora);
       return ok();
+    }
+
+    case "/api/salud": {
+      const s = saludNormalizada(u);
+      if(c.accion==="peso"){const kg=Number(c.kg),fecha=String(c.fecha);if(!Number.isFinite(kg)||kg<20||kg>400||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(fecha))return error(400,"Peso o fecha no válidos");s.peso.unshift({id:idEconomia(),kg:Math.round(kg*10)/10,fecha});s.peso=s.peso.slice(0,365);}
+      else if(c.accion==="entrenamiento"){const titulo=String(c.titulo??"").trim().slice(0,80),tipo=String(c.tipo??"").slice(0,40),duracion=Number(c.duracion),fecha=String(c.fecha);if(!titulo||!Number.isFinite(duracion)||duracion<1||duracion>600)return error(400,"Completa el entrenamiento");s.entrenamientos.unshift({id:idEconomia(),titulo,tipo,duracion:Math.round(duracion),fecha});s.entrenamientos=s.entrenamientos.slice(0,500);}
+      else if(c.accion==="plan"){const titulo=String(c.titulo??"").trim().slice(0,80),dias=String(c.dias??"").slice(0,100),enfoque=String(c.enfoque??"").slice(0,80),detalle=String(c.detalle??"").slice(0,1000);if(!titulo)return error(400,"Indica el nombre del plan");s.planes.unshift({id:idEconomia(),titulo,dias,enfoque,detalle});s.planes=s.planes.slice(0,30);}
+      else return error(400,"Acción de salud desconocida");
+      u.salud=s;await deps.almacen.guardarUsuario(u);return ok({salud:s});
     }
 
     case "/api/economia": {
