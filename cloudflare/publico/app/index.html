@@ -325,7 +325,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarT
 const enTelegram = () => !!(TG && TG.initData);
 const leerSesion = () => { try { return localStorage.getItem("sesion") || ""; } catch (e) { return ""; } };
 const guardarSesion = (t) => { try { t ? localStorage.setItem("sesion", t) : localStorage.removeItem("sesion"); } catch (e) {} };
-async async function api(ruta, cuerpo = {}, reintentar = true) {
+async function api(ruta, cuerpo = {}, reintentar = true) {
   if (DEMO) return demo(ruta, cuerpo);
   if (!enTelegram() && !leerSesion() && ruta !== "/api/sesion") {
     const sr = await fetch("/api/sesion", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
