@@ -198,7 +198,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       const s = saludNormalizada(u);
       if(c.accion==="peso"){const kg=Number(c.kg),fecha=String(c.fecha);if(!Number.isFinite(kg)||kg<20||kg>400||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(fecha))return error(400,"Peso o fecha no válidos");s.peso.unshift({id:idEconomia(),kg:Math.round(kg*10)/10,fecha});s.peso=s.peso.slice(0,365);}
       else if(c.accion==="entrenamiento"){const titulo=String(c.titulo??"").trim().slice(0,80),tipo=String(c.tipo??"").slice(0,40),duracion=Number(c.duracion),fecha=String(c.fecha);if(!titulo||!Number.isFinite(duracion)||duracion<1||duracion>600)return error(400,"Completa el entrenamiento");s.entrenamientos.unshift({id:idEconomia(),titulo,tipo,duracion:Math.round(duracion),fecha});s.entrenamientos=s.entrenamientos.slice(0,500);}
-      else if(c.accion==="plan"){const titulo=String(c.titulo??"").trim().slice(0,80),dias=String(c.dias??"").slice(0,100),enfoque=String(c.enfoque??"").slice(0,80),detalle=String(c.detalle??"").slice(0,1000);if(!titulo)return error(400,"Indica el nombre del plan");s.planes.unshift({id:idEconomia(),titulo,dias,enfoque,detalle});s.planes=s.planes.slice(0,30);}
+      else if(c.accion==="plan"){const titulo=String(c.titulo??"").trim().slice(0,80),dias=String(c.dias??"").slice(0,100),enfoque=String(c.enfoque??"").slice(0,80),detalle=String(c.detalle??"").slice(0,5000);if(!titulo)return error(400,"Indica el nombre del plan");s.planes.unshift({id:idEconomia(),titulo,dias,enfoque,detalle});s.planes=s.planes.slice(0,30);}
       else return error(400,"Acción de salud desconocida");
       u.salud=s;await deps.almacen.guardarUsuario(u);return ok({salud:s});
     }
