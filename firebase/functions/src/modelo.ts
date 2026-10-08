@@ -42,7 +42,7 @@ export interface ObjetivoEconomico { id: string; titulo: string; importe: number
 export interface Economia { movimientos: MovimientoEconomico[]; facturas: FacturaEconomica[]; presupuestoMensual: number | null; objetivos: ObjetivoEconomico[] }
 export interface RegistroPeso { id:string; kg:number; fecha:string }
 export interface EntrenamientoSalud { id:string; titulo:string; tipo:string; duracion:number; fecha:string }
-export interface PlanSalud { id:string; titulo:string; dias:string; enfoque:string; detalle:string }
+export interface PlanSalud { id:string; titulo:string; dias:string; enfoque:string; detalle:string; inicio?:string; fin?:string; ejercicios?:string[] }
 export interface Salud { peso:RegistroPeso[]; entrenamientos:EntrenamientoSalud[]; planes:PlanSalud[] }
 
 /** Imagen del usuario: un avatar (emoji sobre un fondo de color), su foto de Telegram o una foto subida (se guarda aparte). Sin elegir: burbuja con su inicial. */
