@@ -68,6 +68,8 @@ export interface Usuario {
 
 export type TipoEvento = "alarma" | "cita" | "tarea" | "mensaje" | "nota";
 
+export interface Subtarea { id: string; titulo: string; hecho: boolean }
+
 export interface Evento {
   id: string;
   uid: string;
@@ -81,6 +83,8 @@ export interface Evento {
   mensaje?: MensajeWa;
   /** Solo en el tipo «nota»: el texto de la nota. */
   nota?: string;
+  /** Solo en tareas: pasos o partes de la tarea principal. */
+  subtareas?: Subtarea[];
   avisado: boolean;           // ya se ha enviado el aviso (los repetitivos se rearman solos)
   hecho: boolean;
   creadoEn: Date;
