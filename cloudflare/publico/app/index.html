@@ -565,7 +565,7 @@ async function hojaResumenDiario() {
       const pie=(x)=>x.hora?`<div class="pie-ver"><small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small></div>`:"";
       contenido.innerHTML=secciones.length?`<div class="resumen-secciones">${secciones.map((x)=>`
         <section class="resumen-seccion">
-          <div class="resumen-seccion-cab"><div class="emo">${esc(x.emoji||"📋")}</div><div><b>${esc(x.titulo||x.ref||"Sección")}</b>${x.hora?`<small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small>`:""}</div></div>
+          <div class="resumen-seccion-cab"><div class="emo">${esc(x.emoji||"📋")}</div><div><b>${esc(String((x.titulo||x.ref||"Sección").replace(/^\s*(?:tema|sección)\s*:\s*/i,"").trim()).toUpperCase())}</b>${x.hora?`<small>${x.guardado?"Pedido":"Actualizado"} hoy a las ${esc(x.hora)}</small>`:""}</div></div>
           ${x.error
             ? `<div class="doc"><span class="err">No he podido preparar esta sección.</span><br>${esc(x.error)}</div>`
             : x.tiempo
