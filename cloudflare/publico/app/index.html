@@ -315,6 +315,14 @@ html[data-modo=oscuro] .tm-luna-portada small{color:var(--suave)}
   .econ-reglas-compactas .econ-regla-col span{font-size:10px}
   .econ-reglas-compactas .econ-regla-col strong{font-size:17px}
 }
+
+/* Aumentar aproximadamente un 5% el resumen mensual y su contenido en móvil. */
+@media(max-width:520px){
+  .econ-resumen-principal{
+    zoom:1.05;
+    width:calc(100% / 1.05);
+  }
+}
 </style>
 </head>
 <body>
