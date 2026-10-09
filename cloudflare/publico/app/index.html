@@ -338,6 +338,14 @@ html[data-modo=oscuro] .tm-luna-portada small{color:var(--suave)}
 .econ-reglas-compactas .econ-card h4{
   font-size:1.08em;
 }
+
+/* Reducir muy ligeramente la altura total del resumen mensual en móvil. */
+@media(max-width:520px){
+  .econ-resumen-principal{
+    zoom:1.0395;
+    width:calc(100% / 1.0395);
+  }
+}
 </style>
 </head>
 <body>
