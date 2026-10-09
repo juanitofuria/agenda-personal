@@ -379,6 +379,29 @@ button.econ-accion-gestionar,button.econ-accion-informe{
   gap:2px;
 }
 .econ-seccion h4 .econ-accion-icon{width:27px;height:27px;min-width:27px;font-size:16px}
+
+/* Alinear el inicio del texto de los tres botones de acciones económicas. */
+.econ-seccion button[data-econ-porcentajes],
+.econ-seccion button[data-econ-gestionar],
+.econ-seccion button[data-econ-informe]{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  text-align:left!important;
+  box-sizing:border-box!important;
+  min-height:46px;
+  padding-left:12px!important;
+  gap:8px!important;
+}
+.econ-seccion button[data-econ-porcentajes]{
+  padding-left:12px!important;
+}
+.econ-seccion button[data-econ-gestionar] .econ-accion-icon,
+.econ-seccion button[data-econ-informe] .econ-accion-icon{
+  flex:0 0 30px;
+  margin-right:0!important;
+}
+
 </style>
 </head>
 <body>
