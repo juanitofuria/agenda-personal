@@ -357,7 +357,33 @@ html[data-modo=oscuro] .tm-luna-portada small{color:var(--suave)}
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute"><defs>
-<symbol id="i-resumen" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5h6M9 11h6M9 15h4"/></symbol>
+<symbol id="i-resumen" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5h6M9 11h6M9 15h4"/></s
+/* Iconos de las acciones económicas con color y contraste propios. */
+.econ-accion-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:30px;
+  height:30px;
+  min-width:30px;
+  margin-right:8px;
+  border-radius:10px;
+  font-size:18px;
+  line-height:1;
+  vertical-align:middle;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.24),0 1px 3px rgba(0,0,0,.12);
+}
+.econ-icon-gestionar{background:linear-gradient(145deg,#ffb45e,#f07824);color:#fff}
+.econ-icon-informe{background:linear-gradient(145deg,#61c8ff,#2878e8);color:#fff}
+.econ-icon-historial{background:linear-gradient(145deg,#c39aff,#7950d8);color:#fff}
+button.econ-accion-gestionar,button.econ-accion-informe{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+}
+.econ-seccion h4 .econ-accion-icon{width:27px;height:27px;min-width:27px;font-size:16px}
+ymbol>
 <symbol id="i-alarma" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 1.5M5 5 3 7M19 5l2 2"/></symbol>
 <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
 <symbol id="i-sec" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
