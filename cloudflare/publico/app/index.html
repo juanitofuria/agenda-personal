@@ -1480,3 +1480,28 @@ const MENSAJE_ENTRADA = `<div class="cargando" style="line-height:1.6">Para usar
 </script>
 </body>
 </html>
+
+
+/* Último ajuste gradual: algo más de tamaño y aire en el resumen económico móvil. */
+@media(max-width:520px){
+  .econ-resumen-principal{padding:14px}
+  .econ-principal-cab{margin-bottom:10px}
+  .econ-principal-cab h3{font-size:clamp(17px,4.5vw,20px)}
+  .econ-cifra{padding:12px;gap:7px}
+  .econ-cifra-titulo h4{font-size:14px;line-height:1.12;letter-spacing:.35px}
+  .econ-cifra .econ-num{font-size:clamp(23px,5.6vw,28px)}
+  .econ-cifra-saldo .econ-num{font-size:26px}
+  .econ-donut-wrap{padding:12px;gap:12px;margin-top:9px}
+  .econ-donut{width:74px;height:74px;flex:0 0 74px}
+  .econ-donut-leyenda{font-size:12px;gap:5px}
+  .econ-donut-leyenda small{font-size:10.5px}
+  .econ-reglas-compactas{gap:11px;margin-bottom:15px}
+  .econ-reglas-compactas .econ-card{padding:15px 15px 13px}
+  .econ-reglas-compactas .econ-card h4{font-size:13.5px;line-height:1.3;margin-bottom:7px}
+  .econ-reglas-compactas .econ-regla-cifras{margin:9px 0 8px}
+  .econ-reglas-compactas .econ-regla-col{padding:9px}
+  .econ-reglas-compactas .econ-regla-col span{font-size:10.5px}
+  .econ-reglas-compactas .econ-regla-col strong{font-size:20px}
+  .econ-reglas-compactas .econ-bar{height:8px;margin:8px 0}
+  .econ-reglas-compactas .econ-sub{font-size:12px;line-height:1.35}
+}
