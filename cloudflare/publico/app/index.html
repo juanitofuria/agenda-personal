@@ -1288,7 +1288,32 @@ document.addEventListener("click", async (e) => {
     const ms=ec.movimientos.filter(m=>String(m.fecha).slice(0,7)===ym), ingresos=ms.filter(m=>m.tipo==="ingreso").reduce((a,m)=>a+Number(m.importe||0),0), gastos=ms.filter(m=>m.tipo==="gasto").reduce((a,m)=>a+Number(m.importe||0),0);
     const euros=n=>new Intl.NumberFormat("es-ES",{style:"currency",currency:"EUR"}).format(n), safe=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     const categorias=[...new Set(ms.map(m=>String(m.categoria||"Sin categoría")))].sort((a,b)=>a.localeCompare(b,"es")); const filas=categorias.map(cat=>{const grupo=ms.filter(m=>String(m.categoria||"Sin categoría")===cat).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));const subtotal=grupo.reduce((n,m)=>n+(m.tipo==="gasto"?1:-1)*Number(m.importe||0),0);return `<tr class="grupo"><th colspan="5">CATEGORÍA: ${safe(cat)} · ${grupo.length} movimientos</th></tr>`+grupo.map(m=>`<tr><td>${safe(m.fecha)}</td><td>${safe(m.tipo)}</td><td>${safe(m.concepto)}</td><td>${safe(m.categoria||"Sin categoría")}</td><td class="num">${euros(Number(m.importe||0))}</td></tr>`).join("")+`<tr><td colspan="4"><b>Total neto de ${safe(cat)}</b></td><td class="num"><b>${euros(-subtotal)}</b></td></tr>`;}).join("");
-    const html=`<!doctype html><html lang="es"><meta charset="utf-8"><title>Informe financiero ${ym}</title><style>body{font:15px Arial,sans-serif;max-width:900px;margin:35px auto;padding:0 20px;color:#222}h1,h2{color:#174c78}.kpis{display:flex;gap:12px;flex-wrap:wrap}.k{border:1px solid #bbb;border-radius:10px;padding:14px;min-width:170px}.num{text-align:right;white-space:nowrap}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}th{background:#eef3f8}.grupo th{background:#dcebe3;color:#174c38;padding:12px}.nota{color:#555}@media print{body{margin:0}}</style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Agenda Personal.</p></html>`;
+    const html=`<!doctype html><html lang="es"><meta charset="utf-8"><title>Informe financiero ${ym}</title><style>body{font:15px Arial,sans-serif;max-width:900px;margin:35px auto;padding:0 20px;color:#222}h1,h2{color:#174c78}.kpis{display:flex;gap:12px;flex-wrap:wrap}.k{border:1px solid #bbb;border-radius:10px;padding:14px;min-width:170px}.num{text-align:right;white-space:nowrap}table{border-collapse:collapse;width:100%;margin-top:18px}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}th{background:#eef3f8}.grupo th{background:#dcebe3;color:#174c38;padding:12px}.nota{color:#555}@media print{body{margin:0}}
+/* Refuerzo visual del resumen económico: títulos más destacados y lectura más cómoda. */
+.econ-cifra-titulo h4{font-size:13px;font-weight:900;line-height:1.05;letter-spacing:.35px}
+.econ-cifra-saldo .econ-saldo-etiqueta{font-size:11px;font-weight:900}
+.econ-reglas-compactas .econ-card h4{font-weight:900;letter-spacing:.45px}
+.econ-seccion>h3{font-weight:900}
+@media(max-width:520px){
+  .econ-principal-cab h3{font-size:clamp(15px,4vw,18px);font-weight:900}
+  .econ-cifra-titulo h4{font-size:12.5px;font-weight:900;line-height:1.05;letter-spacing:.25px}
+  .econ-cifra .econ-num{font-size:clamp(20px,5vw,25px)}
+  .econ-cifra-saldo .econ-num{font-size:23px}
+  .econ-donut-wrap{padding:9px;gap:9px;margin-top:7px}
+  .econ-donut{width:64px;height:64px;flex:0 0 64px}
+  .econ-donut-leyenda{font-size:11px;gap:4px}
+  .econ-donut-leyenda small{font-size:10px}
+  .econ-reglas-compactas{gap:8px;margin-bottom:12px}
+  .econ-reglas-compactas .econ-card{padding:12px 13px 10px}
+  .econ-reglas-compactas .econ-card h4{font-size:12px;font-weight:900;line-height:1.25;letter-spacing:.45px;margin-bottom:5px}
+  .econ-reglas-compactas .econ-regla-cifras{margin:7px 0 6px}
+  .econ-reglas-compactas .econ-regla-col{padding:7px}
+  .econ-reglas-compactas .econ-regla-col span{font-size:10px}
+  .econ-reglas-compactas .econ-regla-col strong{font-size:18px}
+  .econ-reglas-compactas .econ-bar{height:7px;margin:6px 0}
+  .econ-reglas-compactas .econ-sub{font-size:11px;line-height:1.3}
+}
+</style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Agenda Personal.</p></html>`;
     const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})), a=document.createElement("a");a.href=url;a.download="informe-financiero-"+ym+".html";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
   }
   const compra = (cuerpo, ok) => hacer(() => api("/api/compra", cuerpo), ok);
