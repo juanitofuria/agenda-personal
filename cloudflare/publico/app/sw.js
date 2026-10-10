@@ -21,9 +21,9 @@ self.addEventListener("fetch", (e) => {
 
 self.addEventListener("push", (e) => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Mi Agenda", cuerpo: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.titulo || "Mi Agenda Personal", {
-    body: d.cuerpo || "", icon: "/app/icon-claro.webp?v=20261008", badge: "/app/icon-claro.webp?v=20261008", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Nexora", cuerpo: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.titulo || "Nexora", {
+    body: d.cuerpo || "", icon: "/app/icon-nexora.svg?v=20261010", badge: "/app/icon-nexora.svg?v=20261010", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
     actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
     data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
   }));
