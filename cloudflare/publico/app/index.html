@@ -571,6 +571,7 @@ const IR = { perfil: "ajustes", eventos: "inicio" }; // nombres antiguos que aú
 const TIPOS_EV = ["alarma", "cita", "tarea", "nota", "mensaje"];
 async function ir(v, tipo) {
   v = IR[v] || v;
+  if (S.vista === "seguridad" && v !== "seguridad") vbloquear();
   S.pila.push({ v: S.vista, tipo: S.tipo }); S.vista = v; if (tipo) S.tipo = tipo; guardarNavegacion();
   if (v === "dispositivos") await refrescarDispositivos();
   history.pushState({ n: S.pila.length }, "");
@@ -578,6 +579,7 @@ async function ir(v, tipo) {
 }
 function irDirecto(v, tipo) { S.pila = [{ v: "inicio" }]; S.vista = v; if (tipo) S.tipo = tipo; guardarNavegacion(); history.pushState({ n: 1 }, ""); pintar(); }
 function volver() {
+  if (S.vista === "seguridad") vbloquear();
   const p = S.pila.pop(); S.vista = p ? p.v : "inicio"; if (p && p.tipo) S.tipo = p.tipo; guardarNavegacion();
   pintar(); window.scrollTo(0, 0);
   if (S.vista === "inicio") cargar().then(pintar).catch(() => {}); // al volver a la principal se ve lo último (resúmenes pedidos, contadores…)
