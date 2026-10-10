@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261013">
-<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261013">
-<link id="favicon" rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261013">
+<link rel="manifest" href="manifest.webmanifest?v=20261014">
+<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261014">
+<link id="favicon" rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261014">
 
 <meta name="theme-color" content="#182653">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -535,8 +535,8 @@ const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
 function actualizarIconos() {
-  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora.svg?v=20261013";
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora.svg?v=20261013";
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora.svg?v=20261014";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora.svg?v=20261014";
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
@@ -1391,7 +1391,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261013", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261014", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
