@@ -1,7 +1,7 @@
 {
-  "name": "Mi Agenda Personal",
-  "short_name": "Agenda",
-  "description": "Tu agenda, tus avisos y tu lista de la compra en un solo sitio.",
+  "name": "Nexora",
+  "short_name": "Nexora",
+  "description": "Tu espacio personal para organizarte, cuidarte y mantenerte informado.",
   "lang": "es",
   "start_url": "/app/",
   "scope": "/app/",
