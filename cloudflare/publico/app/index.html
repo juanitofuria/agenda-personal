@@ -424,6 +424,46 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 
 
 .econ-icon-porcentajes{background:linear-gradient(145deg,#58a6dc,#2864a8)!important;color:#d9dee5!important;font-size:21px!important;-webkit-text-stroke:.55px currentColor}
+/* Nexora: estilos completos de la nueva pantalla principal */
+.nx-hero{position:relative;isolation:isolate;overflow:hidden;min-height:152px;border-radius:22px;padding:16px 14px;display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:8px;align-items:center;color:#fff;background:linear-gradient(125deg,#1264c5,#42a9ed 62%,#c8eaff);box-shadow:0 10px 26px rgba(28,90,170,.18);margin-bottom:12px}
+.nx-cielo{position:absolute;inset:0;overflow:hidden;z-index:0;background:linear-gradient(180deg,#63b8f3 0%,#d6efff 100%);pointer-events:none}
+.nx-hero:after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(5,31,73,.84),rgba(5,31,73,.53) 68%,rgba(5,31,73,.08))}
+.nx-hero-text,.nx-tiempo,.nx-hero .engranaje{position:relative;z-index:2}
+.nx-hero-text{min-width:0;align-self:center}
+.nx-saludo{font-size:clamp(19px,5vw,25px);line-height:1.12;font-weight:900;margin:0 0 11px;letter-spacing:-.4px}
+.nx-label{font-size:10px;font-weight:900;letter-spacing:1.3px;margin-bottom:4px;opacity:.94}
+.nx-frase{font-family:var(--mano);font-size:clamp(17px,4.2vw,21px);line-height:1.15;font-weight:700;max-width:100%;overflow-wrap:anywhere}
+.nx-tiempo{align-self:end;justify-self:end;text-align:center;min-width:90px;padding:8px 7px;border-radius:16px;background:rgba(7,35,76,.28);backdrop-filter:blur(5px)}
+.nx-temp{font-size:25px;line-height:1;font-weight:900}.nx-estado{font-size:10px;font-weight:800;margin-top:5px}
+.nx-hero .engranaje{position:absolute;top:8px;right:8px;width:31px;height:31px;border:1px solid #ffffff65;border-radius:50%;background:#ffffff20;color:white;display:grid;place-items:center;padding:5px}
+.nx-sol{position:absolute;width:44px;height:44px;border-radius:50%;right:28px;top:28px;background:#fff3a5;box-shadow:0 0 30px #fff7b0;animation:nx-sol-pulso 5s ease-in-out infinite}
+.nx-nube{position:absolute;display:block;width:95px;height:26px;border-radius:30px;background:#fff9;filter:drop-shadow(0 4px 5px #2a6da322);animation:nx-nube-mover 18s linear infinite}
+.nx-nube:before,.nx-nube:after{content:"";position:absolute;background:inherit;border-radius:50%}.nx-nube:before{width:36px;height:36px;left:17px;top:-17px}.nx-nube:after{width:48px;height:43px;right:15px;top:-22px}
+.nx-na{right:-10px;top:95px}.nx-nb{right:125px;top:22px;transform:scale(.68);animation-delay:-8s}
+.nx-lluvia{position:absolute;inset:0;opacity:0;background:repeating-linear-gradient(105deg,transparent 0 17px,#d7f3ffb0 18px 20px,transparent 21px 36px);animation:nx-lluvia 1.1s linear infinite}
+.nx-estrellas{position:absolute;inset:0;opacity:0;background-image:radial-gradient(#fff 1px,transparent 1.5px),radial-gradient(#fff 1px,transparent 1.5px);background-size:47px 43px,73px 67px;background-position:8px 5px,22px 18px}
+.nx-hero[data-weather="rain"] .nx-cielo{background:linear-gradient(180deg,#334c78,#647f9f)}.nx-hero[data-weather="rain"] .nx-sol{display:none}.nx-hero[data-weather="rain"] .nx-lluvia{opacity:.7}.nx-hero[data-weather="cloud"] .nx-sol{opacity:.55}.nx-hero[data-weather="night"] .nx-cielo{background:linear-gradient(180deg,#101b45,#354d79)}.nx-hero[data-weather="night"] .nx-sol{width:34px;height:34px;background:#f0f3ff;box-shadow:0 0 20px #dce6ff;right:34px}.nx-hero[data-weather="night"] .nx-estrellas{opacity:.9}
+@keyframes nx-nube-mover{0%,100%{margin-right:0}50%{margin-right:15px}}@keyframes nx-sol-pulso{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}@keyframes nx-lluvia{to{background-position:0 42px}}
+.nx-grupo{margin:12px 0 14px;padding:12px;border-radius:20px;background:color-mix(in srgb,var(--tarjeta) 88%,transparent);border:1px solid var(--linea);box-shadow:var(--sombra)}
+.nx-kicker{font-size:11px;letter-spacing:1.1px;font-weight:900;color:var(--suave);margin:0 0 10px 2px}
+.nx-organiza,.nx-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.nx-mini,.nx-areas>.tarjeta{min-width:0;min-height:83px;border:1px solid var(--linea);border-radius:16px;padding:10px;background:var(--tarjeta);color:var(--tinta);box-shadow:0 3px 12px rgba(35,75,130,.06);display:flex;align-items:center;gap:10px;text-align:left}
+.nx-mini:active,.nx-areas>.tarjeta:active,.nx-resumen:active{transform:scale(.985)}
+.nx-mini-ico,.nx-res-icon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:12px;color:white;background:linear-gradient(145deg,#40aaff,#1764db);box-shadow:0 4px 10px #2878d62c}
+.nx-mini-ico svg,.nx-res-icon svg{width:22px;height:22px;stroke:currentColor;fill:none}
+.nx-alarm .nx-mini-ico{background:linear-gradient(145deg,#ffae43,#f36a18)}.nx-tarea .nx-mini-ico{background:linear-gradient(145deg,#5cd59b,#159e70)}.nx-nota .nx-mini-ico{background:linear-gradient(145deg,#bd8bff,#8050df)}
+.nx-mini>span:last-child,.nx-res-text{min-width:0;display:flex;flex-direction:column;gap:3px}
+.nx-mini b{font-size:13px;font-weight:900;line-height:1.12}.nx-mini small{font-size:10px;line-height:1.2;color:var(--suave)}
+.nx-resumen{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid var(--linea);border-radius:16px;padding:11px 12px;margin:0 0 13px;background:var(--tarjeta);color:var(--tinta);box-shadow:var(--sombra)}
+.nx-res-icon{background:linear-gradient(145deg,#ffe6bc,#e7a45d);color:#65421e}.nx-res-text b{font-size:13px;font-weight:900}.nx-res-text small{font-size:10px;color:var(--suave)}.nx-res-link{margin-left:auto;font-size:11px;font-weight:800;color:var(--azul);white-space:nowrap}
+.nx-areas>.tarjeta{min-height:76px;padding:10px;gap:9px}.nx-areas>.tarjeta .ico{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#5aabff,#2466c7)}.nx-areas>.tarjeta .ico svg{width:20px;height:20px;stroke:currentColor;fill:none}.nx-areas>.tarjeta .c5{background:linear-gradient(145deg,#55cb94,#14865c)}.nx-areas>.tarjeta b{font-size:12px;line-height:1.15}.nx-areas>.tarjeta .d{font-size:10px;color:var(--suave);line-height:1.2;margin-top:3px}
+.nx-seguridad .ico{background:linear-gradient(145deg,#b48bff,#7047d1)!important}
+.nx-personaliza{width:100%;display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center;text-align:left;border:1px dashed #8bb8eb;border-radius:15px;padding:12px 14px;margin:0 0 14px;background:color-mix(in srgb,var(--tarjeta) 88%,transparent);color:var(--tinta)}
+.nx-personaliza b{font-size:12px}.nx-personaliza small{font-size:10px;color:var(--suave)}.nx-personaliza span{grid-column:2;grid-row:1/3;color:var(--azul);font-size:23px}
+.nx-int-row{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--linea)}.nx-int-row small{font-size:11px;color:var(--suave)}
+.nx-vault-intro{display:flex;gap:12px;align-items:center;padding:14px;border-radius:17px;background:var(--tarjeta);border:1px solid var(--linea);margin-top:12px}.nx-vault-intro>b{font-size:28px;color:var(--azul)}.nx-vault-intro span{display:flex;flex-direction:column;gap:4px}.nx-vault-intro small{font-size:11px;color:var(--suave)}
+@media(max-width:390px){.app{padding:10px}.nx-hero{min-height:145px;padding:12px;grid-template-columns:minmax(0,1fr) 78px}.nx-tiempo{min-width:72px;padding:7px 4px}.nx-temp{font-size:22px}.nx-saludo{font-size:19px}.nx-frase{font-size:17px}.nx-mini{gap:7px;padding:8px;min-height:76px}.nx-mini-ico{width:32px;height:32px;flex-basis:32px}.nx-mini b{font-size:12px}.nx-mini small{font-size:9px}.nx-areas>.tarjeta{gap:7px;padding:8px}.nx-res-link{font-size:10px}}
+
 </style>
 </head>
 <body>
@@ -1543,45 +1583,6 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 /* Capas de la cabecera: cielo visible detrás del saludo y los controles. */
 .nx-cielo{z-index:0}.nx-hero:after{z-index:1}.nx-hero-text,.nx-tiempo,.nx-hero .engranaje{z-index:2}
 
-/* Nexora: estilos completos de la nueva pantalla principal */
-.nx-hero{position:relative;isolation:isolate;overflow:hidden;min-height:152px;border-radius:22px;padding:16px 14px;display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:8px;align-items:center;color:#fff;background:linear-gradient(125deg,#1264c5,#42a9ed 62%,#c8eaff);box-shadow:0 10px 26px rgba(28,90,170,.18);margin-bottom:12px}
-.nx-cielo{position:absolute;inset:0;overflow:hidden;z-index:0;background:linear-gradient(180deg,#63b8f3 0%,#d6efff 100%);pointer-events:none}
-.nx-hero:after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(5,31,73,.84),rgba(5,31,73,.53) 68%,rgba(5,31,73,.08))}
-.nx-hero-text,.nx-tiempo,.nx-hero .engranaje{position:relative;z-index:2}
-.nx-hero-text{min-width:0;align-self:center}
-.nx-saludo{font-size:clamp(19px,5vw,25px);line-height:1.12;font-weight:900;margin:0 0 11px;letter-spacing:-.4px}
-.nx-label{font-size:10px;font-weight:900;letter-spacing:1.3px;margin-bottom:4px;opacity:.94}
-.nx-frase{font-family:var(--mano);font-size:clamp(17px,4.2vw,21px);line-height:1.15;font-weight:700;max-width:100%;overflow-wrap:anywhere}
-.nx-tiempo{align-self:end;justify-self:end;text-align:center;min-width:90px;padding:8px 7px;border-radius:16px;background:rgba(7,35,76,.28);backdrop-filter:blur(5px)}
-.nx-temp{font-size:25px;line-height:1;font-weight:900}.nx-estado{font-size:10px;font-weight:800;margin-top:5px}
-.nx-hero .engranaje{position:absolute;top:8px;right:8px;width:31px;height:31px;border:1px solid #ffffff65;border-radius:50%;background:#ffffff20;color:white;display:grid;place-items:center;padding:5px}
-.nx-sol{position:absolute;width:44px;height:44px;border-radius:50%;right:28px;top:28px;background:#fff3a5;box-shadow:0 0 30px #fff7b0;animation:nx-sol-pulso 5s ease-in-out infinite}
-.nx-nube{position:absolute;display:block;width:95px;height:26px;border-radius:30px;background:#fff9;filter:drop-shadow(0 4px 5px #2a6da322);animation:nx-nube-mover 18s linear infinite}
-.nx-nube:before,.nx-nube:after{content:"";position:absolute;background:inherit;border-radius:50%}.nx-nube:before{width:36px;height:36px;left:17px;top:-17px}.nx-nube:after{width:48px;height:43px;right:15px;top:-22px}
-.nx-na{right:-10px;top:95px}.nx-nb{right:125px;top:22px;transform:scale(.68);animation-delay:-8s}
-.nx-lluvia{position:absolute;inset:0;opacity:0;background:repeating-linear-gradient(105deg,transparent 0 17px,#d7f3ffb0 18px 20px,transparent 21px 36px);animation:nx-lluvia 1.1s linear infinite}
-.nx-estrellas{position:absolute;inset:0;opacity:0;background-image:radial-gradient(#fff 1px,transparent 1.5px),radial-gradient(#fff 1px,transparent 1.5px);background-size:47px 43px,73px 67px;background-position:8px 5px,22px 18px}
-.nx-hero[data-weather="rain"] .nx-cielo{background:linear-gradient(180deg,#334c78,#647f9f)}.nx-hero[data-weather="rain"] .nx-sol{display:none}.nx-hero[data-weather="rain"] .nx-lluvia{opacity:.7}.nx-hero[data-weather="cloud"] .nx-sol{opacity:.55}.nx-hero[data-weather="night"] .nx-cielo{background:linear-gradient(180deg,#101b45,#354d79)}.nx-hero[data-weather="night"] .nx-sol{width:34px;height:34px;background:#f0f3ff;box-shadow:0 0 20px #dce6ff;right:34px}.nx-hero[data-weather="night"] .nx-estrellas{opacity:.9}
-@keyframes nx-nube-mover{0%,100%{margin-right:0}50%{margin-right:15px}}@keyframes nx-sol-pulso{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}@keyframes nx-lluvia{to{background-position:0 42px}}
-.nx-grupo{margin:12px 0 14px;padding:12px;border-radius:20px;background:color-mix(in srgb,var(--tarjeta) 88%,transparent);border:1px solid var(--linea);box-shadow:var(--sombra)}
-.nx-kicker{font-size:11px;letter-spacing:1.1px;font-weight:900;color:var(--suave);margin:0 0 10px 2px}
-.nx-organiza,.nx-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.nx-mini,.nx-areas>.tarjeta{min-width:0;min-height:83px;border:1px solid var(--linea);border-radius:16px;padding:10px;background:var(--tarjeta);color:var(--tinta);box-shadow:0 3px 12px rgba(35,75,130,.06);display:flex;align-items:center;gap:10px;text-align:left}
-.nx-mini:active,.nx-areas>.tarjeta:active,.nx-resumen:active{transform:scale(.985)}
-.nx-mini-ico,.nx-res-icon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:12px;color:white;background:linear-gradient(145deg,#40aaff,#1764db);box-shadow:0 4px 10px #2878d62c}
-.nx-mini-ico svg,.nx-res-icon svg{width:22px;height:22px;stroke:currentColor;fill:none}
-.nx-alarm .nx-mini-ico{background:linear-gradient(145deg,#ffae43,#f36a18)}.nx-tarea .nx-mini-ico{background:linear-gradient(145deg,#5cd59b,#159e70)}.nx-nota .nx-mini-ico{background:linear-gradient(145deg,#bd8bff,#8050df)}
-.nx-mini>span:last-child,.nx-res-text{min-width:0;display:flex;flex-direction:column;gap:3px}
-.nx-mini b{font-size:13px;font-weight:900;line-height:1.12}.nx-mini small{font-size:10px;line-height:1.2;color:var(--suave)}
-.nx-resumen{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid var(--linea);border-radius:16px;padding:11px 12px;margin:0 0 13px;background:var(--tarjeta);color:var(--tinta);box-shadow:var(--sombra)}
-.nx-res-icon{background:linear-gradient(145deg,#ffe6bc,#e7a45d);color:#65421e}.nx-res-text b{font-size:13px;font-weight:900}.nx-res-text small{font-size:10px;color:var(--suave)}.nx-res-link{margin-left:auto;font-size:11px;font-weight:800;color:var(--azul);white-space:nowrap}
-.nx-areas>.tarjeta{min-height:76px;padding:10px;gap:9px}.nx-areas>.tarjeta .ico{width:34px;height:34px;flex:0 0 34px;border-radius:11px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#5aabff,#2466c7)}.nx-areas>.tarjeta .ico svg{width:20px;height:20px;stroke:currentColor;fill:none}.nx-areas>.tarjeta .c5{background:linear-gradient(145deg,#55cb94,#14865c)}.nx-areas>.tarjeta b{font-size:12px;line-height:1.15}.nx-areas>.tarjeta .d{font-size:10px;color:var(--suave);line-height:1.2;margin-top:3px}
-.nx-seguridad .ico{background:linear-gradient(145deg,#b48bff,#7047d1)!important}
-.nx-personaliza{width:100%;display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center;text-align:left;border:1px dashed #8bb8eb;border-radius:15px;padding:12px 14px;margin:0 0 14px;background:color-mix(in srgb,var(--tarjeta) 88%,transparent);color:var(--tinta)}
-.nx-personaliza b{font-size:12px}.nx-personaliza small{font-size:10px;color:var(--suave)}.nx-personaliza span{grid-column:2;grid-row:1/3;color:var(--azul);font-size:23px}
-.nx-int-row{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--linea)}.nx-int-row small{font-size:11px;color:var(--suave)}
-.nx-vault-intro{display:flex;gap:12px;align-items:center;padding:14px;border-radius:17px;background:var(--tarjeta);border:1px solid var(--linea);margin-top:12px}.nx-vault-intro>b{font-size:28px;color:var(--azul)}.nx-vault-intro span{display:flex;flex-direction:column;gap:4px}.nx-vault-intro small{font-size:11px;color:var(--suave)}
-@media(max-width:390px){.app{padding:10px}.nx-hero{min-height:145px;padding:12px;grid-template-columns:minmax(0,1fr) 78px}.nx-tiempo{min-width:72px;padding:7px 4px}.nx-temp{font-size:22px}.nx-saludo{font-size:19px}.nx-frase{font-size:17px}.nx-mini{gap:7px;padding:8px;min-height:76px}.nx-mini-ico{width:32px;height:32px;flex-basis:32px}.nx-mini b{font-size:12px}.nx-mini small{font-size:9px}.nx-areas>.tarjeta{gap:7px;padding:8px}.nx-res-link{font-size:10px}}
 </style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Nexora.</p></html>`;
     const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})), a=document.createElement("a");a.href=url;a.download="informe-financiero-"+ym+".html";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
   }
