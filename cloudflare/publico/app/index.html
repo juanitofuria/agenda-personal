@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261011">
-<link rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261011">
+<link rel="manifest" href="manifest.webmanifest?v=20261012">
+<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261012">
+<link id="favicon" rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261012">
 
 <meta name="theme-color" content="#182653">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1339,7 +1339,23 @@ function nombreDispositivo() {
 }
 async function registrarSW() {
   if (enTelegram() || DEMO || !("serviceWorker" in navigator)) return null;
-  try { const reg = await navigator.serviceWorker.register("sw.js", { scope: "/app/" }); reg.update().catch(() => {}); return reg; } catch (e) { return null; }
+  try {
+    const habiaControlador = !!navigator.serviceWorker.controller;
+    if (!window.__nexoraCambioSW) {
+      window.__nexoraCambioSW = true;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!habiaControlador) return;
+        const clave = "nexora-auto-reload-v10";
+        if (sessionStorage.getItem(clave) === "1") return;
+        sessionStorage.setItem(clave, "1"); location.reload();
+      });
+    }
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261012", { scope: "/app/", updateViaCache: "none" });
+    reg.update().catch(() => {});
+    if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
+    reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
+    return reg;
+  } catch (e) { return null; }
 }
 async function suscritoAqui() {
   try { const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription()); return sub ? sub.endpoint.slice(-24) : ""; } catch (e) { return ""; }
