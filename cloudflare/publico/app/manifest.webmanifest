@@ -12,16 +12,22 @@
   "theme_color": "#0756d6",
   "icons": [
     {
-      "src": "icon-nexora.svg?v=20261015",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "icon-nexora-512.png?v=20261016",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-nexora-maskable.svg?v=20261015",
+      "src": "icon-nexora-512.png?v=20261016",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-nexora.svg?v=20261016",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "maskable"
+      "purpose": "any"
     }
   ]
 }
