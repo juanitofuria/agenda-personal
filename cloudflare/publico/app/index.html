@@ -494,10 +494,9 @@ const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
-function actualizarIconos(modo) {
-  const icono = modo === "oscuro" ? "icon-oscuro.webp" : "icon-claro.webp";
-  const f = document.getElementById("favicon"); if (f) f.href = icono;
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = icono;
+function actualizarIconos() {
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora.svg?v=20261010";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora.svg?v=20261010";
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
