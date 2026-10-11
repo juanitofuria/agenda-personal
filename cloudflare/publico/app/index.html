@@ -1668,9 +1668,9 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 @media(prefers-reduced-motion:reduce){#nx-hero .nx-sol,#nx-hero .nx-sol:before,#nx-hero .nx-sol:after,#nx-hero .nx-nube,#nx-hero .nx-lluvia,#nx-hero .nx-estrellas{animation:none!important}}
 
 
-/* Ajuste final: caja principal del tiempo un 5% más baja */
-.nx-hero{min-height:138px;padding-top:11px;padding-bottom:11px}
-@media (max-width:420px){.nx-hero{min-height:138px;padding-top:11px;padding-bottom:11px}}
+/* Ajuste final: caja principal del tiempo un 10% más baja */
+.nx-hero{min-height:124px;padding-top:10px;padding-bottom:10px}
+@media (max-width:420px){.nx-hero{min-height:124px;padding-top:10px;padding-bottom:10px}}
 </style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Nexora.</p></html>`;
     const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})), a=document.createElement("a");a.href=url;a.download="informe-financiero-"+ym+".html";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
   }
