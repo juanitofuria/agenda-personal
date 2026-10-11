@@ -55,17 +55,14 @@ jobs:
       - name: Empaquetar el Worker desde el código
         run: npm run empaquetar
       - name: Comprobar credenciales de Cloudflare
-        id: cred
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::warning::Faltan los secretos CLOUDFLARE_API_TOKEN y/o CLOUDFLARE_ACCOUNT_ID en GitHub (Settings > Secrets and variables > Actions). No se despliega."
-            echo "hay=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "hay=true" >> "$GITHUB_OUTPUT"
+            echo "::error::No se puede desplegar: faltan CLOUDFLARE_API_TOKEN y/o CLOUDFLARE_ACCOUNT_ID en Settings > Secrets and variables > Actions."
+            exit 1
           fi
+      - name: Verificar acceso a la cuenta de Cloudflare
+        run: npx wrangler whoami
       - name: Crear las tablas que falten en D1 (es idempotente)
-        if: steps.cred.outputs.hay == 'true'
         run: npx wrangler d1 execute agenda-personal --remote --file=schema.sql
-      - name: Desplegar
-        if: steps.cred.outputs.hay == 'true'
+      - name: Desplegar en producción
         run: npx wrangler deploy
