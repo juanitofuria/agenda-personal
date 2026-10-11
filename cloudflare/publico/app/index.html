@@ -1585,6 +1585,39 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 .nx-cielo{z-index:0}.nx-hero:after{z-index:1}.nx-hero-text,.nx-tiempo,.nx-hero .engranaje{z-index:2}
 .nx-ciudad{font-size:11px;font-weight:700;line-height:1.2;opacity:.96;margin-top:3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nx-clima-btn{display:inline-flex;align-items:center;justify-content:center;min-width:28px;width:28px;height:28px;margin-top:5px;padding:0;border:1px solid rgba(255,255,255,.38);border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:20px;line-height:1;cursor:pointer}.nx-hero.nx-llueve .nx-cielo{background:linear-gradient(160deg,#263e65,#6f8eaf)}.nx-hero.nx-nublado .nx-cielo{background:linear-gradient(160deg,#527da5,#a5c8df)}.nx-hero.nx-sol-activo .nx-cielo{background:linear-gradient(130deg,#2675b8,#87d3f5)}.nx-hero.nx-noche .nx-cielo{background:linear-gradient(160deg,#101d40,#354f79)}.nx-hero.nx-llueve .nx-lluvia{display:block;opacity:.75;animation:nxrain .65s linear infinite}.nx-hero.nx-nublado .nx-nube{animation:nxcloud 12s ease-in-out infinite alternate}.nx-hero.nx-sol-activo .nx-sol{display:block;animation:nxpulse 5s ease-in-out infinite}
 
+
+/* Clima animado: estados excluyentes, colores vivos y movimiento natural */
+.nx-hero .nx-cielo{background:linear-gradient(180deg,#49b8ff 0%,#9be4ff 58%,#e5f9ff 100%);transition:background 1s ease}
+.nx-hero:after{background:linear-gradient(90deg,rgba(4,35,78,.72),rgba(4,35,78,.32) 65%,rgba(4,35,78,.04))}
+.nx-hero .nx-sol{width:43px;height:43px;right:30px;top:26px;background:radial-gradient(circle at 35% 30%,#fff9a6 0%,#ffe52e 35%,#ff9d00 78%,#ff6a00 100%);box-shadow:0 0 12px 5px #ffdc357a,0 0 34px 15px #ffb30065;animation:none;z-index:1}
+.nx-hero .nx-sol:before{content:"";position:absolute;inset:-17px;border-radius:50%;background:repeating-conic-gradient(from 0deg,#ffdb3b00 0deg 9deg,#fff06cdd 10deg 12deg,#ffdb3b00 13deg 22.5deg);mask:radial-gradient(circle,transparent 0 55%,#000 58% 68%,transparent 72%);animation:nx-rayos-giro 28s linear infinite}
+.nx-hero .nx-sol:after{content:"";position:absolute;inset:-25px;border-radius:50%;background:radial-gradient(circle,#fff9a633 0%,#fff9a600 72%);animation:nx-reflejo 3.4s ease-in-out infinite}
+.nx-hero .nx-nube{background:linear-gradient(180deg,#fff 0%,#e6f5ff 100%);filter:drop-shadow(0 4px 8px #174d7755)}
+.nx-hero .nx-nube:before,.nx-hero .nx-nube:after{background:inherit}
+.nx-hero .nx-lluvia{opacity:0;background:repeating-linear-gradient(102deg,transparent 0 11px,#e7f8ff 12px 14px,transparent 15px 27px);filter:drop-shadow(0 0 2px #fff);animation:nx-lluvia .55s linear infinite}
+.nx-hero .nx-estrellas{opacity:0;background-image:radial-gradient(#fff 1.5px,transparent 2px),radial-gradient(#bfeaff 1.3px,transparent 2px),radial-gradient(#fff 1px,transparent 1.8px);background-size:47px 43px,73px 67px,91px 59px;background-position:8px 5px,22px 18px,48px 27px;animation:nx-titilar 2.8s ease-in-out infinite alternate}
+.nx-hero[data-weather="sol"]:not(.nx-noche) .nx-cielo,.nx-hero.nx-sol-activo:not(.nx-noche) .nx-cielo{background:linear-gradient(145deg,#0787ed 0%,#39b9ff 48%,#b5efff 100%)}
+.nx-hero[data-weather="sol"]:not(.nx-noche) .nx-sol,.nx-hero.nx-sol-activo:not(.nx-noche) .nx-sol{display:block;opacity:1;animation:nx-sol-pulso 3.2s ease-in-out infinite}
+.nx-hero[data-weather="sol"] .nx-nube,.nx-hero.nx-sol-activo .nx-nube{display:none}
+.nx-hero[data-weather="nube"] .nx-cielo,.nx-hero.nx-nublado .nx-cielo{background:linear-gradient(160deg,#6389ad 0%,#a9c8dc 58%,#e0eef5 100%)}
+.nx-hero[data-weather="nube"] .nx-sol,.nx-hero.nx-nublado .nx-sol{display:none}
+.nx-hero[data-weather="nube"] .nx-nube,.nx-hero.nx-nublado .nx-nube{display:block;opacity:1;animation:nx-nube-mover 8s ease-in-out infinite alternate}
+.nx-hero[data-weather="lluvia"] .nx-cielo,.nx-hero.nx-llueve .nx-cielo{background:linear-gradient(160deg,#27466e 0%,#557da4 58%,#8eb3cf 100%)}
+.nx-hero[data-weather="lluvia"] .nx-sol,.nx-hero.nx-llueve .nx-sol{display:none}
+.nx-hero[data-weather="lluvia"] .nx-nube,.nx-hero.nx-llueve .nx-nube{display:block;opacity:.9;animation:nx-nube-mover 9s ease-in-out infinite alternate}
+.nx-hero[data-weather="lluvia"] .nx-lluvia,.nx-hero.nx-llueve .nx-lluvia{display:block;opacity:.95;animation:nx-lluvia .55s linear infinite}
+.nx-hero.nx-noche .nx-cielo{background:linear-gradient(160deg,#07122f 0%,#172c58 60%,#304f78 100%)}
+.nx-hero.nx-noche .nx-sol{display:block;width:38px;height:38px;right:33px;top:28px;background:radial-gradient(circle at 32% 30%,#fffef0 0%,#e6efff 68%,#b8d1f7 100%);box-shadow:0 0 24px 7px #c7e0ff70;animation:nx-luna-flotar 5s ease-in-out infinite}
+.nx-hero.nx-noche .nx-sol:before{inset:-13px;background:radial-gradient(circle,transparent 58%,#d6e9ff22 60%,transparent 72%);mask:none;animation:none}
+.nx-hero.nx-noche .nx-sol:after{inset:0;background:radial-gradient(circle at 76% 24%,#172c58 0 36%,transparent 39%);animation:none}
+.nx-hero.nx-noche .nx-nube{display:none}
+.nx-hero.nx-noche .nx-estrellas{opacity:1;animation:nx-titilar 2.8s ease-in-out infinite alternate}
+.nx-hero.nx-noche .nx-lluvia{opacity:0}
+@keyframes nx-rayos-giro{to{transform:rotate(360deg)}}
+@keyframes nx-reflejo{0%,100%{opacity:.35;transform:scale(.92)}50%{opacity:1;transform:scale(1.12)}}
+@keyframes nx-titilar{0%{opacity:.45;background-position:8px 5px,22px 18px,48px 27px}100%{opacity:1;background-position:15px 10px,12px 28px,56px 18px}}
+@keyframes nx-luna-flotar{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){.nx-hero .nx-sol,.nx-hero .nx-sol:before,.nx-hero .nx-sol:after,.nx-hero .nx-nube,.nx-hero .nx-lluvia,.nx-hero .nx-estrellas{animation:none!important}}
 </style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Nexora.</p></html>`;
     const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})), a=document.createElement("a");a.href=url;a.download="informe-financiero-"+ym+".html";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
   }
