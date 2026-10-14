@@ -6,7 +6,7 @@ import { proximaOcurrencia, siguienteRepeticion } from "./fechas";
 export async function programarSeccion(almacen: Almacen, u: Usuario, ref: string, ahora: Date): Promise<void> {
   const id = idProgramacion(u.id, "seccion", ref);
   const cfg = ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === ref) : u.secciones[ref as keyof Usuario["secciones"]];
-  if (!cfg || !cfg.activa || !u.activo) { await almacen.borrarProgramacion(id); return; }
+  if (!cfg || !cfg.activa) { await almacen.borrarProgramacion(id); return; }
   await almacen.guardarProgramacion({ id, uid: u.id, tipo: "seccion", ref, proximo: proximaOcurrencia(cfg.hora, u.zona, ahora) });
 }
 

@@ -1,6 +1,6 @@
-import { Acceso, Evento, HoroscopoDoc, Invitacion, Programacion, Solicitud, Usuario } from "./modelo";
+import { Evento, HoroscopoDoc, Programacion, Usuario } from "./modelo";
 
-/** Persistencia. En producción es Firestore; en los tests, una versión en memoria. */
+/** Contrato de persistencia compartido por la API web y sus pruebas. */
 export interface Almacen {
   getUsuario(id: string): Promise<Usuario | null>;
   guardarUsuario(u: Usuario): Promise<void>;
@@ -23,20 +23,6 @@ export interface Almacen {
   getHoroscopo(signoId: string): Promise<HoroscopoDoc | null>;
   guardarHoroscopo(signoId: string, doc: HoroscopoDoc): Promise<void>;
 
-  // Control de acceso (solo se usa si hay administrador configurado)
-  getAcceso(id: string): Promise<Acceso | null>;
-  guardarAcceso(a: Acceso): Promise<void>;
-  borrarAcceso(id: string): Promise<void>;
-  listarAccesos(): Promise<Acceso[]>;
-  guardarInvitacion(i: Invitacion): Promise<void>;
-  /** Usa una invitación si existe, no ha caducado y vale para [uid] (las que llevan `para` solo valen para esa persona). Atómico: solo una persona puede usarla. */
-  consumirInvitacion(codigo: string, uid: string, ahora: Date): Promise<Invitacion | null>;
-  borrarInvitacionesPara(uid: string): Promise<void>;
-  getSolicitud(id: string): Promise<Solicitud | null>;
-  guardarSolicitud(s: Solicitud): Promise<void>;
-  borrarSolicitud(id: string): Promise<void>;
-  listarSolicitudes(estado?: Solicitud["estado"]): Promise<Solicitud[]>;
-
   cacheGet(clave: string, ahora: Date): Promise<string | null>;
   /** Varias claves de caché de una vez (solo las que existen y no han caducado). */
   cacheGetVarios(claves: string[], ahora: Date): Promise<Record<string, string>>;
@@ -54,9 +40,6 @@ export class AlmacenMemoria implements Almacen {
   programaciones = new Map<string, Programacion>();
   horoscopos = new Map<string, HoroscopoDoc>();
   cache = new Map<string, { valor: string; expira: number }>();
-  accesos = new Map<string, Acceso>();
-  invitaciones = new Map<string, Invitacion>();
-  solicitudes = new Map<string, Solicitud>();
   private seq = 0;
 
   async getUsuario(id: string) { const u = this.usuarios.get(id); return u ? structuredClone(u) : null; }
@@ -91,23 +74,6 @@ export class AlmacenMemoria implements Almacen {
   }
   async getHoroscopo(signoId: string) { return this.horoscopos.get(signoId) ?? null; }
   async guardarHoroscopo(signoId: string, doc: HoroscopoDoc) { this.horoscopos.set(signoId, structuredClone(doc)); }
-  async getAcceso(id: string) { const a = this.accesos.get(id); return a ? structuredClone(a) : null; }
-  async guardarAcceso(a: Acceso) { this.accesos.set(a.id, structuredClone(a)); }
-  async borrarAcceso(id: string) { this.accesos.delete(id); }
-  async listarAccesos() { return [...this.accesos.values()].map((a) => structuredClone(a)); }
-  async guardarInvitacion(i: Invitacion) { this.invitaciones.set(i.codigo, structuredClone(i)); }
-  async consumirInvitacion(codigo: string, uid: string, ahora: Date) {
-    const i = this.invitaciones.get(codigo);
-    if (!i || i.caduca.getTime() <= ahora.getTime() || (i.para && i.para !== uid)) return null;
-    this.invitaciones.delete(codigo);
-    return structuredClone(i);
-  }
-  async borrarInvitacionesPara(uid: string) { for (const [k, i] of [...this.invitaciones]) if (i.para === uid) this.invitaciones.delete(k); }
-  async getSolicitud(id: string) { const s = this.solicitudes.get(id); return s ? structuredClone(s) : null; }
-  async guardarSolicitud(s: Solicitud) { this.solicitudes.set(s.id, structuredClone(s)); }
-  async borrarSolicitud(id: string) { this.solicitudes.delete(id); }
-  async listarSolicitudes(estado?: Solicitud["estado"]) { return [...this.solicitudes.values()].filter((s) => !estado || s.estado === estado).sort((x, y) => x.fecha.getTime() - y.fecha.getTime()).map((s) => structuredClone(s)); }
-
   async cacheGet(clave: string, ahora: Date) {
     const c = this.cache.get(clave);
     return c && c.expira > ahora.getTime() ? c.valor : null;

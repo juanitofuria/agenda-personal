@@ -1,19 +1,13 @@
 import { modoEfectivo } from "./apariencia";
 import { Almacen } from "./almacen";
-import { Canal } from "./canal";
-import { mensajeAviso } from "./bot/eventos";
 import { proximaOcurrencia, siguienteRepeticion } from "./fechas";
 import { Evento, momentoAviso, Programacion, SECCIONES, SeccionId, Usuario } from "./modelo";
 import { Aviso, EmisorPush } from "./webpush";
-import { Teclado } from "./canal";
 import { EMOJI_TIPO } from "./secciones/agenda";
 import { formatearFechaHora } from "./fechas";
 import { enlaceWhatsApp } from "./whatsapp";
-import { construirContenido } from "./secciones";
-import { ErrorTelegram } from "./telegram";
-import { HttpGet } from "./util";
 
-export interface DepsTick { almacen: Almacen; canal: Canal; http: HttpGet; ahora: () => Date; log?: (m: string) => void; /** Si hay administrador, solo se envía a quien tenga acceso. */ adminId?: string; /** Si está, los avisos también pueden llegar como notificación de la app instalada. */ push?: EmisorPush }
+export interface DepsTick { almacen: Almacen; ahora: () => Date; log?: (m: string) => void; push?: EmisorPush }
 
 const MAX_SECCION_RETRASO = 3 * 3_600_000;  // un resumen de hace más de 3 h ya no sirve
 const MAX_EVENTO_RETRASO = 24 * 3_600_000;  // un aviso de hace más de 1 día se descarta
@@ -28,27 +22,19 @@ function configSeccion(u: Usuario, ref: string): { activa: boolean; hora: string
   return ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === ref) : u.secciones[ref as SeccionId];
 }
 
-async function bloquear(dep: DepsTick, u: Usuario): Promise<void> {
-  u.activo = false;
-  await dep.almacen.guardarUsuario(u);
-  await dep.almacen.borrarProgramacionesDe(u.id);
-}
-
-/**
- * Entrega un mensaje programado por donde el usuario haya elegido: Telegram, la app instalada (notificación push) o ambos.
- * Si elige solo la app pero no hay ningún dispositivo que responda, se manda por Telegram para que no se pierda.
- */
-async function entregar(dep: DepsTick, u: Usuario, msg: { html: string; teclado?: Teclado }, aviso: Aviso): Promise<void> {
-  const { canal, suscripciones } = u.notificaciones;
-  let porApp = false;
-  if (canal !== "telegram" && dep.push && suscripciones.length) {
+async function entregar(dep: DepsTick, u: Usuario, aviso: Aviso): Promise<void> {
+  const suscripciones = u.notificaciones.suscripciones;
+  if (dep.push && suscripciones.length) {
     const vivas = [];
-    for (const s of suscripciones) { const r = await dep.push(s, aviso); if (r === "ok") porApp = true; if (r !== "caducada") vivas.push(s); }
+    let entregadas = 0;
+    for (const s of suscripciones) {
+      const resultado = await dep.push(s, aviso);
+      if (resultado === "ok") entregadas++;
+      if (resultado !== "caducada") vivas.push(s);
+    }
     if (vivas.length !== suscripciones.length) { u.notificaciones.suscripciones = vivas; await dep.almacen.guardarUsuario(u); } // se olvidan los dispositivos dados de baja
-  }
-  if (canal !== "telegram" && !porApp) dep.log?.(`⚠ ${u.id}: la notificación de la app no llegó a ningún dispositivo; se manda por Telegram`);
-  if (canal === "app" && porApp) return;
-  await dep.canal.enviar(u.id, msg.html, msg.teclado);
+    if (!entregadas) throw new Error("No se pudo entregar la notificación a ningún dispositivo");
+  } else throw new Error("No hay dispositivos configurados para recibir notificaciones push");
 }
 
 const tituloSeccion = (u: Usuario, ref: string): string => {
@@ -65,13 +51,11 @@ async function enviarSeccion(dep: DepsTick, u: Usuario, p: Programacion, ahora: 
   if (!(await dep.almacen.reclamarProgramacion(p.id, p.proximo, tarde ? siguiente : new Date(ahora.getTime() + CONCESION_MS)))) { r.omitidos++; return; }
   if (tarde) { r.omitidos++; return; }
   try {
-    const cont = await construirContenido(p.ref, { usuario: u, http: dep.http, almacen: dep.almacen, ahora });
     const sonido = u.notificaciones.sonido ?? "signature", modo = modoEfectivo(u, ahora);
-    await entregar(dep, u, cont, { sonido, modo, titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen está listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
+    await entregar(dep, u, { sonido, modo, titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen está listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
     await dep.almacen.guardarProgramacion({ ...p, proximo: siguiente, intentos: 0 });
     r.enviados++;
   } catch (e) {
-    if (e instanceof ErrorTelegram && e.bloqueado) { await bloquear(dep, u); r.fallidos++; return; }
     r.fallidos++;
     dep.log?.(`✗ ${u.id} ${p.ref}: ${(e as Error).message}`);
     const n = (p.intentos ?? 0) + 1;
@@ -102,15 +86,13 @@ async function enviarEvento(dep: DepsTick, u: Usuario, p: Programacion, ahora: D
 
   if (retraso > MAX_EVENTO_RETRASO) { r.omitidos++; } else {
     try {
-      const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 60_000);
       const sonido = u.notificaciones.sonido, modo = modoEfectivo(u, ahora);
       const aviso: Aviso = ev.mensaje
         ? { sonido, modo, titulo: `💬 Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "…" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "💬 Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } }
         : { sonido, modo, titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
-      await entregar(dep, u, { html, teclado }, aviso);
+      await entregar(dep, u, aviso);
       r.enviados++;
     } catch (e) {
-      if (e instanceof ErrorTelegram && e.bloqueado) { await bloquear(dep, u); r.fallidos++; return; }
       r.fallidos++;
       dep.log?.(`✗ ${u.id} evento ${ev.id}: ${(e as Error).message}`);
       const n = (p.intentos ?? 0) + 1;
@@ -129,8 +111,7 @@ export async function procesarProgramacion(dep: DepsTick, p: Programacion): Prom
   const r: ResultadoTick = { enviados: 0, omitidos: 0, fallidos: 0 };
   try {
     const u = await dep.almacen.getUsuario(p.uid);
-    if (!u || !u.activo) { await dep.almacen.borrarProgramacion(p.id); return r; }
-    if (dep.adminId && p.uid !== dep.adminId && !(await dep.almacen.getAcceso(p.uid))) { await dep.almacen.borrarProgramacion(p.id); return r; } // sin acceso: no se le envía nada
+    if (!u) { await dep.almacen.borrarProgramacion(p.id); return r; }
     if (p.tipo === "seccion") await enviarSeccion(dep, u, p, ahora, r); else await enviarEvento(dep, u, p, ahora, r);
   } catch (e) {
     r.fallidos++;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { crearBanco, geocodingFalso, graficoFalso, historicoFalso, previsionFalsa, rssFalso } from "./arnes";
+import { AlmacenMemoria } from "./almacen";
 import { fechaIso, localAUtc, partesEnZona } from "./fechas";
 import { faseDelDia, iluminacion, proximoDia, proximoEvento } from "./luna";
 import { usuarioNuevo } from "./modelo";
@@ -9,10 +9,67 @@ import { construirContenido } from "./secciones";
 import { descTiempo, emojiTiempo, nivelUv, parsearPrevision, renderHoraAHora, renderLuna, tramosLluvia } from "./secciones/tiempo";
 import { cotizacionActual, parsearGrafico, ultimaSesion } from "./secciones/mercados";
 import { signoDe } from "./signos";
-import { grados, num1, sparkline } from "./util";
+import { grados, HttpGet, num1, sparkline } from "./util";
 
 const MAD = "Europe/Madrid";
 const AHORA = new Date("2026-10-04T05:00:00Z"); // 07:00 en Madrid
+
+class HttpFalso implements HttpGet {
+  rutas: { patron: string | RegExp; respuesta: unknown | (() => unknown) }[] = [];
+  llamadas: string[] = [];
+
+  añadir(patron: string | RegExp, respuesta: unknown | (() => unknown)) {
+    this.rutas.unshift({ patron, respuesta });
+    return this;
+  }
+
+  async get(url: string) {
+    this.llamadas.push(url);
+    const ruta = this.rutas.find((x) => typeof x.patron === "string" ? url.includes(x.patron) : x.patron.test(url));
+    if (!ruta) throw new Error(`HTTP no previsto en el test: ${url}`);
+    const resultado = typeof ruta.respuesta === "function" ? ruta.respuesta() : ruta.respuesta;
+    if (resultado instanceof Error) throw resultado;
+    return { data: resultado };
+  }
+}
+
+function crearBanco(_ahora = AHORA) {
+  return { almacen: new AlmacenMemoria(), http: new HttpFalso() };
+}
+
+function previsionFalsa(hoy: string, mañana: string): unknown {
+  const times: string[] = [], campos: Record<string, number[]> = { t: [], c: [], p: [], r: [], w: [], h: [], uv: [], g: [], d: [] };
+  for (const dia of [hoy, mañana]) for (let h = 0; h < 24; h++) {
+    times.push(`${dia}T${String(h).padStart(2, "0")}:00`);
+    campos.t.push(Math.round(20 + 8 * Math.sin(((h - 5) / 18) * Math.PI) * 10) / 10);
+    campos.c.push(h >= 17 && h <= 21 ? 80 : h < 10 ? 2 : 3);
+    campos.p.push(h >= 17 && h <= 21 ? 70 : 5); campos.r.push(h >= 18 && h <= 20 ? 1.2 : 0);
+    campos.w.push(4 + (h % 7)); campos.h.push(80 - (h % 24)); campos.uv.push(Math.max(0, Math.round(5 * Math.sin(((h - 7) / 12) * Math.PI) * 10) / 10)); campos.g.push(10 + (h % 9)); campos.d.push(225);
+  }
+  return {
+    hourly: { time: times, temperature_2m: campos.t, weather_code: campos.c, precipitation_probability: campos.p, precipitation: campos.r, wind_speed_10m: campos.w, relative_humidity_2m: campos.h, uv_index: campos.uv, wind_gusts_10m: campos.g, wind_direction_10m: campos.d },
+    daily: {
+      time: [hoy, mañana], temperature_2m_max: [28.4, 27], temperature_2m_min: [19.2, 18], weather_code: [3, 2],
+      sunrise: [`${hoy}T08:12`, `${mañana}T08:13`], sunset: [`${hoy}T19:42`, `${mañana}T19:40`], uv_index_max: [5.4, 5], shortwave_radiation_sum: [17.8, 17],
+      wind_speed_10m_max: [24, 20], wind_gusts_10m_max: [41, 30], wind_direction_10m_dominant: [225, 200],
+    },
+  };
+}
+
+const historicoFalso = (dias = 276) => ({ daily: { precipitation_sum: Array.from({ length: dias }, (_, i) => (i === dias - 1 ? 0.5 : 1.7)) } });
+
+function rssFalso(tema: string, n = 5): string {
+  const items = Array.from({ length: n }, (_, i) =>
+    `<item><title>${tema} noticia ${i + 1} &amp; más - Diario ${i + 1}</title><link>https://news.google.com/rss/articles/${tema.replace(/\W/g, "")}${i}</link><pubDate>Sun, 04 Oct 2026 0${i}:00:00 GMT</pubDate><source url="https://d.example">Diario ${i + 1}</source></item>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>x</title>${items}</channel></rss>`;
+}
+
+function graficoFalso(opts: { precio: number; previo: number; ultimaFecha: string; chartPrev?: number; gmtoffset?: number }): unknown {
+  const fin = Date.parse(`${opts.ultimaFecha}T14:30:00Z`) / 1000;
+  const ts = [fin - 86400 * 3, fin - 86400 * 2, fin - 86400, fin].map((t) => Math.round(t));
+  return { chart: { result: [{ meta: { regularMarketPrice: opts.precio, regularMarketTime: fin, gmtoffset: opts.gmtoffset ?? 0, chartPreviousClose: opts.chartPrev ?? 7000 },
+    timestamp: ts, indicators: { quote: [{ close: [opts.previo - 20, opts.previo - 10, opts.previo, opts.precio] }] } }] } };
+}
 
 // ---------- Luna ----------
 test("luna: instantes de lunas nuevas y llenas conocidas (error < 15 min)", () => {
@@ -87,7 +144,7 @@ test("tiempo: resumen completo con lluvia prevista, sol, viento, UV, luna y lluv
   assert.match(c.html, /Amanece 08:12 · Anochece 19:42\n11 h 30 min de luz/);
   assert.match(c.html, /Viento<\/b> .* del SO/); assert.match(c.html, /UV máx\.<\/b> 5,4 \(moderado\) — protección solar/);
   assert.match(c.html, /iluminada/); assert.match(c.html, /Ayer llovió 0,5 l\/m²\nAcumulado 2026: /);
-  assert.deepEqual(c.teclado!.flat().map((x) => x.datos), ["sev:tiempo:horas", "sev:tiempo:luna", "m:menu"]);
+  assert.deepEqual(c.acciones, [{ texto: "🕐 Hora a hora", ref: "tiempo:horas" }, { texto: "🌙 Calendario lunar", ref: "tiempo:luna" }]);
   // dos usuarios de la misma ciudad comparten las consultas (caché)
   const antes = b.http.llamadas.length;
   await construirContenido("tiempo", { usuario: { ...u, id: "2" }, http: b.http, almacen: b.almacen, ahora: AHORA });
@@ -99,7 +156,7 @@ test("tiempo: hora a hora, luna, sin ciudad y con el histórico caído", async (
   const u = usuarioNuevo("1", "Ana", AHORA);
   const ctx = { usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA };
   const sin = await construirContenido("tiempo", ctx);
-  assert.match(sin.html, /necesito saber dónde vives/); assert.equal(sin.teclado![0][0].datos, "p:ciudad");
+  assert.match(sin.html, /necesito saber dónde vives/); assert.equal(sin.acciones?.[0].ir, "perfil");
   u.ciudad = { nombre: "Montoro", provincia: "Córdoba", lat: 38.02, lon: -4.38 };
   b.http.añadir("api.open-meteo.com", prevision()).añadir("historical-forecast-api", new Error("503"));
   const resumen = await construirContenido("tiempo", ctx);
@@ -202,7 +259,7 @@ test("horóscopo: pide los datos que faltan, usa el documento del signo y avisa 
   const b = crearBanco(AHORA);
   const u = usuarioNuevo("1", "Ana", AHORA);
   const ctx = () => ({ usuario: u, http: b.http, almacen: b.almacen, ahora: AHORA });
-  assert.equal((await construirContenido("horoscopo", ctx())).teclado![0][0].datos, "p:nacimiento");
+  assert.equal((await construirContenido("horoscopo", ctx())).acciones?.[0].ir, "perfil");
   u.nacimiento = "1984-04-05";
   assert.match((await construirContenido("horoscopo", ctx())).html, /Todavía no hay horóscopo/);
   b.almacen.horoscopos.set("aries", { signo: "aries", fecha: "2026-10-04", prediccion: "Un buen día <para> empezar & avanzar.", fuente: "20minutos.es", fuenteUrl: "https://www.20minutos.es/horoscopo/aries/" });

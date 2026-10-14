@@ -9,7 +9,6 @@
     "deploy": "wrangler deploy",
     "db:crear": "wrangler d1 execute agenda-personal --remote --file=schema.sql",
     "db:local": "wrangler d1 execute agenda-personal --local --file=schema.sql",
-    "webhook": "node ../firebase/functions/scripts/configurar-telegram.mjs",
     "logs": "wrangler tail"
   },
   "devDependencies": {

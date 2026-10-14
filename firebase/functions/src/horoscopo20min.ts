@@ -44,7 +44,7 @@ export function leerPagina20min(html: string): Entrada20min[] {
 
 /**
  * Horóscopo de [fecha] para [signo]. Si la página aún no tiene el de ese día se devuelve el más reciente, con su propia fecha
- * (el bot avisa de que no es el de hoy). Lanza ErrorApi si la página no responde o no se entiende.
+ * (la app avisa de que no es el de hoy). Lanza ErrorApi si la página no responde o no se entiende.
  */
 export async function obtenerSigno20min(http: Http, signo: Signo, fecha: string): Promise<RespuestaApi> {
   const url = urlSigno20min(signo);

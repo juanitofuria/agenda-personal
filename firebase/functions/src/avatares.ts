@@ -1,6 +1,6 @@
 import { Avatar } from "./modelo";
 
-/** Avatares a elegir (la mini app y el asistente del bot usan esta misma lista). Cada uno va sobre un fondo de color. */
+/** Avatares disponibles en la app. Cada uno va sobre un fondo de color. */
 export const AVATARES = [
   "🦊", "🐼", "🐨", "🦁", "🐯", "🐸", "🐵", "🐧", "🦉", "🦄", "🐙", "🦋", "🐢", "🐬", "🦈", "🐳", "🦖", "🐝", "🐞", "🦔",
   "🐰", "🐻", "🐶", "🐱", "🐹", "🦒", "🦓", "🦘", "🦜", "🦩", "🐺", "🦝", "🐮", "🐷", "🐴", "🦌", "🦦", "🦥", "🐊", "🦅",

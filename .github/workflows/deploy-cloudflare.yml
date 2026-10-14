@@ -1,7 +1,7 @@
 name: Desplegar en Cloudflare
 
-# Cada vez que se sube un cambio al bot (código del Worker o lógica común) se prueba y se despliega solo.
-# Disparo manual de mantenimiento para publicar los cambios pendientes de la webapp/PWA.
+# Cada cambio del Worker, la lógica compartida o la PWA se valida y publica en Cloudflare.
+# También se puede ejecutar manualmente desde GitHub Actions.
 on:
   push:
     branches: [main, claude/android-notifications-app-pxj3sn]
@@ -48,7 +48,7 @@ jobs:
           NODE
           for f in /tmp/agenda-web-*.js; do node --check "$f"; done
           if grep -q 'data-actualizar="\${esc(S.ver.ref)}"' publico/app/index.html; then echo "::error::El panel del tiempo depende de S.ver.ref"; exit 1; fi
-      - name: Tests de la lógica común (bot, secciones, planificador)
+      - name: Tests de la lógica compartida de la web
         working-directory: firebase/functions
         run: |
           npm ci

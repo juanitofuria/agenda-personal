@@ -5,7 +5,7 @@ import { HttpGet } from "./util";
  * Foto real de una ciudad para la cabecera del tiempo: la imagen principal de su artículo de Wikipedia (Wikimedia Commons, de libre uso),
  * saltando escudos, banderas, mapas y logotipos. Se guarda 30 días (3 si no hay foto). Sin servicios de pago ni claves.
  */
-const CABECERAS = { "User-Agent": "AgendaPersonal/1.0 (bot personal de agenda; contacto: admin@agenda.invalid)", Accept: "application/json" };
+const CABECERAS = { "User-Agent": "Nexora/1.0 (agenda personal; contacto: admin@agenda.invalid)", Accept: "application/json" };
 const NO_FOTO = /escudo|bandera|flag|coat[_ ]of|mapa|map[_ .-]|locator|logo|sello|firma|plano|situaci[oó]n|ubicaci[oó]n|location|blason|seal|icon|\.svg|\.png|\.gif|\.webm|\.ogv/i;
 const API = "https://es.wikipedia.org/api/rest_v1/page";
 const TREINTA_DIAS = 30 * 24 * 3600_000, TRES_DIAS = 3 * 24 * 3600_000;

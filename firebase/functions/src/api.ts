@@ -1,49 +1,24 @@
-import { createHmac } from "node:crypto";
 import { modoEfectivo, textoSol } from "./apariencia";
-import { Deps } from "./bot/ctx";
-import { contenidoDeSeccion } from "./bot/bot";
+import { DependenciasContenido, contenidoDeSeccion } from "./contenido";
 import { buscarLugares } from "./geocoding";
 import { formatearFechaHora, localAUtc, Repeticion } from "./fechas";
 import { ConfigSeccion, Economia, Evento, ORDEN_SECCIONES, SECCIONES, SeccionId, Tema, TipoEvento, Usuario, Subtarea } from "./modelo";
-import { slug } from "./bot/catalogo";
 import { AVATARES, avatarEmoji, claveFoto, fotoValida, VIGENCIA_FOTO_MS } from "./avatares";
-import { Teclado } from "./canal";
 import { cancelarEvento, programarEvento, programarSeccion, sincronizarSecciones } from "./programar";
-import { iguales } from "./webhook";
 import { fotoCiudad } from "./fotoCiudad";
 import { horaLocal, leerResumen, resumenesDeHoy } from "./resumen";
 import { enlaceWhatsApp, MensajeWa, normalizarTelefono } from "./whatsapp";
 import { claveVapid, suscripcionValida } from "./webpush";
-import { crearAcceso } from "./sesiones";
 import { parseNacimiento } from "./fechas";
-
-/** Antigüedad máxima de los datos de inicio que da Telegram al abrir la mini app. */
-const VIGENCIA_S = 24 * 3600;
-
-/**
- * Comprueba los datos (`initData`) que Telegram entrega a la mini app: vienen firmados con el token del bot, así que solo Telegram
- * puede haberlos generado. Devuelve el id y el nombre de quien abre la app, o null si la firma no vale o están caducados.
- * https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
- */
-export function validarInitData(initData: string, token: string, ahora: Date): { id: string; nombre: string } | null {
-  try {
-    const p = new URLSearchParams(initData);
-    const hash = p.get("hash");
-    if (!hash || !token) return null;
-    p.delete("hash");
-    const texto = [...p.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join("\n");
-    const clave = createHmac("sha256", "WebAppData").update(token).digest();
-    if (!iguales(createHmac("sha256", clave).update(texto).digest("hex"), hash)) return null;
-    const fecha = Number(p.get("auth_date"));
-    if (!fecha || ahora.getTime() / 1000 - fecha > VIGENCIA_S) return null;
-    const u = JSON.parse(p.get("user") ?? "null") as { id?: number; first_name?: string } | null;
-    return u?.id ? { id: String(u.id), nombre: u.first_name ?? "" } : null;
-  } catch { return null; }
-}
+import { slug } from "./util";
 
 export interface RespuestaApi { estado: number; cuerpo: unknown }
 const ok = (cuerpo: unknown = { ok: true }): RespuestaApi => ({ estado: 200, cuerpo });
 const error = (estado: number, mensaje: string): RespuestaApi => ({ estado, cuerpo: { error: mensaje } });
+interface DependenciasApp extends DependenciasContenido {
+  urlBase?: string;
+  push?: import("./webpush").EmisorPush;
+}
 
 const TIPOS: TipoEvento[] = ["alarma", "cita", "tarea", "mensaje", "nota"];
 const REPS: Repeticion[] = ["ninguna", "diaria", "semanal", "laborables", "anual"];
@@ -59,7 +34,7 @@ const eventoJson = (e: Evento, u: Usuario, ahora: Date) => ({
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null, texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha",
 });
 
-async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
+async function estado(deps: DependenciasApp, u: Usuario): Promise<RespuestaApi> {
   const ahora = deps.ahora();
   const eventos = (await deps.almacen.listarEventos(u.id))
     .sort((a, b) => (a.fechaHora?.getTime() ?? Infinity) - (b.fechaHora?.getTime() ?? Infinity)).slice(0, 100);
@@ -68,9 +43,9 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
     ...u.temas.map((t) => ({ ref: `tema:${t.id}`, emoji: t.emoji, titulo: t.titulo, descripcion: `Noticias sobre «${t.consulta}»`, activa: t.activa, hora: t.hora })),
   ];
   return ok({
-    usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, modoBot: modoEfectivo(u, ahora), ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora), admin: !!deps.adminId && u.id === deps.adminId },
+    usuario: { nombre: u.nombre, nacimiento: u.nacimiento, estilo: u.estilo, modo: u.modo, ciudad: u.ciudad?.nombre ?? null, zona: u.zona, sol: textoSol(u, ahora) },
     avatar: u.avatar, fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null, avatares: AVATARES,
-    notificaciones: { canal: u.notificaciones.canal, sonido: u.notificaciones.sonido, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    notificaciones: { sonido: u.notificaciones.sonido, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
     economia: economiaNormalizada(u),
     salud: saludNormalizada(u),
     resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => { const info = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref as SeccionId]; return { ref: r.ref, emoji: info?.emoji ?? "📬", titulo: info?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa }; }),
@@ -80,23 +55,10 @@ async function estado(deps: Deps, u: Usuario): Promise<RespuestaApi> {
 
 const refsActivas = (u: Usuario): string[] => ORDEN_SECCIONES.filter((x) => u.secciones[x].activa).map(String).concat(u.temas.filter((t) => t.activa).map((t) => `tema:${t.id}`));
 
-/** Botones de una sección que tienen sentido dentro de la mini app: enlaces, subpantallas de la misma sección y atajos a otras pantallas. */
-export function botonesApp(t?: Teclado): { texto: string; url?: string; ref?: string; ir?: string }[] {
-  const res: { texto: string; url?: string; ref?: string; ir?: string }[] = [];
-  for (const b of (t ?? []).flat()) {
-    const d = b.datos ?? "";
-    if (b.url) res.push({ texto: b.texto, url: b.url });
-    else if (/^se[cv]:/.test(d) && d !== "sec:todo") res.push({ texto: b.texto, ref: d.replace(/^se[cv]:/, "") });
-    else if (/^p:/.test(d)) res.push({ texto: b.texto, ir: "perfil" });
-    else if (/^[ne]:/.test(d)) res.push({ texto: b.texto, ir: "eventos" });
-  }
-  return res;
-}
-
 const VIGENCIA_LISTA_MS = 120 * 24 * 3600_000;
 const claveLista = (token: string) => `lista:${token}`;
 const tokenNuevo = () => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(18)), (b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
-const enlaceLista = (deps: Deps, token: string) => `${(deps.urlBase ?? "").replace(/\/+$/, "")}/lista/?t=${token}`;
+const enlaceLista = (deps: DependenciasApp, token: string) => `${(deps.urlBase ?? "").replace(/\/+$/, "")}/lista/?t=${token}`;
 
 /** Cambios de la lista de la compra. `propietario`: puede además terminar la compra, vaciarla y gestionar el historial. Devuelve un error, o null si fue bien. */
 function editarCompra(l: Usuario["compra"], c: Record<string, any>, ahora: Date, propietario: boolean): RespuestaApi | null {
@@ -135,10 +97,10 @@ function editarCompra(l: Usuario["compra"], c: Record<string, any>, ahora: Date,
 }
 
 /**
- * Lista compartida por enlace: la abre quien recibe el enlace (sin cuenta de Telegram) y puede ver, añadir, marcar y quitar artículos.
+ * Lista compartida por enlace: la abre quien recibe el enlace y puede ver, añadir, marcar y quitar artículos.
  * El enlace lleva un código imposible de adivinar que apunta a la lista de su dueño; al terminar la compra el código deja de valer.
  */
-export async function manejarListaPublica(deps: Deps, c: Record<string, any>): Promise<RespuestaApi> {
+export async function manejarListaPublica(deps: DependenciasApp, c: Record<string, any>): Promise<RespuestaApi> {
   const token = String(c.token ?? "");
   if (!/^[a-z2-9]{18}$/.test(token)) return error(404, "Esta lista ya no está disponible");
   const ahora = deps.ahora();
@@ -163,10 +125,10 @@ function fechaLocal(texto: unknown, zona: string): Date | null {
 }
 
 /**
- * API de la mini app. `uid` es quien ha firmado la petición (ya validado). Cada acción reutiliza la misma lógica que el bot, así que lo que
+ * API web de la agenda. `uid` es quien ha firmado la petición (ya validado). Cada acción reutiliza la misma lógica de contenido para toda la app, así que lo que
  * se cambia aquí se ve en el chat y al revés.
  */
-export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record<string, any>): Promise<RespuestaApi> {
+export async function manejarApi(deps: DependenciasApp, u: Usuario, ruta: string, c: Record<string, any>): Promise<RespuestaApi> {
   const ahora = deps.ahora();
   switch (ruta) {
     case "/api/estado": return estado(deps, u);
@@ -307,7 +269,7 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       // Con `guardado`, si hoy ya se pidió esa sección se devuelve lo guardado sin volver a prepararla.
       if (c.guardado === true && c.ref !== "todo") {
         const g = await leerResumen(deps.almacen, u, String(c.ref ?? ""), ahora);
-        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: botonesApp(g.teclado), grupos: g.grupos, tiempo: g.tiempo, hora: horaLocal(g.hora, u.zona), guardado: true }] });
+        if (g) return ok({ secciones: [{ ref: String(c.ref), html: g.html, botones: g.acciones ?? [], grupos: g.grupos, tiempo: g.tiempo, hora: horaLocal(g.hora, u.zona), guardado: true }] });
       }
       const conocidas = new Set([...ORDEN_SECCIONES.map(String), ...u.temas.map((t) => `tema:${t.id}`)]);
       // «refs»: varias secciones a la vez (actualizar el resumen de hoy); «todo»: las activadas; si no, una sola
@@ -315,8 +277,8 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       if (!refs.length) return error(409, "No tienes ninguna sección activada");
       const hechas = await Promise.all(refs.map(async (ref) => {
         try {
-          const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref }) : await contenidoDeSeccion(deps, u, ref);
-          return { ref, html: cont.html, botones: botonesApp(cont.teclado), grupos: cont.grupos, tiempo: cont.tiempo, hora: horaLocal(ahora.toISOString(), u.zona) };
+          const cont = await contenidoDeSeccion(deps, u, ref);
+          return { ref, html: cont.html, botones: cont.acciones ?? [], grupos: cont.grupos, tiempo: cont.tiempo, hora: horaLocal(ahora.toISOString(), u.zona) };
         } catch (e) { return { ref, error: String((e as Error).message ?? e).slice(0, 100) }; }
       }));
       return ok({ secciones: hechas });
@@ -328,12 +290,6 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       return ok({ foto: await fotoCiudad(deps.http, deps.almacen, ahora, u.ciudad.nombre, u.ciudad.provincia) });
     }
 
-    case "/api/acceso/enlace": {
-      if (!deps.urlBase) return error(409, "La app aún no tiene dirección pública");
-      const codigo = await crearAcceso(deps.almacen, u.id, ahora);
-      return ok({ enlace: `${deps.urlBase.replace(/\/+$/, "")}/app/?acceso=${codigo}`, minutos: 10 });
-    }
-
     case "/api/push/clave": return ok({ clave: (await claveVapid(deps.almacen, ahora)).publica });
 
     case "/api/push/suscribir": {
@@ -341,18 +297,13 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       if (!suscripcionValida(sub)) return error(400, "La suscripción no es válida");
       const nombre = String(c.dispositivo ?? "Dispositivo").trim().slice(0, 40) || "Dispositivo";
       const resto = u.notificaciones.suscripciones.filter((x) => x.endpoint !== sub.endpoint);
-      const primero = u.notificaciones.suscripciones.length === 0;
       u.notificaciones.suscripciones = [...resto, { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, dispositivo: nombre, desde: ahora.toISOString() }].slice(-6);
-      // Al activar el primer dispositivo, los avisos pasan a llegar también por la app (si no, se activaría y no llegaría nada). Se puede cambiar.
-      const cambiado = primero && u.notificaciones.canal === "telegram";
-      if (cambiado) u.notificaciones.canal = "ambos";
       await deps.almacen.guardarUsuario(u);
-      return ok({ canal: u.notificaciones.canal, cambiado });
+      return ok();
     }
 
     case "/api/push/quitar": {
       u.notificaciones.suscripciones = u.notificaciones.suscripciones.filter((x) => x.endpoint.slice(-24) !== c.id && x.endpoint !== c.endpoint);
-      if (!u.notificaciones.suscripciones.length) u.notificaciones.canal = "telegram"; // sin dispositivos, solo Telegram
       await deps.almacen.guardarUsuario(u);
       return ok();
     }
@@ -374,18 +325,12 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
         if (!["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(c.sonido)) return error(400, "Sonido desconocido");
         u.notificaciones.sonido = c.sonido;
       }
-      if (c.canal !== undefined && c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error(400, "Opción desconocida");
-      if (c.canal !== undefined) {
-        if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error(409, "Primero activa las notificaciones en un dispositivo");
-        u.notificaciones.canal = c.canal;
-      }
       await deps.almacen.guardarUsuario(u);
       return ok({ sonido: u.notificaciones.sonido });
     }
 
     case "/api/avatar": {
       if (c.tipo === "emoji") { const a = avatarEmoji(c.emoji, c.color); if (!a) return error(400, "Ese avatar no existe"); u.avatar = a; }
-      else if (c.tipo === "telegram") u.avatar = { tipo: "telegram" };
       else if (c.tipo === "foto") {
         if (!fotoValida(c.foto)) return error(400, "La foto no es válida o pesa demasiado");
         await deps.almacen.cacheSet(claveFoto(u.id), c.foto, VIGENCIA_FOTO_MS, ahora);
@@ -441,18 +386,6 @@ export async function manejarApi(deps: Deps, u: Usuario, ruta: string, c: Record
       return ok({ ref: `tema:${id}` });
     }
 
-    case "/api/enviar": {
-      // Manda al chat una sección (o todas las activadas) ya hecha; lo hace igual que el botón «Ver ahora» del bot.
-      const refs = c.ref === "todo" ? ORDEN_SECCIONES.filter((s) => u.secciones[s].activa).map(String).concat(u.temas.filter((t) => t.activa).map((t) => `tema:${t.id}`)) : [String(c.ref ?? "")];
-      if (!refs.length) return error(409, "No tienes ninguna sección activada");
-      for (const ref of refs) {
-        try {
-          const cont = deps.construirRemoto ? await deps.construirRemoto({ uid: u.id, ref }) : await contenidoDeSeccion(deps, u, ref);
-          await deps.canal.enviar(u.id, cont.html, cont.teclado);
-        } catch (e) { return error(502, `No he podido preparar «${ref}»: ${String((e as Error).message).slice(0, 80)}`); }
-      }
-      return ok({ enviadas: refs.length });
-    }
     default: return error(404, "No existe");
   }
 }

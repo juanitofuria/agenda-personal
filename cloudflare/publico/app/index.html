@@ -13,10 +13,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nexora">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<script>document.documentElement.dataset.modo=(window.Telegram?.WebApp?.initData&&window.Telegram.WebApp.colorScheme==="dark")||matchMedia("(prefers-color-scheme: dark)").matches?"oscuro":"claro";</script>
+<script>document.documentElement.dataset.modo=matchMedia("(prefers-color-scheme: dark)").matches?"oscuro":"claro";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Nunito:wght@600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* ===== Temas: estilo (informal/formal) × modo (claro/oscuro). El script pone data-estilo y data-modo en <html>. ===== */
 :root{--fondo:#eef5fd;--fondo2:#dcebfa;--tarjeta:#fff;--tinta:#0f2347;--suave:#51658a;--linea:rgba(30,70,140,.12);--azul:#2f6fd6;--azul2:#46a0ff;--ok:#27a85a;--rojo:#ef4a5a;--sombra:0 10px 28px rgba(40,90,170,.14);
@@ -636,7 +635,6 @@ ymbol>
 <script>window.BEXORA_API_ORIGIN = location.hostname === "bexora-agenda-personal.web.app" ? "https://agenda-personal.cresofin.workers.dev" : "";</script>
 <script type="module" src="firebase-auth.js?v=20261014-nexora"></script>
 <script>
-const TG = window.Telegram && Telegram.WebApp;
 let DEMO = new URLSearchParams(location.search).has("demo");
 let AUTH_CONFIGURED = false, AUTH_USER = null, ARRANCADO = false, REGISTRO_OBLIGATORIO = false;
 let accesoDesdeInicio = false, modoAccesoInicial = "login", avisoInicio = "", bloqueoBiometrico = null;
@@ -658,14 +656,14 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
-/* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
+/* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático) ---------- */
 function actualizarIconos() {
   const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-192.png?v=20261014-icon";
   const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-512.png?v=20261014-icon";
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
-  const sistema = (TG && TG.initData && TG.colorScheme) || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const sistema = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   const modo = !u || u.modo === "auto" ? (sistema === "dark" ? "oscuro" : "claro") : u.modo;
   root.dataset.estilo = u ? u.estilo : "informal"; root.dataset.modo = modo; actualizarIconos(modo);
   const logo = modo === "oscuro" ? "--logo-fondo:#f4f8ff;--logo-borde:#dfe9f8;--logo-tapa:#ef4a5a;--logo-check:#3d6fcf" : "--logo-fondo:#fff;--logo-borde:#2f6fd6;--logo-tapa:#ef4a5a;--logo-check:#27a85a";
@@ -673,14 +671,11 @@ function aplicarTema() {
   root.style.cssText = formal;
   const bg = getComputedStyle(root).getPropertyValue("--fondo").trim() || "#eef5fd";
   const metaTema = document.querySelector('meta[name="theme-color"]'); if (metaTema) metaTema.content = bg;
-  if (TG) { try { TG.setHeaderColor(bg); TG.setBackgroundColor(bg); } catch (e) {} }
 }
-if (TG) TG.onEvent("themeChanged", aplicarTema);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarTema);
 
 /* ---------- API ---------- */
-/* Identificación: dentro de Telegram, con sus datos firmados; fuera, con una sesión propia del navegador o una sesión vinculada. */
-const enTelegram = () => !!(TG && TG.initData);
+/* Identificación mediante Firebase Authentication. */
 const CLAVE_ESCRITURA_PENDIENTE = "bexora-escritura-pendiente";
 function quitarEscrituraPendiente() {
   try { localStorage.removeItem(CLAVE_ESCRITURA_PENDIENTE); } catch {}
@@ -732,11 +727,9 @@ function borrarEscrituraPendiente(ruta, cuerpo) {
     }
   } catch (error) { console.error("No se pudo limpiar la operación guardada en esta pestaña.", error); }
 }
-const leerSesion = () => { try { return localStorage.getItem("sesion") || ""; } catch (e) { return ""; } };
-const guardarSesion = (t) => { try { t ? localStorage.setItem("sesion", t) : localStorage.removeItem("sesion"); } catch (e) {} };
 async function api(ruta, cuerpo = {}, reintentar = true) {
   const soloLectura = ruta === "/api/estado" || ruta === "/api/ver" || ruta === "/api/foto" || (ruta === "/api/ciudad" && !cuerpo.elegir);
-  if (DEMO && !enTelegram() && !AUTH_USER && !soloLectura) {
+  if (DEMO && !AUTH_USER && !soloLectura) {
     if (!AUTH_CONFIGURED) throw new Error("El registro no está disponible temporalmente. Puedes seguir explorando la app y volver a intentarlo más tarde.");
     guardarEscrituraPendiente(ruta, cuerpo);
     await pedirAcceso();
@@ -745,15 +738,10 @@ async function api(ruta, cuerpo = {}, reintentar = true) {
   if (DEMO) return demo(ruta, cuerpo);
   const cab = { "content-type": "application/json" };
   if (AUTH_USER) cab.authorization = `Bearer ${await AUTH_USER.getIdToken()}`;
-  else if (enTelegram()) cab.authorization = "tma " + TG.initData;
-  else if (leerSesion()) cab.authorization = "sesion " + leerSesion();
+  else throw Object.assign(new Error("Inicia sesión para continuar"), { sesion: true });
   const r = await fetch(`${window.BEXORA_API_ORIGIN || ""}${ruta}`, { method: "POST", headers: cab, body: JSON.stringify(cuerpo) });
   const j = await r.json().catch(() => ({}));
-  if (r.status === 401 && !AUTH_USER && !enTelegram() && ruta !== "/api/sesion" && reintentar && leerSesion()) {
-    guardarSesion("");
-    return api(ruta, cuerpo, false);
-  }
-  if (r.status === 401 && !AUTH_USER && !enTelegram() && ruta !== "/api/sesion") { guardarSesion(""); const e = new Error(j.error || "Inicia sesión para continuar"); e.sesion = true; throw e; }
+  if (r.status === 401 && reintentar) { const e = new Error(j.error || "Inicia sesión para continuar"); e.sesion = true; throw e; }
   if (!r.ok) throw new Error(j.error || "Algo ha fallado");
   borrarEscrituraPendiente(ruta, cuerpo);
   return j;
@@ -762,7 +750,7 @@ async function cargar() { S.datos = await api("/api/estado"); if (!DEMO) try { c
 function aviso(t) { const d = document.createElement("div"); d.className = "aviso"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
 async function hacer(f, ok) { try { const r = await f(); if (ok) aviso(typeof ok === "function" ? ok(r) : ok); await cargar(); pintar(); return r; } catch (e) { aviso(e.message); return false; } }
 
-/* ---------- Contenido de Telegram → HTML seguro (solo etiquetas simples y enlaces https) ---------- */
+/* ---------- Contenido remoto → HTML seguro (solo etiquetas simples y enlaces https) ---------- */
 function limpiar(html) {
   const d = new DOMParser().parseFromString("<body>" + html + "</body>", "text/html");
   const ok = new Set(["B", "STRONG", "I", "EM", "U", "S", "CODE", "PRE", "BLOCKQUOTE", "A"]);
@@ -822,12 +810,6 @@ new MutationObserver((cambios) => {
     }
   }
 }).observe(document.body, { childList: true });
-function botonAtras() {
-  if (!TG || !TG.BackButton) return;
-  if (S.vista === "inicio") TG.BackButton.hide(); else TG.BackButton.show();
-}
-if (TG && TG.BackButton) TG.BackButton.onClick(atras);
-
 // La frase del día: una por cada día del año (frases.js), la misma para todo el mundo ese día.
 {
   const h = new Date(), dia = Math.floor((Date.UTC(h.getFullYear(), h.getMonth(), h.getDate()) - Date.UTC(h.getFullYear(), 0, 0)) / 864e5); // 1..366
@@ -835,12 +817,11 @@ if (TG && TG.BackButton) TG.BackButton.onClick(atras);
 }
 
 /* ---------- Avatar: foto, avatar de emoji o burbuja con la inicial ---------- */
-const fotoTelegram = () => (TG && TG.initDataUnsafe && TG.initDataUnsafe.user && TG.initDataUnsafe.user.photo_url) || "";
 function burbuja(tam) {
   const u = S.datos.usuario, a = S.datos.avatar, nombre = (u.nombre || "").trim();
   const inicial = (nombre.charAt(0) || "?").toUpperCase();
   const g = a && a.tipo === "emoji" ? a.color : [...nombre].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 8;
-  const foto = a && a.tipo === "foto" ? S.datos.fotoAvatar : a && a.tipo === "telegram" ? fotoTelegram() : "";
+  const foto = a && a.tipo === "foto" ? S.datos.fotoAvatar : "";
   const dentro = a && a.tipo === "emoji" ? a.emoji : inicial;
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
@@ -851,7 +832,7 @@ const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 const vistoBanner = (k) => { try { return !!localStorage.getItem("visto_" + k); } catch (e) { return false; } };
 const marcarBanner = (k) => { try { localStorage.setItem("visto_" + k, "1"); } catch (e) {} };
 function bannerApp() {
-  if (enTelegram() || DEMO) return "";
+  if (DEMO) return "";
   const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const aqui = S.aqui && S.aqui.suscrito, cierre = `<button class="x" data-cerrar-banner="1" aria-label="Ahora no">✕</button>`;
   let clave = "", html = "";
@@ -1117,7 +1098,7 @@ const vistas = {
         : x.grupos && x.grupos.length ? `${noticiasHTML(x.grupos)}${botones(x)}${pie(x)}`
         : `<div class="doc">${limpiar(x.html)}${botones(x)}</div>${pie(x)}`).join("");
     const conPanel = v.secciones && v.secciones.length === 1 && v.secciones[0].tiempo;
-    return `${conPanel ? "" : barra(v.titulo)}${cuerpo}${v.secciones && v.ref !== "todo" ? `<button class="btn sec ancho" data-chat="${esc(v.ref)}">📨 Enviármelo también al chat</button>` : ""}`;
+    return `${conPanel ? "" : barra(v.titulo)}${cuerpo}`;
   },
   secciones() {
     const vis = S.datos.secciones.filter((s) => !s.oculta), ocultas = S.datos.secciones.filter((s) => s.oculta);
@@ -1135,18 +1116,17 @@ const vistas = {
       <label>Estilo</label><div class="seg">${b("estilo", "informal", "😊 Informal")}${b("estilo", "formal", "👔 Formal")}</div>
       <p class="nota">${u.estilo === "formal" ? "Sobrio y profesional: tipografía con serifa y acentos de color." : "Cercano y colorido: iconos con color y letra redondeada."}</p>
       <label>Tema</label><div class="seg">${b("modo", "claro", "☀️ Claro")}${b("modo", "oscuro", "🌙 Oscuro")}${b("modo", "auto", "🔄 Automático")}</div>
-      <p class="nota">Automático sigue el tema de tu dispositivo, el mismo que usa Telegram. Los mensajes del chat no pueden leerlo: ahí «Automático» cambia con el anochecer y el amanecer de tu ciudad (${esc(u.sol)}).</p>`;
+      <p class="nota">Automático sigue el tema de tu dispositivo. «Automático» también adapta los detalles de la app al amanecer y anochecer de tu ciudad (${esc(u.sol)}).</p>`;
   },
   dispositivos() {
-    const n = S.datos.notificaciones, fuera = !enTelegram(), aqui = S.aqui || { suscrito: false };
+    const n = S.datos.notificaciones, aqui = S.aqui || { suscrito: false };
     const instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     const sonido = sonidoValido(n.sonido);
     const sonidos = Object.entries(SONIDOS).map(([id, x]) => `<button class="${sonido === id ? "on" : ""}" data-sonido="${id}"><span>${x.emoji}</span>${x.nombre}</button>`).join("");
     let notis;
-    if (!fuera) notis = `<p class="nota">Las notificaciones de la app se activan desde la app instalada, no desde Telegram.</p>`;
-    else if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
+    if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
     else if (!soportaPush) notis = `<p class="nota">Este navegador no admite notificaciones.</p>`;
     else notis = aqui.suscrito ? `<button class="btn peligro ancho" data-push="off">🔕 Desactivar en este dispositivo</button>` : `<button class="btn ancho" data-push="on">🔔 Activar en este dispositivo</button>`;
     return `${barra("App y notificaciones")}
@@ -1162,7 +1142,7 @@ const vistas = {
       <p class="nota">El sonido se guarda para todos tus dispositivos. Si la app está abierta, reproduce este sonido al recibir un aviso; cuando está cerrada, el sistema puede usar su sonido predeterminado.</p>
       ${notis}
       ${n.dispositivos.length ? `<label>Dispositivos con notificaciones</label><div class="lista">${n.dispositivos.map((d) => `<div class="fila"><div class="emo">📲</div><div class="t"><b>${esc(d.nombre)}</b><small>desde ${new Date(d.desde).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small></div><button class="btn chico peligro" data-pushquitar="${esc(d.id)}">✕</button></div>`).join("")}</div><button class="btn sec ancho" data-probar="1">🔔 Enviarme una prueba</button>` : ""}
-      ${fuera && leerSesion() ? `<button class="btn peligro ancho" style="margin-top:22px" data-salir="1">Cerrar sesión en este dispositivo</button>` : ""}`;
+      `;
   },
 };
 
@@ -1352,7 +1332,7 @@ function hojaWa(e) {
   });
 }
 
-/* Compartir: se crea un enlace a una lista que cualquiera puede abrir y modificar (marcar, añadir, quitar). Telegram no ofrece el menú «Compartir» del sistema dentro de las mini apps, así que se ofrecen los destinos más usados. */
+/* Compartir: se crea un enlace a una lista que cualquiera puede abrir y modificar (marcar, añadir, quitar). */
 function mensajeCompra(enlace) {
   const pend = S.datos.compra.items.filter((x) => !x.hecho);
   return "🛒 Lista de la compra\n" + pend.map((x) => "• " + x.texto).join("\n") + "\n\nÁbrela y ve marcando lo que compras:\n" + enlace;
@@ -1361,7 +1341,7 @@ async function copiar(t) {
   try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
   try { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; } catch (e) { return false; }
 }
-function abrirEnlace(u) { if (TG && TG.openLink) TG.openLink(u); else window.open(u, "_blank"); }
+function abrirEnlace(u) { window.open(u, "_blank", "noopener,noreferrer"); }
 async function hojaCompartir() {
   if (!S.datos.compra.items.length) return aviso("La lista está vacía");
   let enlace;
@@ -1371,7 +1351,6 @@ async function hojaCompartir() {
   h.innerHTML = `<div><h3>Compartir la lista</h3><p class="nota">Quien reciba el enlace podrá <b>ver, añadir y marcar</b> productos, y tú verás los cambios aquí. Al terminar la compra, el enlace deja de valer y la siguiente lista tendrá uno nuevo.</p><div class="doc" style="white-space:pre-wrap;font-size:13px">${esc(texto)}</div>
     <button class="btn ancho" data-c="wa">💬 WhatsApp</button>
     <button class="btn ancho" data-c="mail">✉️ Correo</button>
-    <button class="btn ancho" data-c="tg">✈️ Telegram</button>
     ${navigator.share ? `<button class="btn ancho" data-c="otras">📤 Otras aplicaciones…</button>` : ""}
     <button class="btn sec ancho" data-c="copiar">📋 Copiar el mensaje</button>
     <button class="btn peligro ancho" data-c="parar">🚫 Dejar de compartir</button>
@@ -1384,7 +1363,6 @@ async function hojaCompartir() {
     const t = encodeURIComponent(texto);
     if (c === "wa") abrirEnlace("https://wa.me/?text=" + t);
     else if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Lista de la compra") + "&body=" + t);
-    else if (c === "tg") { const u = "https://t.me/share/url?url=" + encodeURIComponent(enlace) + "&text=" + encodeURIComponent("🛒 Lista de la compra"); if (TG && TG.openTelegramLink) TG.openTelegramLink(u); else window.open(u, "_blank"); }
     else if (c === "otras") { try { await navigator.share({ title: "Lista de la compra", text: texto }); } catch (err) {} }
     else if (c === "copiar") { aviso((await copiar(texto)) ? "📋 Copiado" : "No he podido copiar"); return; }
     else if (c === "parar") { h.remove(); return hacer(() => api("/api/compra", { accion: "descompartir" }), "🚫 Enlace desactivado"); }
@@ -1413,7 +1391,6 @@ function hojaAvatar() {
     h.innerHTML = `<div><h3>Tu avatar</h3>
       <div style="display:flex;justify-content:center;margin:10px 0">${burbuja(84)}</div>
       <button class="btn ancho" data-av="foto">📷 Subir una foto</button><input type="file" id="f-foto" accept="image/*" hidden>
-      ${fotoTelegram() ? `<button class="btn sec ancho" data-av="telegram">✈️ Usar mi foto de Telegram</button>` : ""}
       <label>O elige un avatar</label>
       <div class="colores">${[0,1,2,3,4,5,6,7].map((i) => `<button class="av g${i} ${i === color ? "on" : ""}" data-col="${i}" style="width:28px;height:28px;box-shadow:none"></button>`).join("")}</div>
       <div class="rej-av">${S.datos.avatares.map((e) => `<button class="av g${color}" data-emo="${e}" style="width:auto;height:auto;box-shadow:none">${e}</button>`).join("")}</div>
@@ -1429,7 +1406,6 @@ function hojaAvatar() {
     if (emo) return guardar({ tipo: "emoji", emoji: emo.dataset.emo, color });
     if (acc === "no") return h.remove();
     if (acc === "foto") return $("#f-foto", h).click();
-    if (acc === "telegram") return guardar({ tipo: "telegram" });
     if (acc === "ninguno") return guardar({ tipo: "ninguno" });
   });
   h.addEventListener("change", async (e) => {
@@ -1461,8 +1437,7 @@ const GUIAS = {
   android: {
     nota: "Necesitas Chrome. Vale cualquier Android reciente.",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot, o usa «Crear enlace de acceso» más abajo."],
-      ["Ábrelo en Chrome", "Pulsa <b>🌐 Abrir ahora en el navegador</b>. Si se abre dentro de Telegram, copia el enlace y pégalo en Chrome."],
+      ["Abre Nexora en Chrome", "Visita la web de Nexora directamente en tu navegador."],
       ["Instálala", "Pulsa <b>⬇️ Instalar ahora</b> en el recuadro de la pantalla de inicio. Si no sale: menú <b>⋮</b> → <b>Instalar aplicación</b>.", "No elijas «Añadir a pantalla de inicio»: eso crea solo un acceso directo a la web."],
       ["Confirma y ábrela desde su icono", "Se verá a pantalla completa, sin barra del navegador."],
     ],
@@ -1470,7 +1445,6 @@ const GUIAS = {
       ["Abre la app instalada", "Desde su icono, no desde Chrome."],
       ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
       ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>: debe sonar en el móvil."],
-      ["Elige cómo recibir los avisos", "<b>App</b> (solo notificaciones) o <b>Ambos</b> (también por Telegram)."],
     ],
     fallos: [
       ["Se abre con la barra del navegador", "Es un acceso directo, no la app. Mantén pulsado el icono → <b>Quitar</b>, y vuelve a instalarla con «Instalar aplicación»."],
@@ -1481,8 +1455,7 @@ const GUIAS = {
   ios: {
     nota: "Necesitas <b>iOS 16.4 o superior</b> (Ajustes → General → Información) y usar <b>Safari</b>.",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot."],
-      ["Ábrelo en Safari", "No sirve Chrome ni el navegador de dentro de Telegram. Copia el enlace y pégalo en Safari."],
+      ["Abre Nexora en Safari", "Visita la web de Nexora directamente en Safari."],
       ["Pulsa Compartir", "El icono del cuadrado con una flecha hacia arriba (abajo en el centro, o arriba a la derecha en iPad)."],
       ["Elige «Añadir a pantalla de inicio»", "Desliza la lista hacia abajo si no lo ves y pulsa <b>Añadir</b>."],
       ["Ábrela desde el icono nuevo", "Siempre desde ese icono, no desde Safari: así se ve a pantalla completa y Apple permite las notificaciones."],
@@ -1491,7 +1464,6 @@ const GUIAS = {
       ["Abre la app desde su icono", "Es imprescindible para poder activar los avisos en iPhone."],
       ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
       ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>."],
-      ["Mejor «Ambos»", "En iPhone las notificaciones pueden retrasarse algo. Con <b>Ambos</b> también te llega por Telegram."],
     ],
     fallos: [
       ["No me sale el botón de activar avisos", "Ábrela desde el icono de la pantalla de inicio, no desde Safari. Y comprueba que tienes iOS 16.4 o superior."],
@@ -1502,8 +1474,7 @@ const GUIAS = {
   windows: {
     nota: "Vale Chrome o Edge.",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram (en el móvil o en el ordenador) escribe <b>/app</b> al bot y copia el enlace."],
-      ["Ábrelo en Chrome o Edge", "Pégalo en la barra de direcciones."],
+      ["Abre Nexora en Chrome o Edge", "Visita la web de Nexora en la barra de direcciones."],
       ["Instálala", "Pulsa <b>⬇️ Instalar ahora</b>, o el icono de instalar (un monitor con flecha) al final de la barra de direcciones. También: Chrome <b>⋮ → Transmitir, guardar y compartir → Instalar página como aplicación</b>; Edge <b>⋯ → Aplicaciones → Instalar este sitio como una aplicación</b>."],
       ["Ábrela desde su icono", "Se abre en su propia ventana. Puedes anclarla a la barra de tareas o al menú Inicio."],
     ],
@@ -1522,8 +1493,7 @@ const GUIAS = {
   mac: {
     nota: "Vale Chrome, Edge o Safari (macOS Sonoma 14 o superior).",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot y copia el enlace."],
-      ["Ábrelo en tu navegador", "Chrome, Edge o Safari."],
+      ["Abre Nexora en tu navegador", "Visita la web de Nexora con Chrome, Edge o Safari."],
       ["Instálala", "Chrome o Edge: <b>⬇️ Instalar ahora</b> o el icono de instalar en la barra de direcciones. Safari: menú <b>Archivo → Añadir al Dock</b>."],
       ["Ábrela desde el Dock o Launchpad", "Se abre en su propia ventana, como cualquier app."],
     ],
@@ -1569,9 +1539,7 @@ async function instalarApp() {
     if (resultado.outcome === "accepted") aviso("✅ Nexora se ha instalado");
     return;
   }
-  const instrucciones = enTelegram()
-    ? "Para instalar Nexora, abre esta dirección directamente en Safari o Chrome y usa «Añadir a pantalla de inicio» o «Instalar aplicación»."
-    : esIOS()
+  const instrucciones = esIOS()
     ? "En Safari, pulsa Compartir y elige «Añadir a pantalla de inicio»."
     : /Android/i.test(navigator.userAgent)
       ? "Abre el menú ⋮ de tu navegador y pulsa «Instalar aplicación» o «Añadir a pantalla de inicio»."
@@ -1590,7 +1558,7 @@ function nombreDispositivo() {
   return nav ? `${so} · ${nav}` : so;
 }
 async function registrarSW() {
-  if (enTelegram() || DEMO || !("serviceWorker" in navigator)) return null;
+  if (DEMO || !("serviceWorker" in navigator)) return null;
   try {
     const habiaControlador = !!navigator.serviceWorker.controller;
     if (!window.__nexoraCambioSW) {
@@ -1635,37 +1603,12 @@ async function activarPush() {
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deB64u(clave) }));
   const j = sub.toJSON();
   const r = await api("/api/push/suscribir", { suscripcion: { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, dispositivo: nombreDispositivo() });
-  S.canalCambiado = !!r.cambiado;
 }
 async function desactivarPush() {
   const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription());
   if (sub) { const endpoint = sub.endpoint; await sub.unsubscribe(); await api("/api/push/quitar", { endpoint }); }
 }
 async function refrescarDispositivos() { const aqui = await suscritoAqui(); S.aqui = { suscrito: !!aqui && S.datos.notificaciones.dispositivos.some((d) => d.id === aqui) }; }
-function hojaEnlace(enlace) {
-  const texto = "🔗 Enlace para abrir mi agenda (vale una vez y caduca en 10 minutos):\n" + enlace;
-  const h = document.createElement("div"); h.className = "hoja";
-  h.innerHTML = `<div><h3>Enlace de acceso</h3><p class="nota">Para usar la app <b>en este mismo dispositivo</b>, ábrelo ahora en el navegador. Para <b>otro dispositivo</b>, cópialo o envíatelo. <b>Vale una sola vez y caduca en 10 minutos.</b> No lo compartas con nadie más.</p>
-    <div class="doc" style="white-space:normal;font-size:12.5px;word-break:break-all">${esc(enlace)}</div>
-    <button class="btn ancho" data-e="abrir">🌐 Abrir ahora en el navegador</button>
-    <button class="btn sec ancho" data-e="copiar">📋 Copiar el enlace</button>
-    <button class="btn sec ancho" data-e="wa">💬 Enviármelo por WhatsApp</button>
-    <button class="btn sec ancho" data-e="mail">✉️ Enviármelo por correo</button>
-    <button class="btn sec ancho" data-e="no">Cerrar</button></div>`;
-  document.body.appendChild(h);
-  h.addEventListener("click", async (e) => {
-    const c = e.target.closest("[data-e]")?.dataset.e;
-    if (e.target === h || c === "no") return h.remove();
-    if (c === "abrir") { // fuera del navegador interno de Telegram: la app se instala y las notificaciones se activan desde el navegador del dispositivo
-      if (TG && TG.openLink) TG.openLink(enlace, { try_instant_view: false }); else window.open(enlace, "_blank");
-      return h.remove();
-    }
-    if (c === "copiar") aviso((await copiar(enlace)) ? "📋 Copiado" : "No he podido copiar");
-    if (c === "wa") abrirEnlace("https://wa.me/?text=" + encodeURIComponent(texto));
-    if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Enlace de acceso a mi agenda") + "&body=" + encodeURIComponent(texto));
-  });
-}
-
 /* ---------- Eventos de la página ---------- */
 document.addEventListener("click", async (e) => {
   const q = (s) => e.target.closest(s);
@@ -1872,27 +1815,22 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
   if ((el = q("[data-wa]"))) return hojaWa(S.datos.eventos.find((x) => x.id === el.dataset.wa));
   if ((el = q("[data-so]"))) { S.guiaSO = el.dataset.so; return pintar(); }
   if (q("[data-cerrar-banner]")) { S.bannerOculto = S.bannerClave; return pintar(); }
-  const msgActivado = () => (S.canalCambiado ? "🔔 Activadas: ahora te llegan por la app y por Telegram" : "🔔 Notificaciones activadas");
+  const msgActivado = () => "🔔 Notificaciones activadas";
   if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, msgActivado);
-  if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
   if (q("[data-instalar]")) return instalarApp();
-  if ((el = q("[data-canal]"))) return hacer(() => api("/api/notificaciones", { canal: el.dataset.canal }));
   if ((el = q("[data-sonido]"))) return hacer(() => api("/api/notificaciones", { sonido: el.dataset.sonido }), "🔊 Sonido guardado");
   if ((el = q("[data-probar-sonido]"))) return reproducirSonido(el.dataset.probarSonido);
   if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? msgActivado : "🔕 Desactivadas");
   if ((el = q("[data-pushquitar]"))) return hacer(() => api("/api/push/quitar", { id: el.dataset.pushquitar }), "Dispositivo quitado");
   if (q("[data-probar]")) { try { await api("/api/push/probar"); aviso("🔔 Prueba enviada"); } catch (err) { aviso(err.message); } return; }
-  if (q("[data-salir]")) { if (!confirm("¿Cerrar la sesión en este dispositivo?")) return; try { await api("/api/salir"); } catch (err) {} guardarSesion(""); location.href = "/app/"; return; }
   if (q("[data-avatar]")) return hojaAvatar();
   if (q("[data-compartir]")) return hojaCompartir();
   if ((el = q("[data-repetir]"))) return compra({ accion: "repetir", id: el.dataset.repetir }, "↻ Añadido a la lista");
   if ((el = q("[data-olvidar]"))) { if (confirm("¿Eliminar esta compra del historial?")) compra({ accion: "olvidar", id: el.dataset.olvidar }); return; }
-  if ((el = q("[data-url]"))) { e.preventDefault(); const u = el.dataset.url; return TG && TG.openLink ? TG.openLink(u) : window.open(u, "_blank"); }
-  if ((el = q("[data-chat]"))) { el.disabled = true; try { await api("/api/enviar", { ref: el.dataset.chat }); aviso("🔔 Notificación enviada"); } catch (err) { aviso(err.message); } el.disabled = false; return; }
+  if ((el = q("[data-url]"))) { e.preventDefault(); return window.open(el.dataset.url, "_blank", "noopener,noreferrer"); }
   if (q("[data-tema]")) { const t = $("#tema").value.trim(); if (!t) return; return hacer(() => api("/api/tema", { titulo: t }), "⭐ Tema añadido"); }
   if ((el = q("[data-temadel]"))) { if (!confirm("¿Eliminar este tema?")) return; return hacer(() => api("/api/tema", { borrar: el.dataset.temadel }), "🗑 Eliminado"); }
   if (q("[data-perfil]")) return hacer(() => api("/api/perfil", { nombre: $("#nombre").value, nacimiento: $("#nac").value }), "✅ Guardado");
-  if ((el = q("[data-enviar]"))) { const b = el; b.disabled = true; await hacer(async () => { await api("/api/enviar", { ref: b.dataset.enviar }); }, "🔔 Notificación enviada"); return; }
   if (q("[data-abrir-anadir]")) return hojaAnadir();
   if ((el = q("[data-hecho]"))) return hacer(async () => { const r = await api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }); const x=S.datos.eventos.find((v)=>v.id===el.dataset.hecho); if(x&&r.evento) Object.assign(x,r.evento); return r; });
   if ((el = q("[data-borrar]"))) { if (!confirm("¿Eliminar?")) return; return hacer(() => api("/api/evento/accion", { id: el.dataset.borrar, accion: "borrar" }), "🗑 Eliminado"); }
@@ -1926,7 +1864,7 @@ function demo(ruta, c) {
   const d = (window.__demo ||= {
     usuario: { nombre: "Ana", estilo: new URLSearchParams(location.search).get("estilo") || "informal", modo: new URLSearchParams(location.search).get("modo") || "auto", ciudad: "Córdoba", zona: "Europe/Madrid", sol: "amanece 08:12 · anochece 19:41", admin: true },
     secciones: [["tiempo", "🌤", "Tiempo", "Previsión por horas, lluvia, sol, viento, UV y luna", 1], ["noticias", "📰", "Noticias", "Economía, política y noticias de tu zona", 1], ["agenda", "🗓", "Agenda", "Tus citas y tareas de hoy y mañana", 0], ["horoscopo", "🔮", "Horóscopo", "El horóscopo del día de tu signo", 1], ["mercados", "📈", "Mercados", "Premercado de Wall Street y cierre de ayer", 0]].map(([ref, emoji, titulo, descripcion, a]) => ({ ref, emoji, titulo, descripcion, activa: !!a, hora: "07:30" })),
-    notificaciones: { canal: "telegram", dispositivos: [{ id: "abc", nombre: "Android · Chrome", desde: "2026-10-01T10:00:00Z" }] },
+    notificaciones: { sonido: "signature", dispositivos: [{ id: "abc", nombre: "Android · Chrome", desde: "2026-10-01T10:00:00Z" }] },
     avatar: null, fotoAvatar: null, avatares: ["🦊","🐼","🐨","🦁","🐯","🐸","🐵","🐧","🦉","🦄","🐙","🦋","🐢","🐬","🦈","🐳","🦖","🐝","🐞","🦔","🐰","🐻"],
     economia: {movimientos:[{id:"m1",tipo:"ingreso",concepto:"Nómina",categoria:"Ingresos",importe:2400,fecha:"2026-10-01"},{id:"m2",tipo:"gasto",concepto:"Alquiler",categoria:"Vivienda",importe:700,fecha:"2026-10-02"},{id:"m3",tipo:"gasto",concepto:"Compra semanal",categoria:"Alimentación",importe:210,fecha:"2026-10-04"}],facturas:[{id:"f1",concepto:"Luz",importe:65,vencimiento:"2026-10-15",pagada:false}],presupuestoMensual:1900,objetivos:[{id:"o1",titulo:"Vacaciones de verano",importe:3000,ahorrado:900,fechaObjetivo:"2027-06-15"}]},
     compra: { items: [{ id: "a", texto: "Leche", hecho: false }, { id: "b", texto: "Pan", hecho: true }, { id: "c", texto: "Huevos", hecho: false }], historial: [{ id: "h1", fecha: "2026-10-01T10:00:00Z", items: ["Arroz", "Tomates", "Café"] }] },
@@ -1978,27 +1916,15 @@ window.addEventListener("focus", refrescar);
 (async () => {
   const inicioSplash = window.__nexoraSplashInicio ?? performance.now();
   try {
-    if (TG) { TG.ready(); TG.expand(); }
     const auth = await window.__bexoraAuthReady;
     AUTH_CONFIGURED = auth.configurado;
     if (AUTH_CONFIGURED) {
       AUTH_USER = auth.usuario;
-      DEMO = !AUTH_USER && !enTelegram();
-    } else if (!enTelegram()) {
-      DEMO = true;
-    }
-    REGISTRO_OBLIGATORIO = !enTelegram() && modoApp() && !AUTH_USER;
+      DEMO = !AUTH_USER;
+    } else DEMO = true;
+    REGISTRO_OBLIGATORIO = modoApp() && !AUTH_USER;
     const url = new URL(location.href);
-    if (!enTelegram() && !AUTH_USER && url.searchParams.has("acceso")) {
-      DEMO = false;
-      const codigo = url.searchParams.get("acceso");
-      if (codigo) { // enlace de acceso de un solo uso: se cambia por una sesión de este dispositivo
-        $("#app").innerHTML = `<div class="cargando">Vinculando este dispositivo…</div>`;
-        const r = await api("/api/sesion", { codigo });
-        guardarSesion(r.token); url.searchParams.delete("acceso"); history.replaceState(null, "", url.pathname + (url.search || ""));
-      }
-    }
-    await cargar(); registrarSW(); if (!enTelegram() && !DEMO) await refrescarDispositivos();
+    await cargar(); registrarSW(); if (!DEMO) await refrescarDispositivos();
     ARRANCADO = true;
     const ver = url.searchParams.get("ver"), ir_ = url.searchParams.get("ir"), wa = url.searchParams.get("wa");
     if (ver || ir_ || wa) history.replaceState(null, "", url.pathname);
@@ -2357,8 +2283,8 @@ window.addEventListener("bexora-auth-state", async (e) => {
   if (!ARRANCADO || (user?.uid || null) === (AUTH_USER?.uid || null)) return;
   AUTH_USER = user;
   if (!user) {
-    REGISTRO_OBLIGATORIO = !enTelegram() && modoApp();
-    DEMO = !enTelegram();
+    REGISTRO_OBLIGATORIO = modoApp();
+    DEMO = true;
     bloqueoBiometrico = null;
     S.datos = await api("/api/estado");
     const pendiente = leerEscrituraPendiente();

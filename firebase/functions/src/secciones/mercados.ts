@@ -1,7 +1,7 @@
 import { fechaIso } from "../fechas";
 import { cabecera, cacheado, conPlazo, conReintentos, num0, pct } from "../util";
 import { resumenNoticias } from "./noticias";
-import { Contenido, Contexto, NAV_MENU } from "./tipos";
+import { Contenido, Contexto } from "./tipos";
 
 export interface Grafico { precio: number; ultimaCotizacion: number; desfase: number; cierres: { fecha: string; cierre: number }[]; cierreAnterior: number }
 export interface Cotizacion { precio: number; anterior: number; fecha?: string }
@@ -82,5 +82,5 @@ export async function contenidoMercados(ctx: Contexto): Promise<Contenido> {
       { titulo: "🗞 <b>Crónica de mercados</b>", consulta: '"Wall Street" cierre sesión Ibex when:2d' },
     ], 3);
   } catch { /* las cotizaciones valen por sí solas */ }
-  return { html: [...partes, noticias.trim()].filter(Boolean).join("\n\n"), teclado: [NAV_MENU] };
+  return { html: [...partes, noticias.trim()].filter(Boolean).join("\n\n") };
 }

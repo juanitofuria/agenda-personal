@@ -61,7 +61,7 @@ export interface EpisodioSigno { titulo: string; fecha: string; url: string }
  * Solo se lee el principio del feed (los episodios nuevos van primero). `url` es la página del episodio o, si no la hay, el audio.
  */
 export async function episodioDeSigno(http: HttpGet, feed: string, signo: Signo, hoy: string): Promise<EpisodioSigno | null> {
-  const xml = String((await http.get(feed, { timeout: 8000, maxBytes: 150_000, headers: { "User-Agent": "Mozilla/5.0 AgendaPersonalBot/1.0" } })).data);
+  const xml = String((await http.get(feed, { timeout: 8000, maxBytes: 150_000, headers: { "User-Agent": "Mozilla/5.0 Nexora/1.0" } })).data);
   const clave = `horoscopo diario de ${sinTildes(signo.nombre)}`;
   const candidatos = leerEpisodios(xml, 80).flatMap((e) => {
     const fecha = fechaDeTitulo(e.titulo);

@@ -19,6 +19,7 @@ export function sparkline(valores: number[]): string {
 }
 
 export const sinTildes = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+export const slug = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tema";
 
 /** Línea fina que separa la cabecera del contenido en los mensajes. */
 export const SEPARADOR = "▬▬▬▬▬▬▬▬▬▬▬▬▬▬";

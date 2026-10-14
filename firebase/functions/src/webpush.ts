@@ -92,7 +92,7 @@ export function crearEmisorPush(almacen: Almacen, ahora: () => Date, post: (url:
   };
 }
 
-/** Texto plano de un mensaje HTML de Telegram (para el cuerpo de una notificación). */
+/** Convierte contenido HTML de la app en texto para una notificación. */
 export function textoPlano(html: string, max = 110): string {
   const t = html.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/[▬─━]+/g, " ").replace(/\s+/g, " ").trim();
   return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;

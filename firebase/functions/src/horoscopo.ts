@@ -13,7 +13,7 @@
 import { obtenerSigno20min } from "./horoscopo20min"; // (referencia circular segura: solo se usa dentro de funciones)
 
 export interface Signo {
-  id: string;     // identificador del documento en Firestore (español, sin tildes)
+  id: string;     // identificador estable del signo, en español y sin tildes
   ingles: string; // nombre que espera horoscopefree
   nombre: string; // nombre en español
 }
@@ -43,7 +43,7 @@ export interface RespuestaApi {
   cached?: boolean;
 }
 
-/** Documento `horoscopos/{id}`: es lo que lee la app Android (campos en español). */
+/** Representación en español que usa la API web para el horóscopo guardado. */
 export interface HoroscopoDoc {
   signo: string;
   fecha: string;      // yyyy-MM-dd
