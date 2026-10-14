@@ -12,8 +12,8 @@
     }
   ],
   "hosting": {
-    "site": "nexora-agenda-personal",
-    "public": "../cloudflare/publico",
+    "site": "bexora-agenda-personal",
+    "public": "hosting-public",
     "redirects": [
       {
         "source": "/",

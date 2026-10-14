@@ -46,26 +46,27 @@ Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/c
    npm install -g firebase-tools
    firebase login
    ```
-4. El proyecto configurado es `bexora-agenda-personal` en `firebase/.firebaserc`; la URL deseada es `https://nexora-agenda-personal.web.app/app/`, con contenido desde `cloudflare/publico/` y API en Cloudflare. Firebase informa que el site ID `nexora-agenda-personal` está reservado por otro proyecto, así que aún no se puede publicar en esa URL. Verifica con la cuenta propietaria qué proyecto lo contiene y no despliegues ni elimines sitios hasta resolver esa discrepancia.
-5. **Secretos** (se guardan en Secret Manager, nunca en el código):
+4. El proyecto y site activos son `bexora-agenda-personal`, configurados en `firebase/.firebaserc` y `firebase/firebase.json`; la app se sirve desde `https://bexora-agenda-personal.web.app/app/` con contenido fuente en `cloudflare/publico/` y API en Cloudflare. La URL deseada `https://nexora-agenda-personal.web.app/app/` queda pendiente porque Firebase indica que ese site ID está reservado por otro proyecto.
+5. Para publicar **solo la web** desde Windows, ejecuta `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy-hosting.ps1` desde la carpeta `firebase`. La excepción de política se limita a ese proceso. El script copia temporalmente el contenido dentro del proyecto (Firebase CLI no permite publicar una carpeta `public` que esté fuera de él), ejecuta `firebase deploy --only hosting --project bexora-agenda-personal` y elimina la copia temporal al terminar.
+6. **Secretos** (se guardan en Secret Manager, nunca en el código):
    ```bash
    cd firebase
    firebase functions:secrets:set TELEGRAM_BOT_TOKEN        # pega el token de BotFather
    firebase functions:secrets:set TELEGRAM_WEBHOOK_SECRET   # una cadena aleatoria: openssl rand -hex 24
    ```
-6. **Despliega**:
+7. **Despliega el bot y las reglas de Firestore** (la web se publica por separado con el paso 5):
    ```bash
    cd functions && npm install && cd ..
-   firebase deploy
+   firebase deploy --only functions,firestore
    ```
    Al terminar muestra la URL de `telegramWebhook` (algo como `https://europe-west1-TU-PROYECTO.cloudfunctions.net/telegramWebhook`).
-7. **Registra el webhook** en Telegram con la URL anterior y los mismos valores de los secretos:
+8. **Registra el webhook** en Telegram con la URL anterior y los mismos valores de los secretos:
    ```bash
    cd functions
    TELEGRAM_BOT_TOKEN=123:ABC TELEGRAM_WEBHOOK_SECRET=la-misma-cadena npm run webhook -- https://europe-west1-TU-PROYECTO.cloudfunctions.net/telegramWebhook
    ```
    (también registra el menú de comandos del bot.)
-8. Abre tu bot en Telegram y escribe **/start**.
+9. Abre tu bot en Telegram y escribe **/start**.
 
 El horóscopo lo rellena `actualizarHoroscopoDiario` (05:30, 07:00 y 11:00, hora de Madrid). Para probarlo sin esperar, en
 Google Cloud › Cloud Scheduler abre `firebase-schedule-actualizarHoroscopoDiario-europe-west1` y pulsa *Forzar ejecución*.
