@@ -34,7 +34,7 @@ html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:radial-gradient(elli
 .nx-bienvenida-icono{display:block;width:min(58vw,260px);height:auto;filter:drop-shadow(0 16px 32px rgba(0,0,0,.34))}
 .nx-bienvenida-nombre{font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
 html[data-modo=oscuro] .nx-bienvenida-nombre{text-shadow:0 3px 20px rgba(0,0,0,.35)}
-.nx-bienvenida-x{color:transparent;background:linear-gradient(180deg,#cf35ef 0%,#743df4 31%,#ff9b12 39%,#ff4b3b 63%,#08df8a 71%,#00a968 100%);background-clip:text;-webkit-background-clip:text}
+.nx-bienvenida-x{color:transparent;background:linear-gradient(135deg,#cf35ef 0%,#ff9b12 50%,#08df8a 100%);background-clip:text;-webkit-background-clip:text}
 @media(prefers-reduced-motion:reduce){#nx-bienvenida{transition:none}}
 body{margin:0;font-family:var(--fuente);color:var(--tinta);background-color:var(--fondo);background-image:linear-gradient(160deg,color-mix(in srgb,var(--fondo) 78%,transparent),color-mix(in srgb,var(--fondo2) 82%,transparent)),url("fondo-agenda.svg?v=20261008");background-repeat:repeat;background-size:auto,320px 320px;min-height:100vh;padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
 button,input,select{font:inherit;color:inherit}
@@ -830,7 +830,7 @@ function bannerApp() {
   S.bannerClave = clave; marcarBanner(clave); // se queda en pantalla durante esta sesión; la próxima vez no sale
   return S.bannerOculto === clave ? "" : html;
 }
-const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${!AUTH_USER ? "¡Bienvenido!" : S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}!` : "¡Hola!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div><div class="nx-estado" id="nx-estado">Consultando tiempo…</div><div class="nx-ciudad" id="nx-city">Cargando ciudad…</div></div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
+const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${!AUTH_USER ? "¡Bienvenido!" : S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}!` : "¡Hola!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div><div class="nx-estado" id="nx-estado">Consultando tiempo…</div>${AUTH_USER ? `<div class="nx-ciudad" id="nx-city">Cargando ciudad…</div>` : ""}</div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -1770,6 +1770,7 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 #nx-hero .nx-cielo{position:absolute;inset:0;z-index:0;overflow:hidden;isolation:isolate;background:linear-gradient(145deg,#0787ed,#39b9ff 48%,#b5efff);transition:background 1s ease}
 #nx-hero:after{z-index:1;background:linear-gradient(90deg,rgba(4,25,60,.68),rgba(4,25,60,.28) 66%,rgba(4,25,60,.03))}
 #nx-hero .nx-hero-text,#nx-hero .nx-tiempo,#nx-hero .engranaje{position:relative;z-index:2}
+#nx-hero .engranaje{position:absolute;z-index:4;top:8px;right:8px;width:40px;height:40px;padding:0;display:grid;place-items:center}
 #nx-hero .nx-sol{display:none;position:absolute;z-index:2;right:30px;top:26px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 34% 28%,#fff9ad,#ffe83c 35%,#ffad08 72%,#ff7600);box-shadow:0 0 14px 6px #ffdc357a,0 0 38px 16px #ffb30065}
 #nx-hero .nx-sol:before{content:"";position:absolute;inset:-16px;border-radius:50%;background:repeating-conic-gradient(transparent 0deg 9deg,#fff06cdd 10deg 12deg,transparent 13deg 22deg);mask:radial-gradient(circle,transparent 0 55%,#000 58% 68%,transparent 72%);animation:nx-clima-rayos 24s linear infinite}
 #nx-hero .nx-sol:after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid #fff7a8aa;animation:nx-clima-brillo 3s ease-in-out infinite}
