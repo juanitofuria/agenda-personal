@@ -509,6 +509,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 #nx-hero[data-cielo="dia-lluvia"]:after,#nx-hero[data-cielo^="noche"]:after{background:linear-gradient(90deg,rgba(4,25,60,.2),rgba(4,25,60,0) 70%)}
 #nx-hero .nx-hero-text,#nx-hero .nx-tiempo{position:relative;z-index:2}
 #nx-hero .nx-hero-text,#nx-hero .nx-tiempo{text-shadow:0 1px 7px rgba(0,25,70,.55)}
+#nx-hero .engranaje{position:absolute;z-index:4;top:8px;right:8px;width:40px;height:40px;padding:0;display:grid;place-items:center}
 #nx-hero .nx-capa{position:absolute;inset:0;animation:nx-c-in .8s ease both}
 @keyframes nx-c-in{from{opacity:0}to{opacity:1}}
 /* Sol: rayos giratorios y reflejos */
@@ -1770,7 +1771,6 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 #nx-hero .nx-cielo{position:absolute;inset:0;z-index:0;overflow:hidden;isolation:isolate;background:linear-gradient(145deg,#0787ed,#39b9ff 48%,#b5efff);transition:background 1s ease}
 #nx-hero:after{z-index:1;background:linear-gradient(90deg,rgba(4,25,60,.68),rgba(4,25,60,.28) 66%,rgba(4,25,60,.03))}
 #nx-hero .nx-hero-text,#nx-hero .nx-tiempo,#nx-hero .engranaje{position:relative;z-index:2}
-#nx-hero .engranaje{position:absolute;z-index:4;top:8px;right:8px;width:40px;height:40px;padding:0;display:grid;place-items:center}
 #nx-hero .nx-sol{display:none;position:absolute;z-index:2;right:30px;top:26px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 34% 28%,#fff9ad,#ffe83c 35%,#ffad08 72%,#ff7600);box-shadow:0 0 14px 6px #ffdc357a,0 0 38px 16px #ffb30065}
 #nx-hero .nx-sol:before{content:"";position:absolute;inset:-16px;border-radius:50%;background:repeating-conic-gradient(transparent 0deg 9deg,#fff06cdd 10deg 12deg,transparent 13deg 22deg);mask:radial-gradient(circle,transparent 0 55%,#000 58% 68%,transparent 72%);animation:nx-clima-rayos 24s linear infinite}
 #nx-hero .nx-sol:after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid #fff7a8aa;animation:nx-clima-brillo 3s ease-in-out infinite}
