@@ -46,7 +46,7 @@ Comandos: `/menu` `/hoy` `/nueva` `/eventos` `/secciones` `/perfil` `/ayuda` `/c
    npm install -g firebase-tools
    firebase login
    ```
-4. Edita `firebase/.firebaserc` y cambia `TU-PROYECTO-FIREBASE` por el id de tu proyecto.
+4. El proyecto configurado es `bexora-agenda-personal` en `firebase/.firebaserc`; la URL deseada es `https://nexora-agenda-personal.web.app/app/`, con contenido desde `cloudflare/publico/` y API en Cloudflare. Firebase informa que el site ID `nexora-agenda-personal` está reservado por otro proyecto, así que aún no se puede publicar en esa URL. Verifica con la cuenta propietaria qué proyecto lo contiene y no despliegues ni elimines sitios hasta resolver esa discrepancia.
 5. **Secretos** (se guardan en Secret Manager, nunca en el código):
    ```bash
    cd firebase

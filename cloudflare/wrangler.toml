@@ -28,3 +28,4 @@ database_id = "8365b814-ff49-4946-b802-2809f951abbf"   # id de tu base de datos 
 ADMIN_CHAT_ID = "483702644"
 HOROSCOPO_BASE_URL = "https://horoscopefree.fly.dev"
 HOROSCOPO_IDIOMA = "es"
+APP_ORIGINS = "https://nexora-agenda-personal.web.app"

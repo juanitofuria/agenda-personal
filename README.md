@@ -90,6 +90,24 @@ A partir de ahí, cada subida a las ramas `main` y `claude/android-notifications
 Si faltan los secretos, solo corre los tests y avisa. También se puede lanzar a mano desde la pestaña *Actions* → *Desplegar en Cloudflare* → *Run workflow*.
 Los secretos del bot (token de Telegram y secreto del webhook) siguen guardados en Cloudflare y no pasan por GitHub.
 
+### Web original y copia espejo
+
+La web objetivo de Firebase Hosting es `https://nexora-agenda-personal.web.app/app/`, desde `cloudflare/publico/`;
+el proyecto configurado es `bexora-agenda-personal` y el site objetivo es `nexora-agenda-personal`. La API sigue desplegada en Cloudflare: la web usa
+`https://agenda-personal.cresofin.workers.dev` y el Worker permite CORS únicamente desde el sitio Firebase.
+La CLI confirmó acceso a `bexora-agenda-personal`, pero Firebase rechazó crear el site porque ese ID está reservado por otro
+proyecto; el proyecto `nexora-agenda-personal` no aparece accesible en la cuenta activa. No se desplegó contenido. Antes de publicar,
+hay que verificar con la cuenta propietaria qué proyecto contiene/reserva el site y resolverlo sin cambiar la URL ni borrar el site
+BeXora. No retires el site anterior hasta confirmar que la URL nueva sirve la app. Para habilitar el despliegue automático, añade el secreto
+`FIREBASE_SERVICE_ACCOUNT_BEXORA_AGENDA_PERSONAL` con las credenciales JSON
+de una cuenta de servicio autorizada para Firebase Hosting y la variable `FIREBASE_HOSTING_READY=true`. El workflow solo publica Hosting
+desde la rama autoritativa después de registrar y verificar el site correcto.
+
+`juanitofuria/agenda-personal` es el repositorio autoritativo y su rama `claude/android-notifications-app-pxj3sn` sincroniza `main`
+en `cresofin/agenda-personal` como copia exacta. El workflow de espejo hace un *force-push* solo a esa rama de destino, por lo que
+no se deben guardar cambios exclusivos en el espejo. Para activarlo, añade el secreto `CRESOFIN_MIRROR_TOKEN`: se recomienda un
+fine-grained PAT limitado a `cresofin/agenda-personal` con permiso **Contents: Read and write** (Metadata: Read-only, implícito).
+
 **Prueba de humo recomendada:** `/start` → «Resumen de hoy» → una alarma «en 2 minutos» → `/borrar`.
 
 > **Para desarrolladores:** `cd cloudflare && npm install` solo hace falta para ejecutar los tests o cambiar el código. Tras cambiar algo en

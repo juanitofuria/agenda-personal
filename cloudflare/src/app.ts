@@ -28,6 +28,7 @@ export interface Env {
   ADMIN_CHAT_ID?: string;
   HOROSCOPO_BASE_URL?: string;
   HOROSCOPO_IDIOMA?: string;
+  APP_ORIGINS?: string;
   /** Feed RSS del podcast con un episodio por signo y día (botón «Escuchar»). */
   PODCAST_FEED?: string;
 }
@@ -171,8 +172,30 @@ async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica
 export async function manejarFetch(req: Request, env: Env, ctx?: Ctx, fabrica: Fabrica = fabricaReal): Promise<Response> {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env, url.pathname, fabrica);
-  if (url.pathname === "/api/lista") return manejarListaCompartida(req, env, fabrica);
-  if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env, url, fabrica);
+  if (url.pathname.startsWith("/api/")) {
+    const origin = req.headers.get("origin") ?? "";
+    const permitido = origin && (env.APP_ORIGINS ?? "").split(",").map((x) => x.trim()).includes(origin);
+    if (req.method === "OPTIONS") {
+      if (!permitido) return new Response(null, { status: 403 });
+      return new Response(null, { status: 204, headers: {
+        "access-control-allow-origin": origin,
+        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-headers": "Authorization, Content-Type",
+        "access-control-max-age": "600",
+        "vary": "Origin",
+      } });
+    }
+    const response = url.pathname === "/api/lista"
+      ? await manejarListaCompartida(req, env, fabrica)
+      : await manejarMiniApp(req, env, url, fabrica);
+    if (!permitido) return response;
+    const headers = new Headers(response.headers);
+    headers.set("access-control-allow-origin", origin);
+    headers.set("access-control-allow-methods", "POST, OPTIONS");
+    headers.set("access-control-allow-headers", "Authorization, Content-Type");
+    headers.set("vary", "Origin");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
   if (url.pathname === "/" || url.pathname === "/agenda" || url.pathname === "/agenda/") return Response.redirect(new URL("/app/" + url.search + url.hash, url), 302);
   if (url.pathname !== "/telegram") return new Response("not found", { status: 404 });
   const cuerpo = await req.json().catch(() => null);

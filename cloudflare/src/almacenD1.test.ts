@@ -349,6 +349,32 @@ test("worker: la API de la mini app exige datos firmados por Telegram y respeta 
   assert.equal((await api("/api/estado", firmar(7), privado)).status, 200);
 });
 
+test("worker: CORS de la app admite solo el nuevo site Firebase", async () => {
+  const { d1 } = nuevo();
+  const env: Env = {
+    DB: d1,
+    TELEGRAM_BOT_TOKEN: "123:abc",
+    TELEGRAM_WEBHOOK_SECRET: "secreto-largo-1234567890",
+    APP_ORIGINS: "https://nexora-agenda-personal.web.app",
+  };
+  const preflight = (origin: string) => manejarFetch(new Request("https://x.workers.dev/api/sesion", {
+    method: "OPTIONS",
+    headers: { origin, "access-control-request-method": "POST", "access-control-request-headers": "authorization,content-type" },
+  }), env);
+  const permitido = await preflight("https://nexora-agenda-personal.web.app");
+  assert.equal(permitido.status, 204);
+  assert.equal(permitido.headers.get("access-control-allow-origin"), "https://nexora-agenda-personal.web.app");
+  assert.equal(permitido.headers.get("access-control-allow-headers"), "Authorization, Content-Type");
+  assert.equal((await preflight("https://sitio-no-autorizado.example")).status, 403);
+  const respuesta = await manejarFetch(new Request("https://x.workers.dev/api/sesion", {
+    method: "POST",
+    headers: { origin: "https://nexora-agenda-personal.web.app", "content-type": "application/json" },
+    body: "{}",
+  }), env);
+  assert.equal(respuesta.status, 200);
+  assert.equal(respuesta.headers.get("access-control-allow-origin"), "https://nexora-agenda-personal.web.app");
+});
+
 test("worker: la lista compartida se abre con su enlace sin firma de Telegram (y solo con el código correcto)", async () => {
   const { d1, almacen } = nuevo();
   const env: Env = { DB: d1, TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_WEBHOOK_SECRET: "secreto-largo-1234567890" };

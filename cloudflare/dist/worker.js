@@ -940,8 +940,17 @@ function usuarioDesdeJson(id, d) {
     zona: d.zona ?? "Europe/Madrid",
     ciudad: d.ciudad ?? null,
     avatar: d.avatar && ["emoji", "telegram", "foto"].includes(d.avatar.tipo) ? d.avatar : null,
-    notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
+    notificaciones: { canal: ["app", "ambos"].includes(d.notificaciones?.canal) ? d.notificaciones.canal : "telegram", sonido: ["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(d.notificaciones?.sonido) ? d.notificaciones.sonido : "signature", suscripciones: Array.isArray(d.notificaciones?.suscripciones) ? d.notificaciones.suscripciones : [] },
     compra: { items: Array.isArray(d.compra?.items) ? d.compra.items : [], historial: Array.isArray(d.compra?.historial) ? d.compra.historial : [], token: typeof d.compra?.token === "string" ? d.compra.token : null },
+    salud: { peso: Array.isArray(d.salud?.peso) ? d.salud.peso : [], entrenamientos: Array.isArray(d.salud?.entrenamientos) ? d.salud.entrenamientos : [], planes: Array.isArray(d.salud?.planes) ? d.salud.planes : [] },
+    economia: {
+      movimientos: Array.isArray(d.economia?.movimientos) ? d.economia.movimientos.map((x) => ({ id: String(x.id ?? ""), tipo: x.tipo === "ingreso" ? "ingreso" : "gasto", concepto: String(x.concepto ?? "").slice(0, 100), categoria: String(x.categoria ?? "Otros").slice(0, 40), grupo: x.grupo === "fijo" ? "fijo" : x.grupo === "ahorro" ? "ahorro" : x.grupo === "variable" ? "variable" : void 0, importe: Math.max(0, Number(x.importe) || 0), fecha: String(x.fecha ?? "").slice(0, 20), recurrente: !!x.recurrente })).filter((x) => x.id && x.concepto && x.importe > 0) : [],
+      facturas: Array.isArray(d.economia?.facturas) ? d.economia.facturas.map((x) => ({ id: String(x.id ?? ""), concepto: String(x.concepto ?? "").slice(0, 100), importe: Math.max(0, Number(x.importe) || 0), vencimiento: String(x.vencimiento ?? "").slice(0, 20), pagada: !!x.pagada })).filter((x) => x.id && x.concepto && x.importe > 0) : [],
+      presupuestoMensual: d.economia?.presupuestoMensual === null || d.economia?.presupuestoMensual === void 0 ? null : Number.isFinite(Number(d.economia.presupuestoMensual)) && Number(d.economia.presupuestoMensual) >= 0 ? Number(d.economia.presupuestoMensual) : null,
+      ...d.economia?.porcentajes && [d.economia.porcentajes.fijo, d.economia.porcentajes.variable, d.economia.porcentajes.ahorro].every((n) => Number.isFinite(Number(n))) ? { porcentajes: { fijo: Number(d.economia.porcentajes.fijo), variable: Number(d.economia.porcentajes.variable), ahorro: Number(d.economia.porcentajes.ahorro) } } : {},
+      ...Array.isArray(d.economia?.historial) ? { historial: d.economia.historial.slice(0, 60) } : {},
+      objetivos: Array.isArray(d.economia?.objetivos) ? d.economia.objetivos.map((x) => ({ id: String(x.id ?? ""), titulo: String(x.titulo ?? "").slice(0, 100), importe: Math.max(0, Number(x.importe) || 0), ahorrado: Math.max(0, Number(x.ahorrado) || 0), fechaObjetivo: String(x.fechaObjetivo ?? "").slice(0, 20) })).filter((x) => x.id && x.titulo && x.importe > 0) : []
+    },
     secciones: d.secciones ?? {},
     temas: d.temas ?? [],
     estado: d.estado ?? null,
@@ -966,6 +975,7 @@ function eventoDesdeJson(uid, id, d) {
     hecho: !!d.hecho,
     creadoEn: aFecha(d.creadoEn) ?? /* @__PURE__ */ new Date(0),
     ...typeof d.nota === "string" && d.nota ? { nota: d.nota } : {},
+    ...Array.isArray(d.subtareas) ? { subtareas: d.subtareas.map((x) => ({ id: String(x.id ?? ""), titulo: String(x.titulo ?? "").slice(0, 120), hecho: !!x.hecho })).filter((x) => x.id && x.titulo) } : {},
     ...d.mensaje && typeof d.mensaje.texto === "string" ? { mensaje: { para: String(d.mensaje.para ?? ""), telefono: String(d.mensaje.telefono ?? ""), texto: d.mensaje.texto } } : {}
   };
 }
@@ -1270,8 +1280,10 @@ function usuarioNuevo(id, nombre, ahora) {
     zona: "Europe/Madrid",
     ciudad: null,
     compra: { items: [], historial: [], token: null },
+    economia: { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] },
+    salud: { peso: [], entrenamientos: [], planes: [] },
     avatar: null,
-    notificaciones: { canal: "telegram", suscripciones: [] },
+    notificaciones: { canal: "telegram", sonido: "signature", suscripciones: [] },
     secciones,
     temas: [],
     estado: null,
@@ -2815,6 +2827,14 @@ async function usuarioDeSesion(almacen, token, ahora, renovar = false) {
   return uid || null;
 }
 __name(usuarioDeSesion, "usuarioDeSesion");
+async function crearSesionAnonima(almacen, ahora) {
+  const uid = `web-${aleatorio(24)}`;
+  await almacen.guardarUsuario(usuarioNuevo(uid, "", ahora));
+  const token = aleatorio(40);
+  await almacen.cacheSet(await claveSesion(token), uid, VIGENCIA_SESION_MS, ahora);
+  return { token, uid };
+}
+__name(crearSesionAnonima, "crearSesionAnonima");
 async function cerrarSesion(almacen, token, ahora) {
   if (/^[a-z2-9]{40}$/.test(token)) await almacen.cacheSet(await claveSesion(token), "", 1, ahora);
 }
@@ -4813,7 +4833,8 @@ async function enviarSeccion(dep, u, p, ahora, r) {
   }
   try {
     const cont = await construirContenido(p.ref, { usuario: u, http: dep.http, almacen: dep.almacen, ahora });
-    await entregar(dep, u, cont, { titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen est\xE1 listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
+    const sonido = u.notificaciones.sonido ?? "signature", modo = modoEfectivo(u, ahora);
+    await entregar(dep, u, cont, { sonido, modo, titulo: tituloSeccion(u, p.ref), cuerpo: "Tu resumen est\xE1 listo. Toca para verlo.", url: `/app/?ver=${encodeURIComponent(p.ref)}`, etiqueta: `seccion-${p.ref}` });
     await dep.almacen.guardarProgramacion({ ...p, proximo: siguiente, intentos: 0 });
     r.enviados++;
   } catch (e) {
@@ -4861,7 +4882,8 @@ async function enviarEvento(dep, u, p, ahora, r) {
   } else {
     try {
       const { html, teclado } = mensajeAviso(ev, u.zona, ahora, retraso > 10 * 6e4);
-      const aviso = ev.mensaje ? { titulo: `\u{1F4AC} Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "\u2026" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "\u{1F4AC} Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } } : { titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
+      const sonido = u.notificaciones.sonido, modo = modoEfectivo(u, ahora);
+      const aviso = ev.mensaje ? { sonido, modo, titulo: `\u{1F4AC} Enviar a ${ev.mensaje.para || "tu contacto"}`, cuerpo: ev.mensaje.texto.length > 100 ? ev.mensaje.texto.slice(0, 99) + "\u2026" : ev.mensaje.texto, url: `/app/?wa=${encodeURIComponent(ev.id)}`, etiqueta: `evento-${ev.id}`, enlace: { texto: "\u{1F4AC} Enviar por WhatsApp", url: enlaceWhatsApp(ev.mensaje) } } : { sonido, modo, titulo: `${EMOJI_TIPO[ev.tipo]} ${ev.titulo}`, cuerpo: ev.fechaHora ? formatearFechaHora(ev.fechaHora, u.zona, ahora) : "Recordatorio", url: `/app/?ir=${ev.tipo}`, etiqueta: `evento-${ev.id}` };
       await entregar(dep, u, { html, teclado }, aviso);
       r.enviados++;
     } catch (e) {
@@ -4950,13 +4972,22 @@ async function buscar(http, titulo) {
   const resumen = (await http.get(`${API}/summary/${t}`, { timeout: 5e3, headers: CABECERAS3 })).data ?? {};
   if (!resumen || resumen.type !== "standard") return "";
   const lista2 = (await http.get(`${API}/media-list/${t}`, { timeout: 5e3, headers: CABECERAS3, maxBytes: 2e5 }).catch(() => ({ data: {} }))).data ?? {};
-  for (const it of lista2.items ?? []) {
-    if (it.type !== "image" || !/\.jpe?g$|\.webp$/i.test(String(it.title ?? "")) || NO_FOTO.test(String(it.title ?? ""))) continue;
-    const src = ampliar(String(it.srcset?.[0]?.src ?? ""));
-    if (src) return src;
-  }
   const mini = String(resumen.thumbnail?.source ?? "");
-  return mini && !NO_FOTO.test(decodeURIComponent(mini.split("/").pop() ?? "")) && /\.jpe?g/i.test(mini) ? ampliar(mini) : "";
+  if (mini && !NO_FOTO.test(decodeURIComponent(mini.split("/").pop() ?? "")) && /\.jpe?g/i.test(mini)) return ampliar(mini);
+  const tituloCiudad = titulo.toLowerCase();
+  const candidatas = (lista2.items ?? []).filter((it) => it.type === "image" && /\.jpe?g$|\.webp$/i.test(String(it.title ?? "")) && !NO_FOTO.test(String(it.title ?? ""))).map((it) => {
+    const titulo2 = String(it.title ?? "").toLowerCase();
+    const src = ampliar(String(it.srcset?.[0]?.src ?? ""));
+    if (!src) return null;
+    let puntos = 0;
+    if (titulo2.includes(tituloCiudad)) puntos += 8;
+    if (/city|ciudad|centro|centre|plaza|square|calle|street|avenida|avenue|puente|bridge|castillo|castle|iglesia|church|catedral|cathedral|ayuntamiento|town hall|monument|monumento|panoram/.test(titulo2)) puntos += 5;
+    if (/mountain|montana|montaña|paisaje|landscape|nature|naturaleza|forest|bosque/.test(titulo2)) puntos -= 4;
+    return { src, puntos };
+  }).filter(Boolean);
+  candidatas.sort((a, b) => b.puntos - a.puntos);
+  if (candidatas[0]) return candidatas[0].src;
+  return "";
 }
 __name(buscar, "buscar");
 async function fotoCiudad(http, almacen, ahora, nombre, provincia) {
@@ -5001,6 +5032,9 @@ var ok = /* @__PURE__ */ __name((cuerpo = { ok: true }) => ({ estado: 200, cuerp
 var error3 = /* @__PURE__ */ __name((estado2, mensaje) => ({ estado: estado2, cuerpo: { error: mensaje } }), "error");
 var TIPOS = ["alarma", "cita", "tarea", "mensaje", "nota"];
 var REPS = ["ninguna", "diaria", "semanal", "laborables", "anual"];
+var economiaNormalizada = /* @__PURE__ */ __name((u) => u.economia ?? { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] }, "economiaNormalizada");
+var saludNormalizada = /* @__PURE__ */ __name((u) => u.salud ?? { peso: [], entrenamientos: [], planes: [] }, "saludNormalizada");
+var idEconomia = /* @__PURE__ */ __name(() => crypto.randomUUID().replace(/-/g, "").slice(0, 12), "idEconomia");
 var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
   id: e.id,
   tipo: e.tipo,
@@ -5011,6 +5045,7 @@ var eventoJson = /* @__PURE__ */ __name((e, u, ahora) => ({
   antelacionMin: e.antelacionMin,
   ...e.mensaje ? { mensaje: e.mensaje, enlaceWa: enlaceWhatsApp(e.mensaje) } : {},
   ...e.nota ? { nota: e.nota } : {},
+  ...e.subtareas ? { subtareas: e.subtareas } : {},
   cuando: e.fechaHora ? e.fechaHora.toISOString() : null,
   texto: e.fechaHora ? formatearFechaHora(e.fechaHora, u.zona, ahora) : "sin fecha"
 }), "eventoJson");
@@ -5026,7 +5061,9 @@ async function estado(deps, u) {
     avatar: u.avatar,
     fotoAvatar: u.avatar?.tipo === "foto" ? await deps.almacen.cacheGet(claveFoto(u.id), ahora) : null,
     avatares: AVATARES,
-    notificaciones: { canal: u.notificaciones.canal, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    notificaciones: { canal: u.notificaciones.canal, sonido: u.notificaciones.sonido, dispositivos: u.notificaciones.suscripciones.map((x) => ({ id: x.endpoint.slice(-24), nombre: x.dispositivo, desde: x.desde })) },
+    economia: economiaNormalizada(u),
+    salud: saludNormalizada(u),
     resumenHoy: (await resumenesDeHoy(deps.almacen, u, ahora)).map((r) => {
       const info4 = r.ref.startsWith("tema:") ? u.temas.find((t) => `tema:${t.id}` === r.ref) : SECCIONES[r.ref];
       return { ref: r.ref, emoji: info4?.emoji ?? "\u{1F4EC}", titulo: info4?.titulo ?? r.ref, hora: horaLocal(r.hora, u.zona), previa: r.previa };
@@ -5154,6 +5191,94 @@ async function manejarApi(deps, u, ruta, c) {
       await programarSeccion(deps.almacen, u, ref2, ahora);
       return ok();
     }
+    case "/api/salud": {
+      const s = saludNormalizada(u);
+      if (c.accion === "peso") {
+        const kg = Number(c.kg), fecha = String(c.fecha);
+        if (!Number.isFinite(kg) || kg < 20 || kg > 400 || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(fecha)) return error3(400, "Peso o fecha no v\xE1lidos");
+        s.peso.unshift({ id: idEconomia(), kg: Math.round(kg * 10) / 10, fecha });
+        s.peso = s.peso.slice(0, 365);
+      } else if (c.accion === "entrenamiento") {
+        const titulo = String(c.titulo ?? "").trim().slice(0, 80), tipo = String(c.tipo ?? "").slice(0, 40), duracion = Number(c.duracion), fecha = String(c.fecha);
+        if (!titulo || !Number.isFinite(duracion) || duracion < 1 || duracion > 600) return error3(400, "Completa el entrenamiento");
+        s.entrenamientos.unshift({ id: idEconomia(), titulo, tipo, duracion: Math.round(duracion), fecha });
+        s.entrenamientos = s.entrenamientos.slice(0, 500);
+      } else if (c.accion === "plan") {
+        const titulo = String(c.titulo ?? "").trim().slice(0, 80), dias = String(c.dias ?? "").slice(0, 100), enfoque = String(c.enfoque ?? "").slice(0, 80), detalle = String(c.detalle ?? "").slice(0, 5e3), inicio = String(c.inicio ?? "").trim(), fin = String(c.fin ?? "").trim(), ejercicios = Array.isArray(c.ejercicios) ? c.ejercicios.map((x) => String(x).trim().slice(0, 100)).filter(Boolean).slice(0, 100) : [];
+        if (!titulo) return error3(400, "Indica el nombre del plan");
+        if (inicio && !/^\\d{4}-\\d{2}-\\d{2}$/.test(inicio)) return error3(400, "Fecha de inicio no v\xE1lida");
+        if (fin && !/^\\d{4}-\\d{2}-\\d{2}$/.test(fin)) return error3(400, "Fecha de finalizaci\xF3n no v\xE1lida");
+        s.planes.unshift({ id: idEconomia(), titulo, dias, enfoque, detalle, inicio: inicio || void 0, fin: fin || void 0, ejercicios });
+        s.planes = s.planes.slice(0, 30);
+      } else return error3(400, "Acci\xF3n de salud desconocida");
+      u.salud = s;
+      await deps.almacen.guardarUsuario(u);
+      return ok({ salud: s });
+    }
+    case "/api/economia": {
+      const ec = economiaNormalizada(u);
+      if (c.accion === "movimiento") {
+        const tipo = c.tipo === "ingreso" ? "ingreso" : c.tipo === "gasto" ? "gasto" : "";
+        const importe = Number(c.importe), concepto = String(c.concepto ?? "").trim().slice(0, 100);
+        if (!tipo || !concepto || !Number.isFinite(importe) || importe <= 0) return error3(400, "Indica concepto, tipo e importe v\xE1lido");
+        ec.movimientos.unshift({ id: idEconomia(), tipo, concepto, categoria: String(c.categoria ?? "Otros").trim().slice(0, 40) || "Otros", grupo: tipo === "gasto" ? c.grupo === "fijo" ? "fijo" : c.grupo === "ahorro" ? "ahorro" : "variable" : void 0, importe: Math.round(importe * 100) / 100, fecha: /^\d{4}-\d{2}-\d{2}$/.test(String(c.fecha)) ? String(c.fecha) : ahora.toISOString().slice(0, 10), recurrente: !!c.recurrente });
+        ec.movimientos = ec.movimientos.slice(0, 1e3);
+      } else if (c.accion === "movimiento_borrar") {
+        const id = String(c.id ?? "");
+        const antes = ec.movimientos.length;
+        ec.movimientos = ec.movimientos.filter((m) => m.id !== id);
+        if (ec.movimientos.length === antes) return error3(404, "Movimiento no encontrado");
+        if (Array.isArray(ec.historial)) {
+          ec.historial = ec.historial.map((h) => {
+            const ms = (h.movimientos || []).filter((m) => m.id !== id), ingresos = ms.filter((m) => m.tipo === "ingreso").reduce((a, m) => a + m.importe, 0), gastos = ms.filter((m) => m.tipo === "gasto").reduce((a, m) => a + m.importe, 0), fijos = ms.filter((m) => m.tipo === "gasto" && m.grupo === "fijo").reduce((a, m) => a + m.importe, 0), variables = ms.filter((m) => m.tipo === "gasto" && m.grupo !== "fijo").reduce((a, m) => a + m.importe, 0);
+            return { ...h, movimientos: ms, ingresos, gastos, saldo: ingresos - gastos, gastosFijos: fijos, gastosVariables: variables };
+          });
+        }
+      } else if (c.accion === "factura") {
+        const importe = Number(c.importe), concepto = String(c.concepto ?? "").trim().slice(0, 100), vencimiento = String(c.vencimiento ?? "");
+        if (!concepto || !Number.isFinite(importe) || importe <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(vencimiento)) return error3(400, "Completa concepto, importe y vencimiento");
+        ec.facturas.unshift({ id: idEconomia(), concepto, importe: Math.round(importe * 100) / 100, vencimiento, pagada: false });
+        ec.facturas = ec.facturas.slice(0, 200);
+      } else if (c.accion === "factura_pagar") {
+        const f = ec.facturas.find((x) => x.id === String(c.id));
+        if (!f) return error3(404, "Factura no encontrada");
+        if (!f.pagada) {
+          f.pagada = true;
+          ec.movimientos.unshift({ id: idEconomia(), tipo: "gasto", concepto: f.concepto, categoria: "Facturas", importe: f.importe, fecha: ahora.toISOString().slice(0, 10) });
+        }
+      } else if (c.accion === "factura_borrar") ec.facturas = ec.facturas.filter((x) => x.id !== String(c.id));
+      else if (c.accion === "porcentajes") {
+        const fijo = Number(c.fijo), variable = Number(c.variable), ahorro = Number(c.ahorro);
+        if (![fijo, variable, ahorro].every((n) => Number.isFinite(n) && n >= 0 && n <= 100) || Math.round((fijo + variable + ahorro) * 100) / 100 !== 100) return error3(400, "Los porcentajes deben sumar exactamente 100%.");
+        ec.porcentajes = { fijo, variable, ahorro };
+      } else if (c.accion === "archivar_mes") {
+        const mes = String(c.mes ?? "");
+        if (!/^\d{4}-\d{2}$/.test(mes)) return error3(400, "Mes no v\xE1lido");
+        if (!Array.isArray(ec.historial)) ec.historial = [];
+        if (!ec.historial.some((x) => x.mes === mes)) {
+          const ms = ec.movimientos.filter((m) => String(m.fecha).slice(0, 7) === mes), ingresos = ms.filter((m) => m.tipo === "ingreso").reduce((a, m) => a + m.importe, 0), gastos = ms.filter((m) => m.tipo === "gasto").reduce((a, m) => a + m.importe, 0), fijos = ms.filter((m) => m.tipo === "gasto" && m.grupo === "fijo").reduce((a, m) => a + m.importe, 0), variables = ms.filter((m) => m.tipo === "gasto" && m.grupo !== "fijo").reduce((a, m) => a + m.importe, 0);
+          ec.historial.unshift({ mes, ingresos, gastos, saldo: ingresos - gastos, gastosFijos: fijos, gastosVariables: variables, objetivoAhorro: ingresos * (ec.porcentajes?.ahorro ?? 20) / 100, movimientos: ms });
+          ec.historial = ec.historial.slice(0, 60);
+        }
+      } else if (c.accion === "presupuesto") {
+        const n = Number(c.importe);
+        if (!Number.isFinite(n) || n < 0) return error3(400, "Presupuesto no v\xE1lido");
+        ec.presupuestoMensual = Math.round(n * 100) / 100;
+      } else if (c.accion === "objetivo") {
+        const titulo = String(c.titulo ?? "").trim().slice(0, 100), importe = Number(c.importe), fechaObjetivo = String(c.fechaObjetivo ?? "");
+        if (!titulo || !Number.isFinite(importe) || importe <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(fechaObjetivo)) return error3(400, "Completa objetivo, importe y fecha");
+        ec.objetivos.unshift({ id: idEconomia(), titulo, importe: Math.round(importe * 100) / 100, ahorrado: 0, fechaObjetivo });
+        ec.objetivos = ec.objetivos.slice(0, 30);
+      } else if (c.accion === "objetivo_aportar") {
+        const o = ec.objetivos.find((x) => x.id === String(c.id)), n = Number(c.importe);
+        if (!o || !Number.isFinite(n) || n <= 0) return error3(400, "Aportaci\xF3n no v\xE1lida");
+        o.ahorrado = Math.min(o.importe, Math.round((o.ahorrado + n) * 100) / 100);
+      } else if (c.accion === "objetivo_borrar") ec.objetivos = ec.objetivos.filter((x) => x.id !== String(c.id));
+      else return error3(400, "Acci\xF3n econ\xF3mica desconocida");
+      u.economia = ec;
+      await deps.almacen.guardarUsuario(u);
+      return ok({ economia: ec });
+    }
     case "/api/evento": {
       const tipo = TIPOS.includes(c.tipo) ? c.tipo : null;
       let titulo = String(c.titulo ?? "").trim().slice(0, 80);
@@ -5178,7 +5303,7 @@ async function manejarApi(deps, u, ruta, c) {
       if (fecha && fecha.getTime() <= ahora.getTime() - 6e4) return error3(400, "Esa fecha ya ha pasado");
       let ant = tipo === "cita" && Number.isFinite(+c.antelacionMin) ? Math.max(0, Math.min(10080, Math.round(+c.antelacionMin))) : 0;
       if (fecha && ant > 0 && fecha.getTime() - ant * 6e4 <= ahora.getTime()) ant = 0;
-      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...mensaje ? { mensaje } : {}, ...nota ? { nota } : {} };
+      const base = { uid: u.id, tipo, titulo, lugar: String(c.lugar ?? "").trim().slice(0, 80), fechaHora: fecha, antelacionMin: ant, repeticion: REPS.includes(c.repeticion) ? c.repeticion : "ninguna", avisado: false, hecho: false, creadoEn: ahora, ...mensaje ? { mensaje } : {}, ...nota ? { nota } : {}, ...tipo === "tarea" ? { subtareas: [] } : {} };
       let ev = await deps.almacen.guardarEvento(base);
       ev = await programarEvento(deps.almacen, ev, u.zona, ahora);
       await deps.almacen.guardarEvento(ev);
@@ -5187,6 +5312,27 @@ async function manejarApi(deps, u, ruta, c) {
     case "/api/evento/accion": {
       const ev = await deps.almacen.getEvento(u.id, String(c.id ?? ""));
       if (!ev) return error3(404, "Ese evento ya no existe");
+      if (ev.tipo === "tarea" && ["subtarea_anadir", "subtarea_hecha", "subtarea_borrar"].includes(String(c.accion))) {
+        const subs = [...ev.subtareas ?? []];
+        if (c.accion === "subtarea_anadir") {
+          const titulo = String(c.titulo ?? "").trim().slice(0, 120);
+          if (!titulo) return error3(400, "Escribe la subtarea");
+          if (subs.length >= 50) return error3(409, "Esta tarea ya tiene demasiadas subtareas");
+          const subtarea = { id: crypto.randomUUID().replace(/-/g, "").slice(0, 12), titulo, hecho: false };
+          subs.push(subtarea);
+          const nuevo2 = { ...ev, subtareas: subs };
+          await deps.almacen.guardarEvento(nuevo2);
+          return ok({ subtarea, evento: eventoJson(nuevo2, u, ahora) });
+        }
+        const sid = String(c.subtareaId ?? "");
+        const pos = subs.findIndex((x) => x.id === sid);
+        if (pos < 0) return error3(404, "Esa subtarea ya no existe");
+        if (c.accion === "subtarea_hecha") subs[pos] = { ...subs[pos], hecho: !subs[pos].hecho };
+        else subs.splice(pos, 1);
+        const nuevo = { ...ev, subtareas: subs };
+        await deps.almacen.guardarEvento(nuevo);
+        return ok({ evento: eventoJson(nuevo, u, ahora) });
+      }
       if (c.accion === "borrar") {
         await cancelarEvento(deps.almacen, u.id, ev.id);
         return ok();
@@ -5263,7 +5409,7 @@ async function manejarApi(deps, u, ruta, c) {
       let enviadas = 0;
       const vivas = [];
       for (const sub of u.notificaciones.suscripciones) {
-        const r = await deps.push(sub, { titulo: "\u{1F514} Notificaciones activadas", cuerpo: "As\xED te avisar\xE9 de tus res\xFAmenes y recordatorios.", url: "/app/", etiqueta: "prueba" });
+        const r = await deps.push(sub, { sonido: u.notificaciones.sonido, modo: modoEfectivo(u, ahora), titulo: "\u{1F514} Notificaciones activadas", cuerpo: "As\xED te avisar\xE9 de tus res\xFAmenes y recordatorios.", url: "/app/", etiqueta: "prueba" });
         if (r === "ok") enviadas++;
         if (r !== "caducada") vivas.push(sub);
       }
@@ -5274,11 +5420,17 @@ async function manejarApi(deps, u, ruta, c) {
       return enviadas ? ok({ enviadas }) : error3(502, "No he podido enviarla: vuelve a activar las notificaciones en ese dispositivo");
     }
     case "/api/notificaciones": {
-      if (c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error3(400, "Opci\xF3n desconocida");
-      if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error3(409, "Primero activa las notificaciones en un dispositivo");
-      u.notificaciones.canal = c.canal;
+      if (c.sonido !== void 0) {
+        if (!["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(c.sonido)) return error3(400, "Sonido desconocido");
+        u.notificaciones.sonido = c.sonido;
+      }
+      if (c.canal !== void 0 && c.canal !== "telegram" && c.canal !== "app" && c.canal !== "ambos") return error3(400, "Opci\xF3n desconocida");
+      if (c.canal !== void 0) {
+        if (c.canal !== "telegram" && !u.notificaciones.suscripciones.length) return error3(409, "Primero activa las notificaciones en un dispositivo");
+        u.notificaciones.canal = c.canal;
+      }
       await deps.almacen.guardarUsuario(u);
-      return ok();
+      return ok({ sonido: u.notificaciones.sonido });
     }
     case "/api/avatar": {
       if (c.tipo === "emoji") {
@@ -5459,8 +5611,13 @@ async function manejarMiniApp(req, env2, url, fabrica) {
   const dep = dependencias(env2, fabrica(env2), true, url.origin);
   const cuerpo = await req.json().catch(() => ({})) ?? {};
   if (url.pathname === "/api/sesion") {
-    const r = await canjearAcceso(dep.almacen, String(cuerpo.codigo ?? ""), /* @__PURE__ */ new Date());
-    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se us\xF3 o ha caducado. Pide otro con /app en el bot." });
+    const codigo = String(cuerpo.codigo ?? "");
+    if (!codigo) {
+      const r2 = await crearSesionAnonima(dep.almacen, /* @__PURE__ */ new Date());
+      return json(200, { token: r2.token });
+    }
+    const r = await canjearAcceso(dep.almacen, codigo, /* @__PURE__ */ new Date());
+    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se us\xF3 o ha caducado." });
   }
   const cab = req.headers.get("authorization") ?? "";
   let uid = null, token = "";
@@ -5475,7 +5632,7 @@ async function manejarMiniApp(req, env2, url, fabrica) {
     return json(200, { ok: true });
   }
   const admin = dep.adminId;
-  if (admin && uid !== admin && !await dep.almacen.getAcceso(uid)) return json(403, { error: "No tienes acceso al bot" });
+  if (admin && uid !== admin && !uid.startsWith("web-") && !await dep.almacen.getAcceso(uid)) return json(403, { error: "No tienes acceso al bot" });
   const u = await dep.almacen.getUsuario(uid);
   if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
   try {
@@ -5490,9 +5647,30 @@ __name(manejarMiniApp, "manejarMiniApp");
 async function manejarFetch(req, env2, ctx, fabrica = fabricaReal) {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env2, url.pathname, fabrica);
-  if (url.pathname === "/api/lista") return manejarListaCompartida(req, env2, fabrica);
-  if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env2, url, fabrica);
-  if (url.pathname !== "/telegram") return new Response(url.pathname === "/" ? "agenda-personal" : "not found", { status: url.pathname === "/" ? 200 : 404 });
+  if (url.pathname.startsWith("/api/")) {
+    const origin = req.headers.get("origin") ?? "";
+    const permitido = origin && (env2.APP_ORIGINS ?? "").split(",").map((x) => x.trim()).includes(origin);
+    if (req.method === "OPTIONS") {
+      if (!permitido) return new Response(null, { status: 403 });
+      return new Response(null, { status: 204, headers: {
+        "access-control-allow-origin": origin,
+        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-headers": "Authorization, Content-Type",
+        "access-control-max-age": "600",
+        "vary": "Origin"
+      } });
+    }
+    const response = url.pathname === "/api/lista" ? await manejarListaCompartida(req, env2, fabrica) : await manejarMiniApp(req, env2, url, fabrica);
+    if (!permitido) return response;
+    const headers = new Headers(response.headers);
+    headers.set("access-control-allow-origin", origin);
+    headers.set("access-control-allow-methods", "POST, OPTIONS");
+    headers.set("access-control-allow-headers", "Authorization, Content-Type");
+    headers.set("vary", "Origin");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  if (url.pathname === "/" || url.pathname === "/agenda" || url.pathname === "/agenda/") return Response.redirect(new URL("/app/" + url.search + url.hash, url), 302);
+  if (url.pathname !== "/telegram") return new Response("not found", { status: 404 });
   const cuerpo = await req.json().catch(() => null);
   const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? void 0;
   const valido = req.method === "POST" && iguales(cabeceraSecreta ?? "", env2.TELEGRAM_WEBHOOK_SECRET);
