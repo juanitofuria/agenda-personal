@@ -659,7 +659,7 @@ ymbol>
 <script>
 let DEMO = new URLSearchParams(location.search).has("demo");
 let AUTH_CONFIGURED = false, AUTH_USER = null, ARRANCADO = false, REGISTRO_OBLIGATORIO = false;
-let accesoDesdeInicio = false, modoAccesoInicial = "login", avisoInicio = "", bloqueoBiometrico = null;
+let accesoDesdeInicio = false, modoAccesoInicial = "login", avisoInicio = "", bloqueoBiometrico = null, desbloqueoAutomaticoPendiente = false;
 let accesoPendiente = null;
 const NAV_GUARDADA = (() => { try { const n = JSON.parse(sessionStorage.getItem("agenda-vista") || "null"); return n && typeof n.vista === "string" ? n : null; } catch { return null; } })();
 const S = { datos: null, vista: NAV_GUARDADA?.vista || "inicio", pila: Array.isArray(NAV_GUARDADA?.pila) ? NAV_GUARDADA.pila : [], tipo: NAV_GUARDADA?.tipo || "alarma" };
@@ -1641,16 +1641,6 @@ document.addEventListener("click", async (e) => {
   if (q("[data-inicio-registro]")) { DEMO = false; return pintarAcceso("", "registro", true); }
   if (q("[data-inicio-prueba]") && !modoApp()) { DEMO = true; accesoDesdeInicio = false; ocultarInicio(); pintar(); return; }
   if (q("[data-volver-inicio]")) return cerrarAcceso();
-  if (q("[data-bio-desbloquear]")) {
-    el = q("[data-bio-desbloquear]"); el.disabled = true;
-    try { await desbloquearConBiometria(); }
-    catch (error) { $("#nx-bio-mensaje").textContent = error.message; el.disabled = false; }
-    return;
-  }
-  if (q("[data-bio-salir]")) {
-    try { await window.bexoraAuth.salir(); } catch (error) { $("#nx-bio-mensaje").textContent = error.message; }
-    return;
-  }
   if (q("[data-instalar-app]")) return instalarApp();
   if (q("[data-cerrar-acceso]")) return cerrarAcceso();
   if (q("[data-cerrar-cuenta]")) {
@@ -1987,6 +1977,10 @@ window.addEventListener("focus", refrescar);
     document.documentElement.classList.remove("cargando-app");
     const bienvenida = $("#nx-bienvenida");
     if (bienvenida) { bienvenida.classList.add("oculta"); setTimeout(() => bienvenida.remove(), 260); }
+    if (desbloqueoAutomaticoPendiente) {
+      desbloqueoAutomaticoPendiente = false;
+      setTimeout(() => desbloquearConBiometria().catch(() => pedirContrasenaPorBiometria()), 300);
+    }
   }
 })();
 
@@ -2047,6 +2041,12 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
       return;
     }
     await window.bexoraAuth.entrar(email(), password());
+    if (bloqueoBiometrico && AUTH_USER?.uid === window.bexoraAuth.usuario?.uid) {
+      bloqueoBiometrico = null;
+      modal.remove();
+      accesoDesdeInicio = false;
+      ocultarInicio();
+    }
   }); });
   $("#cambiar-modo-acceso").addEventListener("click", () => {
     modoAcceso = modoAcceso === "registro" ? "inicio" : "registro";
@@ -2085,9 +2085,7 @@ function mostrarInicio(mensaje = "") {
   pantalla.hidden = false;
   if (bloqueoBiometrico) {
     acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje || "Desbloquea Nexora para abrir tu agenda.")}</p>
-      <button class="btn" type="button" data-bio-desbloquear>Desbloquear con biometría</button>
-      <button class="btn sec" type="button" data-bio-salir>Usar contraseña</button>
-      <p class="acceso-mensaje" id="nx-bio-mensaje" role="status"></p>`;
+      <p class="acceso-mensaje" id="nx-bio-mensaje" role="status">Confirma tu identidad en el dispositivo.</p>`;
   } else {
     acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje)}</p>
       <button class="btn" type="button" data-inicio-login>Iniciar sesión</button>
@@ -2103,8 +2101,15 @@ function ocultarInicio() {
 }
 
 function mostrarDesbloqueo() {
-  mostrarInicio();
-  $("[data-bio-desbloquear]")?.focus();
+  desbloqueoAutomaticoPendiente = true;
+  mostrarInicio("Desbloqueando Nexora con biometría…");
+}
+
+function pedirContrasenaPorBiometria() {
+  const mensaje = "No se pudo confirmar tu identidad con biometría. Inicia sesión con tu contraseña para continuar.";
+  mostrarInicio(mensaje);
+  pintarAcceso(mensaje, "inicio", true);
+  $("#acceso-password")?.focus();
 }
 
 const BIO_ACCESO = "nexora-app-biometric-v1";
