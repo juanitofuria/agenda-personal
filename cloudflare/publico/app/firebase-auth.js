@@ -46,9 +46,11 @@ window.__bexoraAuthReady = (async () => {
       auth,
       get usuario() { return usuarioValido(auth.currentUser); },
       comprobarVerificacion,
-      async crearCuenta(email, password) {
+      async crearCuenta(email, password, origen = "web") {
         const credencial = await authSdk.createUserWithEmailAndPassword(auth, email, password);
-        const continuarEn = new URL("./?verificacion=1", window.location.href).href;
+        const destino = new URL("./?verificacion=1", window.location.href);
+        destino.searchParams.set("origen", origen === "app" ? "app" : "web");
+        const continuarEn = destino.href;
         await authSdk.sendEmailVerification(credencial.user, { url: continuarEn });
       },
       async entrar(email, password) {
@@ -85,7 +87,9 @@ window.__bexoraAuthReady = (async () => {
     }, (error) => evento("auth-error", { mensaje: error.message }));
     await authSdk.getRedirectResult(auth);
     if (new URLSearchParams(window.location.search).has("verificacion")) {
+      const origen = new URLSearchParams(window.location.search).get("origen") === "app" ? "app" : "web";
       await comprobarVerificacion();
+      window.__bexoraVerificationReturn = { origin: origen, returned: true, verified: !!api.usuario };
       const url = new URL(window.location.href);
       url.searchParams.delete("verificacion");
       history.replaceState(history.state, "", url.pathname + (url.search || "") + url.hash);
