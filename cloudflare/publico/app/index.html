@@ -596,7 +596,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarT
 const enTelegram = () => !!(TG && TG.initData);
 const leerSesion = () => { try { return localStorage.getItem("sesion") || ""; } catch (e) { return ""; } };
 const guardarSesion = (t) => { try { t ? localStorage.setItem("sesion", t) : localStorage.removeItem("sesion"); } catch (e) {} };
-const apiOrigen = location.hostname === "nexora-agenda-personal.web.app" ? "https://agenda-personal.cresofin.workers.dev" : "";
+const apiOrigen = ["bexora-agenda-personal.web.app", "nexora-agenda-personal.web.app"].includes(location.hostname) ? "https://agenda-personal.cresofin.workers.dev" : "";
 const apiUrl = (ruta) => `${apiOrigen}${ruta}`;
 async function api(ruta, cuerpo = {}, reintentar = true) {
   if (DEMO) return demo(ruta, cuerpo);
