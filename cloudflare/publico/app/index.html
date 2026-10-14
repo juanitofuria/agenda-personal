@@ -32,9 +32,10 @@ html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:radial-gradient(elli
 #nx-bienvenida.oculta{opacity:0;pointer-events:none}
 .nx-bienvenida-centro{display:flex;flex-direction:column;align-items:center;gap:20px;transform:translateY(-2vh)}
 .nx-bienvenida-icono{display:block;width:min(58vw,260px);height:auto;filter:drop-shadow(0 16px 32px rgba(0,0,0,.34))}
-.nx-bienvenida-nombre{font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
+.nx-bienvenida-nombre{display:flex;align-items:baseline;font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
 html[data-modo=oscuro] .nx-bienvenida-nombre{text-shadow:0 3px 20px rgba(0,0,0,.35)}
-.nx-bienvenida-x{color:transparent;background:linear-gradient(135deg,#cf35ef 0%,#ff9b12 50%,#08df8a 100%);background-clip:text;-webkit-background-clip:text}
+.nx-bienvenida-n{font-size:.74em}
+.nx-bienvenida-x{position:relative;transform:translateY(-.08em);font-size:1.3em;line-height:.8;color:transparent;background:linear-gradient(315deg,#e500f5 0%,#702cff 30%,#ff9a00 62%,#16df28 100%);background-clip:text;-webkit-background-clip:text}
 @media(prefers-reduced-motion:reduce){#nx-bienvenida{transition:none}}
 body{margin:0;font-family:var(--fuente);color:var(--tinta);background-color:var(--fondo);background-image:linear-gradient(160deg,color-mix(in srgb,var(--fondo) 78%,transparent),color-mix(in srgb,var(--fondo2) 82%,transparent)),url("fondo-agenda.svg?v=20261008");background-repeat:repeat;background-size:auto,320px 320px;min-height:100vh;padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
 button,input,select{font:inherit;color:inherit}
@@ -595,7 +596,7 @@ ymbol>
 <div id="nx-bienvenida" role="status" aria-label="Nexora se está iniciando">
   <div class="nx-bienvenida-centro">
     <img class="nx-bienvenida-icono" src="icon-nexora-512.png?v=20261014-icon" alt="">
-    <div class="nx-bienvenida-nombre">Ne<span class="nx-bienvenida-x">x</span>ora</div>
+    <div class="nx-bienvenida-nombre"><span class="nx-bienvenida-n">N</span>e<span class="nx-bienvenida-x">X</span>ora</div>
   </div>
 </div>
 <script>window.__nexoraSplashInicio=performance.now();</script>
@@ -831,7 +832,7 @@ function bannerApp() {
   S.bannerClave = clave; marcarBanner(clave); // se queda en pantalla durante esta sesión; la próxima vez no sale
   return S.bannerOculto === clave ? "" : html;
 }
-const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${!AUTH_USER ? "¡Bienvenido!" : S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}!` : "¡Hola!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div><div class="nx-estado" id="nx-estado">Consultando tiempo…</div>${AUTH_USER ? `<div class="nx-ciudad" id="nx-city">Cargando ciudad…</div>` : ""}</div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
+const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${AUTH_USER && S.datos.usuario.nombre ? `¡Bienvenido, ${esc(S.datos.usuario.nombre)}!` : "¡Bienvenido!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div>${AUTH_USER ? `<div class="nx-ciudad" id="nx-city">Cargando ciudad…</div>` : ""}<div class="nx-estado" id="nx-estado">Consultando tiempo…</div></div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -1136,9 +1137,9 @@ const vistas = {
 
 function pintar() {
   if (!S.datos) return;
-  const avisoDemo = DEMO && !new URLSearchParams(location.search).has("demo") ? `<div class="demo-cuenta"><b>Vista previa</b><span>Puedes explorar Nexora. Crea una cuenta cuando quieras guardar tus datos.</span></div>` : "";
+  const avisoDemo = !AUTH_USER && DEMO ? `<div class="demo-cuenta"><b>Vista previa</b><span>Los datos que ves son de ejemplo. Crea una cuenta para guardar tu información.</span></div>` : "";
   const barraCuenta = AUTH_USER ? `<div class="cuenta-activa"><span>${esc(AUTH_USER.email || "Cuenta conectada")}</span><button type="button" data-cerrar-cuenta>Cerrar sesión</button></div>` : "";
-  const barraInstalacion = `<div class="barra-instalacion"><span>Nexora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
+  const barraInstalacion = AUTH_USER ? "" : `<div class="barra-instalacion"><span>Nexora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
   $("#app").innerHTML = barraInstalacion + avisoDemo + barraCuenta + vistas[S.vista]();
   botonAtras();
   if (S.vista === "ver") ponerFoto();
