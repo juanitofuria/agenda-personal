@@ -5654,13 +5654,13 @@ async function manejarFetch(req, env2, ctx, fabrica = fabricaReal) {
       if (!permitido) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: {
         "access-control-allow-origin": origin,
-        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-methods": url.pathname === "/api/config" ? "GET, OPTIONS" : "POST, OPTIONS",
         "access-control-allow-headers": "Authorization, Content-Type",
         "access-control-max-age": "600",
         "vary": "Origin"
       } });
     }
-    const response = url.pathname === "/api/lista" ? await manejarListaCompartida(req, env2, fabrica) : await manejarMiniApp(req, env2, url, fabrica);
+    const response = url.pathname === "/api/config" ? req.method === "GET" ? Response.json({ firebase: env2.FIREBASE_WEB_CONFIG ?? null }, { headers: { "cache-control": "no-store" } }) : Response.json({ error: "m\xE9todo no permitido" }, { status: 405, headers: { "allow": "GET, OPTIONS" } }) : url.pathname === "/api/lista" ? await manejarListaCompartida(req, env2, fabrica) : await manejarMiniApp(req, env2, url, fabrica);
     if (!permitido) return response;
     const headers = new Headers(response.headers);
     headers.set("access-control-allow-origin", origin);

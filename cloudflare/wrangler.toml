@@ -29,3 +29,4 @@ ADMIN_CHAT_ID = "483702644"
 HOROSCOPO_BASE_URL = "https://horoscopefree.fly.dev"
 HOROSCOPO_IDIOMA = "es"
 APP_ORIGINS = "https://bexora-agenda-personal.web.app,https://nexora-agenda-personal.web.app"
+FIREBASE_WEB_CONFIG = { apiKey = "AIzaSyAFtbdszR57mpw-9eZLPA8qbIK7yPsaeNo", authDomain = "bexora-agenda-personal.firebaseapp.com", appId = "1:91393495192:web:0baacd446235799cf640ed", messagingSenderId = "91393495192", projectId = "bexora-agenda-personal", storageBucket = "bexora-agenda-personal.firebasestorage.app" }

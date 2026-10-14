@@ -95,6 +95,9 @@ Los secretos del bot (token de Telegram y secreto del webhook) siguen guardados 
 La web objetivo de Firebase Hosting es `https://nexora-agenda-personal.web.app/app/`, desde `cloudflare/publico/`;
 el proyecto configurado es `bexora-agenda-personal` y el site objetivo es `nexora-agenda-personal`. La API sigue desplegada en Cloudflare: la web usa
 `https://agenda-personal.cresofin.workers.dev` y el Worker permite CORS únicamente desde los sitios Firebase configurados.
+El mismo Worker ofrece `GET /api/config` para entregar la configuración pública del cliente Firebase; no acepta cambios de datos
+por esa ruta y su preflight permite `GET` solo desde esos orígenes. La configuración Firebase Web (incluida la API key pública del
+cliente) está definida en `cloudflare/wrangler.toml`; no contiene credenciales privadas.
 La CLI confirmó acceso a `bexora-agenda-personal`, pero Firebase rechazó crear el site porque ese ID está reservado por otro
 proyecto; el proyecto `nexora-agenda-personal` no aparece accesible en la cuenta activa. No se desplegó contenido. Antes de publicar,
 hay que verificar con la cuenta propietaria qué proyecto contiene/reserva el site y resolverlo sin cambiar la URL ni borrar el site

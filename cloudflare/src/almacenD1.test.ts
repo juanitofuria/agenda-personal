@@ -349,32 +349,61 @@ test("worker: la API de la mini app exige datos firmados por Telegram y respeta 
   assert.equal((await api("/api/estado", firmar(7), privado)).status, 200);
 });
 
-test("worker: CORS de la app admite los sites Firebase configurados", async () => {
+test("worker: config Firebase admite GET y preflight solo desde los sites configurados", async () => {
   const { d1 } = nuevo();
+  const firebase = {
+    apiKey: "web-api-key",
+    authDomain: "bexora-agenda-personal.firebaseapp.com",
+    appId: "1:91393495192:web:example",
+    messagingSenderId: "91393495192",
+    projectId: "bexora-agenda-personal",
+    storageBucket: "bexora-agenda-personal.firebasestorage.app",
+  };
   const env: Env = {
     DB: d1,
     TELEGRAM_BOT_TOKEN: "123:abc",
     TELEGRAM_WEBHOOK_SECRET: "secreto-largo-1234567890",
     APP_ORIGINS: "https://bexora-agenda-personal.web.app,https://nexora-agenda-personal.web.app",
+    FIREBASE_WEB_CONFIG: firebase,
   };
-  const preflight = (origin: string) => manejarFetch(new Request("https://x.workers.dev/api/sesion", {
+  const preflight = (origin: string) => manejarFetch(new Request("https://x.workers.dev/api/config", {
     method: "OPTIONS",
-    headers: { origin, "access-control-request-method": "POST", "access-control-request-headers": "authorization,content-type" },
+    headers: { origin, "access-control-request-method": "GET" },
   }), env);
   for (const origin of ["https://bexora-agenda-personal.web.app", "https://nexora-agenda-personal.web.app"]) {
     const permitido = await preflight(origin);
     assert.equal(permitido.status, 204);
     assert.equal(permitido.headers.get("access-control-allow-origin"), origin);
-    assert.equal(permitido.headers.get("access-control-allow-headers"), "Authorization, Content-Type");
+    assert.equal(permitido.headers.get("access-control-allow-methods"), "GET, OPTIONS");
   }
   assert.equal((await preflight("https://sitio-no-autorizado.example")).status, 403);
-  const respuesta = await manejarFetch(new Request("https://x.workers.dev/api/sesion", {
+  const respuesta = await manejarFetch(new Request("https://x.workers.dev/api/config", {
+    method: "GET",
+    headers: { origin: "https://bexora-agenda-personal.web.app" },
+  }), env);
+  assert.equal(respuesta.status, 200);
+  assert.equal(respuesta.headers.get("access-control-allow-origin"), "https://bexora-agenda-personal.web.app");
+  assert.deepEqual(await respuesta.json(), { firebase });
+  const post = await manejarFetch(new Request("https://x.workers.dev/api/config", {
     method: "POST",
     headers: { origin: "https://bexora-agenda-personal.web.app", "content-type": "application/json" },
     body: "{}",
   }), env);
-  assert.equal(respuesta.status, 200);
-  assert.equal(respuesta.headers.get("access-control-allow-origin"), "https://bexora-agenda-personal.web.app");
+  assert.equal(post.status, 405);
+  assert.equal(post.headers.get("allow"), "GET, OPTIONS");
+  const sesionPreflight = await manejarFetch(new Request("https://x.workers.dev/api/sesion", {
+    method: "OPTIONS",
+    headers: { origin: "https://bexora-agenda-personal.web.app", "access-control-request-method": "POST" },
+  }), env);
+  assert.equal(sesionPreflight.status, 204);
+  assert.equal(sesionPreflight.headers.get("access-control-allow-methods"), "POST, OPTIONS");
+  const sesion = await manejarFetch(new Request("https://x.workers.dev/api/sesion", {
+    method: "POST",
+    headers: { origin: "https://bexora-agenda-personal.web.app", "content-type": "application/json" },
+    body: "{}",
+  }), env);
+  assert.equal(sesion.status, 200);
+  assert.equal(sesion.headers.get("access-control-allow-origin"), "https://bexora-agenda-personal.web.app");
 });
 
 test("worker: la lista compartida se abre con su enlace sin firma de Telegram (y solo con el código correcto)", async () => {
