@@ -103,8 +103,8 @@ html[data-estilo=formal] .btn{border-radius:10px;background:var(--azul);box-shad
 .acceso-cuenta{max-width:440px;margin:30px auto;padding:24px;border:1px solid var(--linea);border-radius:var(--radio);background:var(--tarjeta);box-shadow:var(--sombra);text-align:center}
 .acceso-modal{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;padding:18px;background:rgba(4,14,34,.62);overflow:auto}
 .acceso-modal>.acceso-cuenta{position:relative;width:min(100%,440px);max-height:calc(100dvh - 36px);overflow:auto;margin:auto}
-.acceso-modal.acceso-obligatorio{z-index:9500;background:var(--fondo)}
-.acceso-modal.acceso-obligatorio>.acceso-cuenta{border-color:transparent;background:transparent;box-shadow:none}
+.acceso-modal.acceso-obligatorio{z-index:9500;display:block;padding:clamp(24px,6vh,56px) 18px;background:var(--fondo)}
+.acceso-modal.acceso-obligatorio>.acceso-cuenta{max-height:none;overflow:visible;margin:0 auto;border-color:transparent;background:transparent;box-shadow:none}
 .acceso-cerrar{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:50%;background:color-mix(in srgb,var(--azul) 10%,transparent);font-size:21px;cursor:pointer}
 .acceso-cuenta>img{border-radius:26%;margin:2px auto 12px}
 .acceso-cuenta h1{font:800 24px/1.2 var(--titulo);margin:8px 0}
@@ -1984,6 +1984,8 @@ window.addEventListener("focus", refrescar);
 
 function pintarAcceso(mensaje = "") {
   if ($("#modal-acceso")) {
+    $("#app").inert = REGISTRO_OBLIGATORIO;
+    $("#modal-acceso").classList.toggle("acceso-obligatorio", REGISTRO_OBLIGATORIO);
     if (mensaje) $(".acceso-mensaje", $("#modal-acceso")).textContent = mensaje;
     return;
   }
@@ -2010,6 +2012,7 @@ function pintarAcceso(mensaje = "") {
     <p class="acceso-mensaje" role="status">${esc(mensaje)}</p>
   </section>`;
   document.body.appendChild(modal);
+  $("#app").inert = REGISTRO_OBLIGATORIO;
   const form = $("#form-acceso", modal);
   if (!form) { $("#reintentar-auth", modal)?.addEventListener("click", () => location.reload()); return; }
   const email = () => $("#acceso-email", modal).value.trim();
@@ -2076,6 +2079,7 @@ function mensajeAuth(error) {
 
 function cerrarAcceso(cancelarOperacion = true) {
   $("#modal-acceso")?.remove();
+  $("#app").inert = false;
   if (cancelarOperacion) quitarEscrituraPendiente();
   if (accesoPendiente) {
     const pendiente = accesoPendiente;
@@ -2128,6 +2132,7 @@ window.addEventListener("bexora-auth-state", async (e) => {
     await cargar();
     pintar();
     $("#modal-acceso")?.remove();
+    $("#app").inert = false;
     if (accesoPendiente) {
       const pendiente = accesoPendiente;
       accesoPendiente = null;
@@ -2136,6 +2141,7 @@ window.addEventListener("bexora-auth-state", async (e) => {
   }
   catch (error) {
     $("#modal-acceso")?.remove();
+    $("#app").inert = false;
     if (accesoPendiente) {
       const pendiente = accesoPendiente;
       accesoPendiente = null;
