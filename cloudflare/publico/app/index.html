@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
-<title>NeXora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261014-logo">
-<link rel="apple-touch-icon" href="icon-nexora-512.png?v=20261014-logo">
-<link id="favicon" rel="icon" type="image/png" href="icon-nexora-192.png?v=20261014-logo">
+<title>Nexora</title>
+<link rel="manifest" href="manifest.webmanifest?v=20261014-icon">
+<link rel="apple-touch-icon" href="icon-nexora-512.png?v=20261014-icon">
+<link id="favicon" rel="icon" type="image/png" href="icon-nexora-192.png?v=20261014-icon">
 
 <meta name="theme-color" content="#10162d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="NeXora">
+<meta name="apple-mobile-web-app-title" content="Nexora">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>document.documentElement.dataset.modo=(window.Telegram?.WebApp?.initData&&window.Telegram.WebApp.colorScheme==="dark")||matchMedia("(prefers-color-scheme: dark)").matches?"oscuro":"claro";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +31,7 @@ html.cargando-app #app{visibility:hidden}
 html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:radial-gradient(ellipse at 50% 42%,#27304f 0,#191f3b 43%,#10162d 100%)}
 #nx-bienvenida.oculta{opacity:0;pointer-events:none}
 .nx-bienvenida-centro{display:flex;flex-direction:column;align-items:center;gap:20px;transform:translateY(-2vh)}
-.nx-bienvenida-icono{display:block;width:min(58vw,260px);height:auto;border-radius:28%;filter:drop-shadow(0 16px 32px rgba(0,0,0,.34))}
+.nx-bienvenida-icono{display:block;width:min(58vw,260px);height:auto;filter:drop-shadow(0 16px 32px rgba(0,0,0,.34))}
 .nx-bienvenida-nombre{font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
 html[data-modo=oscuro] .nx-bienvenida-nombre{text-shadow:0 3px 20px rgba(0,0,0,.35)}
 .nx-bienvenida-x{color:transparent;background:linear-gradient(115deg,#fa35bf 0%,#ffc34d 27%,#14ddd3 52%,#7254ff 76%,#fa35bf 100%);background-clip:text;-webkit-background-clip:text;filter:drop-shadow(0 0 12px rgba(200,87,255,.25))}
@@ -455,7 +455,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 
 
 .econ-icon-porcentajes{background:linear-gradient(145deg,#58a6dc,#2864a8)!important;color:#d9dee5!important;font-size:21px!important;-webkit-text-stroke:.55px currentColor}
-/* NeXora: estilos completos de la nueva pantalla principal */
+/* Nexora: estilos completos de la nueva pantalla principal */
 .nx-hero{position:relative;isolation:isolate;overflow:hidden;min-height:144.4px;border-radius:22px;padding:7px 16px;display:block;color:#fff;background:linear-gradient(125deg,#1264c5,#42a9ed 62%,#c8eaff);box-shadow:0 10px 26px rgba(28,90,170,.18);margin-bottom:12px}
 .nx-cielo{position:absolute;inset:0;overflow:hidden;z-index:0;background:linear-gradient(180deg,#63b8f3 0%,#d6efff 100%);pointer-events:none}
 .nx-hero:after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(5,31,73,.84),rgba(5,31,73,.53) 68%,rgba(5,31,73,.08))}
@@ -495,7 +495,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 .nx-vault-intro{display:flex;gap:12px;align-items:center;padding:14px;border-radius:17px;background:var(--tarjeta);border:1px solid var(--linea);margin-top:12px}.nx-vault-intro>b{font-size:28px;color:var(--azul)}.nx-vault-intro span{display:flex;flex-direction:column;gap:4px}.nx-vault-intro small{font-size:11px;color:var(--suave)}
 @media(max-width:390px){.app{padding:10px}.nx-hero{min-height:145px;padding:6px 12px;grid-template-columns:minmax(0,1fr) 78px}.nx-tiempo{min-width:72px;padding:7px 4px}.nx-temp{font-size:22px}.nx-cabecera-linea .nx-saludo{font-size:clamp(26.4px,6.82vw,35.2px)!important}.nx-hero .nx-frase{font-size:clamp(18.564px,5.5692vw,27.3px)!important}.nx-mini{gap:7px;padding:8px;min-height:76px}.nx-mini-ico{width:32px;height:32px;flex-basis:32px}.nx-mini b{font-size:12px}.nx-mini small{font-size:9px}.nx-areas>.tarjeta{gap:7px;padding:8px}.nx-res-link{font-size:10px}}
 
-/* NeXora: cielo animado del clima. Lo pinta nxCielo() (JS) dentro de .nx-cielo según el estado de actualizarClima(). */
+/* Nexora: cielo animado del clima. Lo pinta nxCielo() (JS) dentro de .nx-cielo según el estado de actualizarClima(). */
 #nx-hero{isolation:isolate;overflow:hidden}
 #nx-hero .nx-cielo{position:absolute;inset:0;z-index:0;overflow:hidden;isolation:isolate;pointer-events:none;background:linear-gradient(160deg,#1a8cff,#4fc3ff 50%,#c6f0ff);transition:background 1s ease}
 #nx-hero[data-cielo="dia-sol"] .nx-cielo{background:linear-gradient(160deg,#1a8cff,#4fc3ff 50%,#c6f0ff)}
@@ -582,10 +582,10 @@ ymbol>
 <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></symbol>
 <symbol id="i-logo" viewBox="0 0 64 64"><rect x="9" y="12" width="46" height="42" rx="10" fill="var(--logo-fondo,#f4f8ff)" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 26h46" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 22a10 10 0 0 1 10-10h26a10 10 0 0 1 10 10v4H9z" fill="var(--logo-tapa,#ef4a5a)"/><rect x="20" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><rect x="39" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><path d="M22 39l7 7 14-15" fill="none" stroke="var(--logo-check,#3d6fcf)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
-<div id="nx-bienvenida" role="status" aria-label="NeXora se está iniciando">
+<div id="nx-bienvenida" role="status" aria-label="Nexora se está iniciando">
   <div class="nx-bienvenida-centro">
-    <img class="nx-bienvenida-icono" src="icon-nexora-512.png?v=20261014-logo" alt="">
-    <div class="nx-bienvenida-nombre">Be<span class="nx-bienvenida-x">X</span>ora</div>
+    <img class="nx-bienvenida-icono" src="icon-nexora-512.png?v=20261014-icon" alt="">
+    <div class="nx-bienvenida-nombre">Ne<span class="nx-bienvenida-x">x</span>ora</div>
   </div>
 </div>
 <script>window.__nexoraSplashInicio=performance.now();</script>
@@ -618,8 +618,8 @@ const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
 function actualizarIconos() {
-  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-192.png?v=20261014-logo";
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-512.png?v=20261014-logo";
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-192.png?v=20261014-icon";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-512.png?v=20261014-icon";
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
@@ -821,7 +821,7 @@ function bannerApp() {
   S.bannerClave = clave; marcarBanner(clave); // se queda en pantalla durante esta sesión; la próxima vez no sale
   return S.bannerOculto === clave ? "" : html;
 }
-const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}!` : "¡Hola!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div><div class="nx-estado" id="nx-estado">Consultando tiempo…</div><div class="nx-ciudad" id="nx-city">Cargando ciudad…</div></div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
+const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${!AUTH_USER ? "¡Bienvenido!" : S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}!` : "¡Hola!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div><div class="nx-estado" id="nx-estado">Consultando tiempo…</div><div class="nx-ciudad" id="nx-city">Cargando ciudad…</div></div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -957,8 +957,8 @@ async function vcifrar(d,k,s){const iv=crypto.getRandomValues(new Uint8Array(12)
 const VAULT_BIO="nexora-vault-biometric-v1";
 function vb64(b){return btoa(String.fromCharCode(...new Uint8Array(b)))}function vbytes(x){return Uint8Array.from(atob(x),c=>c.charCodeAt(0))}
 function bioDisponible(){return !!(window.PublicKeyCredential&&navigator.credentials&&location.protocol==="https:")}
-async function activarBiometria(){if(!bioDisponible())throw Error("Este navegador o dispositivo no ofrece autenticación biométrica compatible.");const challenge=crypto.getRandomValues(new Uint8Array(32)),uid=crypto.getRandomValues(new Uint8Array(16));const cred=await navigator.credentials.create({publicKey:{challenge,rp:{name:"NeXora",id:location.hostname},user:{id:uid,name:"usuario@nexora.local",displayName:"NeXora"},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",residentKey:"discouraged",userVerification:"required"},timeout:60000,attestation:"none"}});if(!cred)throw Error("No se pudo registrar la autenticación del dispositivo.");localStorage.setItem(VAULT_BIO,JSON.stringify({id:vb64(cred.rawId),created:Date.now()}))}
-async function verificarBiometria(){const raw=localStorage.getItem(VAULT_BIO);if(!raw)return true;if(!bioDisponible())throw Error("La caja fuerte tiene autenticación del dispositivo activada; abre NeXora en un navegador compatible.");const saved=JSON.parse(raw),challenge=crypto.getRandomValues(new Uint8Array(32));const assertion=await navigator.credentials.get({publicKey:{challenge,allowCredentials:[{type:"public-key",id:vbytes(saved.id)}],userVerification:"required",timeout:60000}});if(!assertion||vb64(assertion.rawId)!==saved.id)throw Error("No se ha podido verificar el dispositivo.");return true}
+async function activarBiometria(){if(!bioDisponible())throw Error("Este navegador o dispositivo no ofrece autenticación biométrica compatible.");const challenge=crypto.getRandomValues(new Uint8Array(32)),uid=crypto.getRandomValues(new Uint8Array(16));const cred=await navigator.credentials.create({publicKey:{challenge,rp:{name:"Nexora",id:location.hostname},user:{id:uid,name:"usuario@nexora.local",displayName:"Nexora"},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",residentKey:"discouraged",userVerification:"required"},timeout:60000,attestation:"none"}});if(!cred)throw Error("No se pudo registrar la autenticación del dispositivo.");localStorage.setItem(VAULT_BIO,JSON.stringify({id:vb64(cred.rawId),created:Date.now()}))}
+async function verificarBiometria(){const raw=localStorage.getItem(VAULT_BIO);if(!raw)return true;if(!bioDisponible())throw Error("La caja fuerte tiene autenticación del dispositivo activada; abre Nexora en un navegador compatible.");const saved=JSON.parse(raw),challenge=crypto.getRandomValues(new Uint8Array(32));const assertion=await navigator.credentials.get({publicKey:{challenge,allowCredentials:[{type:"public-key",id:vbytes(saved.id)}],userVerification:"required",timeout:60000}});if(!assertion||vb64(assertion.rawId)!==saved.id)throw Error("No se ha podido verificar el dispositivo.");return true}
 async function vabre(p){const raw=localStorage.getItem(VAULT_STORE);if(!raw){if(p.length<12)throw Error("Usa una contraseña maestra de al menos 12 caracteres.");const s=crypto.getRandomValues(new Uint8Array(16)),k=await vkey(p,s);await vcifrar([],k,s);VAULT_KEY=k;VAULT_DATA=[];return}const b=JSON.parse(raw),s=vu64(b.salt),k=await vkey(p,s);try{const c=await crypto.subtle.decrypt({name:"AES-GCM",iv:vu64(b.iv)},k,vu64(b.data)),d=JSON.parse(new TextDecoder().decode(c));if(!Array.isArray(d))throw Error();VAULT_KEY=k;VAULT_DATA=d}catch{throw Error("Contraseña incorrecta o caja fuerte dañada; datos intactos.")}}
 async function vguardar(){const b=JSON.parse(localStorage.getItem(VAULT_STORE));await vcifrar(VAULT_DATA,VAULT_KEY,vu64(b.salt))}function vbloquear(){VAULT_KEY=null;VAULT_DATA=[]}document.addEventListener("visibilitychange",()=>{if(document.hidden&&S.vista==="seguridad"&&VAULT_KEY){vbloquear();if(typeof pintar==="function")pintar()}});window.addEventListener("pagehide",()=>{if(S.vista==="seguridad")vbloquear()});
 /* Cielo animado de la cabecera: k = "sol" | "nube" | "lluvia"; day = true de día, false de noche. */
@@ -980,7 +980,7 @@ const vistas = {
   seguridad() {
     let existe=false;try{existe=!!localStorage.getItem("nexora-vault-v1")}catch{}const abierto=!!VAULT_KEY,items=abierto?VAULT_DATA:[];
     return `${barra("Seguridad")}<div class="nx-vault-intro"><b>◈</b><span><strong>Tu espacio privado</strong><small>Contraseñas y secretos cifrados en este dispositivo.</small></span></div>
-    ${!abierto?`<div class="nx-vault-card"><h3>${existe?"Desbloquear caja fuerte":"Crear caja fuerte"}</h3><p>Elige una contraseña maestra larga y única. No se guarda ni se puede recuperar si la olvidas.</p><label>Contraseña maestra</label><input id="nx-vault-pass" type="password" placeholder="Mínimo 12 caracteres"><button class="btn ancho" data-vault-action="unlock">${existe?"Desbloquear":"Crear caja fuerte cifrada"}</button><small>Cifrado AES-GCM y PBKDF2. Solo se guarda en este navegador, sin sincronización.</small></div>`:`<div class="nx-vault-toolbar"><b>${items.length} secretos</b><button class="btn chico sec" data-vault-action="lock">Bloquear</button></div><div class="nx-vault-card"><h3>Acceso biométrico</h3><p>${localStorage.getItem("nexora-vault-biometric-v1")?"Autenticación del dispositivo registrada. La contraseña maestra sigue siendo necesaria.":"Activa la huella o el reconocimiento facial del dispositivo como paso adicional, si el navegador lo admite."}</p><button class="btn ancho" data-vault-action="bio">${localStorage.getItem("nexora-vault-biometric-v1")?"Volver a registrar huella / Face ID":"Activar huella / Face ID"}</button><small>Usa la autenticación de plataforma del sistema. No se envían datos biométricos a NeXora.</small></div><div class="nx-vault-card"><h3>Añadir credencial o secreto</h3><label>Título</label><input id="nx-vault-title" maxlength="80" placeholder="Correo, web, llaves…"><label>Usuario o URL (opcional)</label><input id="nx-vault-user" maxlength="250" placeholder="Usuario o dirección web"><label>Contraseña o secreto</label><textarea id="nx-vault-secret" maxlength="8000" rows="3" placeholder="Contenido privado"></textarea><button class="btn ancho" data-vault-action="save">Guardar cifrado</button></div>${items.map((x,i)=>`<div class="nx-vault-item"><div><b>${esc(x.title)}</b><small>${esc(x.user||"")}</small><p>${esc(x.secret)}</p></div><button class="btn chico peligro" data-vault-delete="${i}">Eliminar</button></div>`).join("")}`}
+    ${!abierto?`<div class="nx-vault-card"><h3>${existe?"Desbloquear caja fuerte":"Crear caja fuerte"}</h3><p>Elige una contraseña maestra larga y única. No se guarda ni se puede recuperar si la olvidas.</p><label>Contraseña maestra</label><input id="nx-vault-pass" type="password" placeholder="Mínimo 12 caracteres"><button class="btn ancho" data-vault-action="unlock">${existe?"Desbloquear":"Crear caja fuerte cifrada"}</button><small>Cifrado AES-GCM y PBKDF2. Solo se guarda en este navegador, sin sincronización.</small></div>`:`<div class="nx-vault-toolbar"><b>${items.length} secretos</b><button class="btn chico sec" data-vault-action="lock">Bloquear</button></div><div class="nx-vault-card"><h3>Acceso biométrico</h3><p>${localStorage.getItem("nexora-vault-biometric-v1")?"Autenticación del dispositivo registrada. La contraseña maestra sigue siendo necesaria.":"Activa la huella o el reconocimiento facial del dispositivo como paso adicional, si el navegador lo admite."}</p><button class="btn ancho" data-vault-action="bio">${localStorage.getItem("nexora-vault-biometric-v1")?"Volver a registrar huella / Face ID":"Activar huella / Face ID"}</button><small>Usa la autenticación de plataforma del sistema. No se envían datos biométricos a Nexora.</small></div><div class="nx-vault-card"><h3>Añadir credencial o secreto</h3><label>Título</label><input id="nx-vault-title" maxlength="80" placeholder="Correo, web, llaves…"><label>Usuario o URL (opcional)</label><input id="nx-vault-user" maxlength="250" placeholder="Usuario o dirección web"><label>Contraseña o secreto</label><textarea id="nx-vault-secret" maxlength="8000" rows="3" placeholder="Contenido privado"></textarea><button class="btn ancho" data-vault-action="save">Guardar cifrado</button></div>${items.map((x,i)=>`<div class="nx-vault-item"><div><b>${esc(x.title)}</b><small>${esc(x.user||"")}</small><p>${esc(x.secret)}</p></div><button class="btn chico peligro" data-vault-delete="${i}">Eliminar</button></div>`).join("")}`}
     <div class="nx-vault-card"><h3>Cámaras y dispositivos inteligentes</h3><p>Las conexiones deben integrarse de forma segura según cada fabricante o servicio.</p><div class="nx-int-row"><b>Cámaras IP</b><small>Integración pendiente; dependerá del fabricante, VPN o servicio compatible.</small></div><div class="nx-int-row"><b>Comandos remotos</b><small>Integración pendiente con autenticación y permisos limitados.</small></div></div><div class="nx-vault-warning">Caja fuerte local cifrada, sin sincronización ni auditoría independiente. La biometría añade una comprobación del dispositivo, pero no sustituye una aplicación nativa ni una revisión de seguridad profesional.</div>`;
   },
   economia() {
@@ -1126,9 +1126,9 @@ const vistas = {
 
 function pintar() {
   if (!S.datos) return;
-  const avisoDemo = DEMO && !new URLSearchParams(location.search).has("demo") ? `<div class="demo-cuenta"><b>Vista previa</b><span>Puedes explorar NeXora. Crea una cuenta cuando quieras guardar tus datos.</span></div>` : "";
+  const avisoDemo = DEMO && !new URLSearchParams(location.search).has("demo") ? `<div class="demo-cuenta"><b>Vista previa</b><span>Puedes explorar Nexora. Crea una cuenta cuando quieras guardar tus datos.</span></div>` : "";
   const barraCuenta = AUTH_USER ? `<div class="cuenta-activa"><span>${esc(AUTH_USER.email || "Cuenta conectada")}</span><button type="button" data-cerrar-cuenta>Cerrar sesión</button></div>` : "";
-  const barraInstalacion = `<div class="barra-instalacion"><span>NeXora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
+  const barraInstalacion = `<div class="barra-instalacion"><span>Nexora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
   $("#app").innerHTML = barraInstalacion + avisoDemo + barraCuenta + vistas[S.vista]();
   botonAtras();
   if (S.vista === "ver") ponerFoto();
@@ -1524,19 +1524,19 @@ async function instalarApp() {
     }
     peticionInstalar = null;
     S.instalacion = false;
-    if (resultado.outcome === "accepted") aviso("✅ NeXora se ha instalado");
+    if (resultado.outcome === "accepted") aviso("✅ Nexora se ha instalado");
     return;
   }
   const instrucciones = enTelegram()
-    ? "Para instalar NeXora, abre esta dirección directamente en Safari o Chrome y usa «Añadir a pantalla de inicio» o «Instalar aplicación»."
+    ? "Para instalar Nexora, abre esta dirección directamente en Safari o Chrome y usa «Añadir a pantalla de inicio» o «Instalar aplicación»."
     : esIOS()
     ? "En Safari, pulsa Compartir y elige «Añadir a pantalla de inicio»."
     : /Android/i.test(navigator.userAgent)
       ? "Abre el menú ⋮ de tu navegador y pulsa «Instalar aplicación» o «Añadir a pantalla de inicio»."
-      : "Abre el menú de instalación de tu navegador (normalmente junto a la dirección web) y elige «Instalar NeXora».";
+      : "Abre el menú de instalación de tu navegador (normalmente junto a la dirección web) y elige «Instalar Nexora».";
   const hoja = document.createElement("div");
   hoja.className = "hoja";
-  hoja.innerHTML = `<div><h3>Instalar NeXora</h3><p class="nota">${esc(instrucciones)}</p><button class="btn ancho" data-cerrar-instalar>Entendido</button></div>`;
+  hoja.innerHTML = `<div><h3>Instalar Nexora</h3><p class="nota">${esc(instrucciones)}</p><button class="btn ancho" data-cerrar-instalar>Entendido</button></div>`;
   document.body.appendChild(hoja);
   hoja.addEventListener("click", (e) => { if (e.target === hoja || e.target.closest("[data-cerrar-instalar]")) hoja.remove(); });
 }
@@ -1756,7 +1756,7 @@ document.addEventListener("click", async (e) => {
 button.econ-accion-informe{background:color-mix(in srgb,var(--azul) 12%,transparent)!important;background-color:color-mix(in srgb,var(--azul) 12%,transparent)!important;color:var(--azul)!important;box-shadow:none!important;border:0!important}
 button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,#16a34a,#065f46)!important;color:#fff!important;border:2px solid #fff!important;box-shadow:0 0 0 2px #064e3b,0 2px 5px rgba(0,0,0,.2)!important}
 .nx-hero{position:relative;isolation:isolate;overflow:hidden;min-height:145px;border-radius:22px;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) 80px;gap:6px;align-items:center;color:#fff;background:linear-gradient(125deg,#2468bd,#50b5ec 60%,#d3efff)}.nx-hero:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#09234fc9,#09234f70 58%,#09234f10)}.nx-hero .engranaje{color:#fff;z-index:3;background:#ffffff20;top:6px;right:6px;width:30px;height:30px}.nx-hero-text{position:relative;z-index:2;min-width:0}.nx-saludo{font:900 clamp(17px,4.5vw,22px)/1.08 var(--titulo)}.nx-label{font-size:9px;font-weight:900;letter-spacing:1.1px;margin-top:10px}.nx-frase{font:700 clamp(15px,3.8vw,19px)/1.12 var(--mano);margin-top:3px}.nx-frase:after{content:none}.nx-tiempo{position:relative;z-index:2;text-align:center;align-self:end;padding-top:24px}.nx-temp{font:900 28px/.98 var(--fuente)}.nx-estado{font-size:10px;font-weight:900;margin-top:5px}.nx-clima-btn{margin-top:6px;border:1px solid #ffffff90;background:#ffffff24;color:white;border-radius:10px;padding:4px;font:800 9px var(--fuente)}.nx-cielo{position:absolute;inset:0;z-index:-2;overflow:hidden;background:linear-gradient(#70c7f3,#c7eaff 75%,#eaf8ff)}.nx-sol{position:absolute;width:44px;height:44px;border-radius:50%;right:18px;top:15px;background:#ffe77d;box-shadow:0 0 0 8px #ffe77d25;animation:nxpulse 5s ease-in-out infinite}.nx-nube{position:absolute;width:80px;height:26px;border-radius:40px;background:#ffffffb8;animation:nxcloud 24s ease-in-out infinite}.nx-nube:before,.nx-nube:after{content:"";position:absolute;border-radius:50%;background:inherit}.nx-nube:before{width:33px;height:33px;left:16px;top:-16px}.nx-nube:after{width:41px;height:41px;right:12px;top:-22px}.nx-na{left:35%;top:27px}.nx-nb{left:62%;top:70px;transform:scale(.7);opacity:.65;animation-duration:32s}.nx-estrellas{display:none;position:absolute;inset:0;background-image:radial-gradient(#fff 1px,transparent 1.5px),radial-gradient(#fff9 1px,transparent 1.5px);background-size:37px 42px,59px 53px}.nx-lluvia{display:none;position:absolute;inset:-20% 0;background:repeating-linear-gradient(105deg,transparent 0 15px,#ffffff80 16px 17px,transparent 18px 30px);animation:nxrain .55s linear infinite}.nx-noche .nx-cielo{background:linear-gradient(#111d45,#344d7d 80%,#607fa2)}.nx-noche .nx-sol{width:35px;height:35px;background:#eaf2ff;box-shadow:inset -9px -3px 0 #b9cce9}.nx-noche .nx-estrellas{display:block}.nx-llueve .nx-cielo{background:linear-gradient(#607a99,#a6bfd4)}.nx-llueve .nx-sol{display:none}.nx-llueve .nx-lluvia{display:block}.nx-nublado .nx-sol{opacity:.35}.nx-nublado .nx-cielo{background:linear-gradient(#88abc6,#d9e7f1)}@keyframes nxcloud{0%,100%{translate:-12px 0}50%{translate:12px 3px}}@keyframes nxpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}@keyframes nxrain{to{transform:translate(-10px,35px)}}.nx-grupo{margin-top:8px}.nx-kicker{font-size:9px;font-weight:900;letter-spacing:1.3px;color:var(--suave);margin:0 2px 5px}.nx-organiza{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.nx-mini{border:1px solid var(--linea);background:var(--tarjeta);color:var(--tinta);border-radius:13px;padding:7px 2px;display:flex;min-width:0;flex-direction:column;align-items:center;gap:4px;text-align:center}.nx-mini-ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#e5efff;color:#2878d9}.nx-mini-ico svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2}.nx-mini b{font:900 9.5px/1.1 var(--fuente);display:block}.nx-mini small{font-size:8px;color:var(--suave);display:block;margin-top:3px}.nx-resumen{width:100%;display:flex;align-items:center;gap:8px;text-align:left;border:1px solid #b9d8ff;background:linear-gradient(110deg,#eaf4ff,#f8fbff);color:#142d52;border-radius:14px;padding:8px;margin-top:8px}html[data-modo=oscuro] .nx-resumen{background:linear-gradient(110deg,#142d50,#1a3151);color:#f2f7ff}.nx-res-icon{width:34px;height:34px;flex:none;display:grid;place-items:center;background:#2878e8;color:#fff;border-radius:10px}.nx-res-text{flex:1;min-width:0}.nx-res-text b,.nx-res-text small{display:block}.nx-res-text b{font:900 12px var(--fuente)}.nx-res-text small{font-size:9px;color:var(--suave)}.nx-res-link{font-size:9px;font-weight:900;color:#2878e8;white-space:nowrap}.nx-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.nx-areas .tarjeta{min-height:0;padding:6px;flex-direction:row;align-items:center;gap:5px;border-radius:12px}.nx-areas .tarjeta .ico{width:29px;height:29px;border-radius:8px}.nx-areas .tarjeta b{font-size:10px}.nx-areas .tarjeta span.d{font-size:8px;margin-top:2px}.nx-seguridad{background:linear-gradient(145deg,#477ce7,#5a57bc)!important}.nx-personaliza{margin-top:6px;width:100%;display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px dashed var(--linea);border-radius:11px;background:transparent;color:var(--tinta);text-align:left}.nx-personaliza b{font-size:10px;flex:1}.nx-personaliza small{font-size:8px;color:var(--suave);flex:2}.nx-vault-intro,.nx-vault-card,.nx-vault-item{padding:12px;border:1px solid var(--linea);border-radius:15px;background:var(--tarjeta);margin-top:10px}.nx-vault-intro{display:flex;align-items:center;gap:10px}.nx-vault-intro>b{font-size:30px;color:#258e61}.nx-vault-intro strong,.nx-vault-intro small{display:block}.nx-vault-intro small,.nx-vault-card p,.nx-vault-card>small{font-size:11px;color:var(--suave);line-height:1.4}.nx-vault-card h3{margin:0 0 6px;font-size:15px}.nx-vault-card label{display:block;margin:9px 0 4px;font-size:11px;font-weight:900}.nx-vault-card input,.nx-vault-card textarea{width:100%;font:600 14px var(--fuente);color:var(--tinta);background:var(--fondo);border:1px solid var(--linea);border-radius:10px;padding:9px}.nx-vault-card .btn{margin-top:10px}.nx-vault-toolbar{display:flex;justify-content:space-between;align-items:center;margin-top:10px}.nx-vault-item{display:flex;gap:8px}.nx-vault-item>div{flex:1;min-width:0}.nx-vault-item small{display:block;color:var(--suave)}.nx-vault-item p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.nx-vault-warning{font-size:10px;line-height:1.4;color:var(--suave);padding:10px;margin-top:10px;background:var(--fondo);border-radius:10px}.nx-int-row{border-top:1px solid var(--linea);padding:8px 0}.nx-int-row b,.nx-int-row small{display:block}.nx-int-row small{font-size:10px;color:var(--suave)}@media(prefers-reduced-motion:reduce){.nx-sol,.nx-nube,.nx-lluvia{animation:none!important}}
-/* NeXora: único bloque final del clima. Las clases proceden de actualizarClima(). */
+/* Nexora: único bloque final del clima. Las clases proceden de actualizarClima(). */
 #nx-hero{isolation:isolate;overflow:hidden}
 #nx-hero .nx-cielo{position:absolute;inset:0;z-index:0;overflow:hidden;isolation:isolate;background:linear-gradient(145deg,#0787ed,#39b9ff 48%,#b5efff);transition:background 1s ease}
 #nx-hero:after{z-index:1;background:linear-gradient(90deg,rgba(4,25,60,.68),rgba(4,25,60,.28) 66%,rgba(4,25,60,.03))}
@@ -1804,7 +1804,7 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 /* Ajuste final: caja principal del tiempo un 5% más baja */
 .nx-hero{min-height:117.8px;padding-top:9.5px;padding-bottom:9.5px}
 @media (max-width:420px){.nx-hero{min-height:117.8px;padding-top:9.5px;padding-bottom:9.5px}}
-</style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde NeXora.</p></html>`;
+</style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Nexora.</p></html>`;
     const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})), a=document.createElement("a");a.href=url;a.download="informe-financiero-"+ym+".html";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
   }
   const compra = (cuerpo, ok) => hacer(() => api("/api/compra", cuerpo), ok);
@@ -1975,8 +1975,8 @@ function pintarAcceso(mensaje = "") {
   modal.className = "acceso-modal";
   modal.innerHTML = `<section class="acceso-cuenta" role="dialog" aria-modal="true" aria-labelledby="titulo-acceso">
     <button type="button" class="acceso-cerrar" data-cerrar-acceso aria-label="Cerrar">×</button>
-    <img src="icon-nexora-192.png?v=20261014-logo" alt="" width="76" height="76">
-    <h1 id="titulo-acceso">Guarda tus datos en NeXora</h1>
+    <img src="icon-nexora-192.png?v=20261014-icon" alt="" width="76" height="76">
+    <h1 id="titulo-acceso">Guarda tus datos en Nexora</h1>
     <p>Inicia sesión o crea una cuenta para guardar tus datos y recibir avisos en tus dispositivos.</p>
     <form id="form-acceso">
       <label for="acceso-email">Correo electrónico</label><input id="acceso-email" name="email" type="email" autocomplete="email" required>
