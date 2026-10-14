@@ -535,6 +535,15 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 #nx-hero .nx-c-gota{position:absolute;top:-14%;width:2px;height:var(--h);border-radius:2px;background:linear-gradient(transparent,rgba(210,232,255,.95));transform:rotate(10deg);animation:nx-c-caer var(--d) linear var(--l) infinite}
 @keyframes nx-c-caer{to{top:110%}}
 @media(prefers-reduced-motion:reduce){#nx-hero .nx-capa *{animation:none!important}}
+@media(max-width:360px){
+  .nx-cabecera-linea{display:block;padding-right:30px}
+  .nx-cabecera-linea .nx-saludo{font-size:22px!important;margin:0 0 5px}
+  .nx-cabecera-linea .nx-tiempo{display:flex;align-items:baseline;justify-content:flex-start;gap:8px;width:100%;min-width:0;padding:0;text-align:left;flex-wrap:wrap}
+  .nx-cabecera-linea .nx-tiempo>div{margin:0}
+  .nx-cabecera-linea .nx-temp{font-size:22px}
+  .nx-cabecera-linea .nx-estado{font-size:11px}
+  .nx-cabecera-linea .nx-ciudad{font-size:12px}
+}
 </style>
 </head>
 <body>
