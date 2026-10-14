@@ -1152,7 +1152,6 @@ function pintar() {
   const barraCuenta = AUTH_USER ? `<div class="cuenta-activa"><span>${esc(AUTH_USER.email || "Cuenta conectada")}</span><button type="button" data-cerrar-cuenta>Cerrar sesión</button></div>` : "";
   const barraInstalacion = AUTH_USER ? "" : `<div class="barra-instalacion"><span>Nexora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
   $("#app").innerHTML = barraInstalacion + avisoDemo + barraCuenta + vistas[S.vista]();
-  botonAtras();
   if (S.vista === "ver") ponerFoto();
   if (S.vista === "inicio") actualizarClima(false);
 }
