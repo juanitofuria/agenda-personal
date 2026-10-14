@@ -1944,7 +1944,7 @@ window.addEventListener("focus", refrescar);
     } else if (!enTelegram()) {
       DEMO = true;
     }
-    REGISTRO_OBLIGATORIO = !enTelegram() && !AUTH_USER;
+    REGISTRO_OBLIGATORIO = !enTelegram() && modoApp() && !AUTH_USER;
     const url = new URL(location.href);
     if (!enTelegram() && !AUTH_USER && url.searchParams.has("acceso")) {
       DEMO = false;
@@ -2130,7 +2130,7 @@ window.addEventListener("bexora-auth-state", async (e) => {
   if (!ARRANCADO || (user?.uid || null) === (AUTH_USER?.uid || null)) return;
   AUTH_USER = user;
   if (!user) {
-    REGISTRO_OBLIGATORIO = !enTelegram();
+    REGISTRO_OBLIGATORIO = !enTelegram() && modoApp();
     DEMO = !enTelegram();
     if (REGISTRO_OBLIGATORIO) pintarAcceso();
     S.datos = await api("/api/estado");
