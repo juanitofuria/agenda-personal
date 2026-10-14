@@ -1984,7 +1984,7 @@ window.addEventListener("focus", refrescar);
 
 function pintarAcceso(mensaje = "") {
   if ($("#modal-acceso")) {
-    $("#app").inert = REGISTRO_OBLIGATORIO;
+    actualizarBloqueoAcceso();
     $("#modal-acceso").classList.toggle("acceso-obligatorio", REGISTRO_OBLIGATORIO);
     if (mensaje) $(".acceso-mensaje", $("#modal-acceso")).textContent = mensaje;
     return;
@@ -2012,7 +2012,7 @@ function pintarAcceso(mensaje = "") {
     <p class="acceso-mensaje" role="status">${esc(mensaje)}</p>
   </section>`;
   document.body.appendChild(modal);
-  $("#app").inert = REGISTRO_OBLIGATORIO;
+  actualizarBloqueoAcceso();
   const form = $("#form-acceso", modal);
   if (!form) { $("#reintentar-auth", modal)?.addEventListener("click", () => location.reload()); return; }
   const email = () => $("#acceso-email", modal).value.trim();
@@ -2063,6 +2063,19 @@ function pintarAcceso(mensaje = "") {
   $("#acceso-email", modal).focus();
 }
 
+let scrollBloqueadoPorAcceso = false, overflowPrevioAcceso = "";
+function actualizarBloqueoAcceso() {
+  if (REGISTRO_OBLIGATORIO && !scrollBloqueadoPorAcceso) {
+    overflowPrevioAcceso = document.body.style.overflow;
+    scrollBloqueadoPorAcceso = true;
+  } else if (!REGISTRO_OBLIGATORIO && scrollBloqueadoPorAcceso) {
+    document.body.style.overflow = overflowPrevioAcceso;
+    scrollBloqueadoPorAcceso = false;
+  }
+  if (REGISTRO_OBLIGATORIO) document.body.style.overflow = "hidden";
+  $("#app").inert = REGISTRO_OBLIGATORIO;
+}
+
 function mensajeAuth(error) {
   const mensajes = {
     "auth/email-already-in-use": "Ese correo ya tiene una cuenta. Inicia sesión o recupera la contraseña.",
@@ -2079,7 +2092,7 @@ function mensajeAuth(error) {
 
 function cerrarAcceso(cancelarOperacion = true) {
   $("#modal-acceso")?.remove();
-  $("#app").inert = false;
+  actualizarBloqueoAcceso();
   if (cancelarOperacion) quitarEscrituraPendiente();
   if (accesoPendiente) {
     const pendiente = accesoPendiente;
@@ -2119,6 +2132,7 @@ window.addEventListener("bexora-auth-state", async (e) => {
   if (!user) {
     REGISTRO_OBLIGATORIO = !enTelegram();
     DEMO = !enTelegram();
+    if (REGISTRO_OBLIGATORIO) pintarAcceso();
     S.datos = await api("/api/estado");
     if (leerEscrituraPendiente()) pintarAcceso("No se completó el acceso. La operación sigue guardada; vuelve a intentarlo con Google.");
     else if (REGISTRO_OBLIGATORIO) pintarAcceso();
@@ -2132,7 +2146,7 @@ window.addEventListener("bexora-auth-state", async (e) => {
     await cargar();
     pintar();
     $("#modal-acceso")?.remove();
-    $("#app").inert = false;
+    actualizarBloqueoAcceso();
     if (accesoPendiente) {
       const pendiente = accesoPendiente;
       accesoPendiente = null;
@@ -2141,7 +2155,7 @@ window.addEventListener("bexora-auth-state", async (e) => {
   }
   catch (error) {
     $("#modal-acceso")?.remove();
-    $("#app").inert = false;
+    actualizarBloqueoAcceso();
     if (accesoPendiente) {
       const pendiente = accesoPendiente;
       accesoPendiente = null;
