@@ -130,8 +130,6 @@ html[data-estilo=formal] .btn{border-radius:10px;background:var(--azul);box-shad
 .acceso-mensaje{min-height:20px;color:var(--suave);font-size:13px;font-weight:700}
 .demo-cuenta{display:flex;flex-direction:column;gap:2px;margin:0 0 12px;padding:11px 14px;border:1px solid var(--linea);border-radius:14px;background:var(--tarjeta);font-size:12px;color:var(--suave)}
 .demo-cuenta b{color:var(--tinta);font-size:13px}
-.cuenta-activa{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 12px;border-radius:12px;background:var(--tarjeta);color:var(--suave);font-size:12px;font-weight:700}
-.cuenta-activa button{border:0;background:none;color:var(--azul);font-weight:800;cursor:pointer}
 .barra-instalacion{position:sticky;top:6px;top:max(6px,env(safe-area-inset-top));z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 12px;border:1px solid var(--linea);border-radius:14px;background:var(--tarjeta);box-shadow:var(--sombra)}
 .barra-instalacion span{min-width:0;font-weight:800;font-size:13px}
 .barra-instalacion .instalacion-activa{color:var(--ok);white-space:nowrap}
@@ -510,6 +508,30 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 .nx-personaliza b{font-size:12px}.nx-personaliza small{font-size:10px;color:var(--suave)}.nx-personaliza span{grid-column:2;grid-row:1/3;color:var(--azul);font-size:23px}
 .nx-int-row{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--linea)}.nx-int-row small{font-size:11px;color:var(--suave)}
 .nx-vault-intro{display:flex;gap:12px;align-items:center;padding:14px;border-radius:17px;background:var(--tarjeta);border:1px solid var(--linea);margin-top:12px}.nx-vault-intro>b{font-size:28px;color:var(--azul)}.nx-vault-intro span{display:flex;flex-direction:column;gap:4px}.nx-vault-intro small{font-size:11px;color:var(--suave)}
+.nx-dashboard{display:flex;flex-direction:column}
+@media(min-width:1024px){
+  .app{width:100%;max-width:1480px;padding:22px clamp(24px,4vw,64px)}
+  .nx-dashboard{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);grid-template-areas:"hero hero" "banner banner" "organiza areas" "resumen personaliza";gap:14px;align-items:stretch}
+  .nx-dashboard>#nx-hero{grid-area:hero;min-height:132px;margin:0;padding:16px 20px}
+  .nx-dashboard-banner{grid-area:banner}
+  .nx-dashboard-banner .pasos{margin:0}
+  .nx-dashboard-organiza{grid-area:organiza}
+  .nx-dashboard-areas{grid-area:areas}
+  .nx-dashboard-resumen{grid-area:resumen}
+  .nx-dashboard>.nx-personaliza{grid-area:personaliza}
+  .nx-dashboard .nx-grupo{min-width:0;margin:0;padding:14px}
+  .nx-dashboard .nx-organiza{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .nx-dashboard .nx-mini{min-height:72px;padding:8px;gap:8px}
+  .nx-dashboard .nx-mini-ico{width:34px;height:34px;flex-basis:34px;border-radius:10px}
+  .nx-dashboard .nx-mini b{font-size:13px}
+  .nx-dashboard .nx-mini small{font-size:11px}
+  .nx-dashboard .nx-areas{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .nx-dashboard .nx-areas>.tarjeta{min-height:70px;padding:9px;gap:8px}
+  .nx-dashboard-resumen{min-height:72px;margin:0}
+  .nx-dashboard>.nx-personaliza{min-height:72px;margin:0;padding:10px 16px}
+  .nx-dashboard>.nx-personaliza b{font-size:13px}
+  .nx-dashboard>.nx-personaliza small{font-size:12px}
+}
 @media(max-width:390px){.app{padding:10px}.nx-hero{min-height:145px;padding:6px 12px;grid-template-columns:minmax(0,1fr) 78px}.nx-tiempo{min-width:72px;padding:7px 4px}.nx-temp{font-size:22px}.nx-cabecera-linea .nx-saludo{font-size:clamp(26.4px,6.82vw,35.2px)!important}.nx-hero .nx-frase{font-size:clamp(18.564px,5.5692vw,27.3px)!important}.nx-mini{gap:7px;padding:8px;min-height:76px}.nx-mini-ico{width:32px;height:32px;flex-basis:32px}.nx-mini b{font-size:12px}.nx-mini small{font-size:9px}.nx-areas>.tarjeta{gap:7px;padding:8px}.nx-res-link{font-size:10px}}
 
 /* Nexora: cielo animado del clima. Lo pinta nxCielo() (JS) dentro de .nx-cielo según el estado de actualizarClima(). */
@@ -836,8 +858,8 @@ function bannerApp() {
   const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const aqui = S.aqui && S.aqui.suscrito, cierre = `<button class="x" data-cerrar-banner="1" aria-label="Ahora no">✕</button>`;
   let clave = "", html = "";
-  if (!modoApp() && S.instalacion) { clave = "instalar"; html = `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`; }
-  else if (!modoApp() && esIOS()) { clave = "ios"; html = `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`; }
+  if (!AUTH_USER && !modoApp() && S.instalacion) { clave = "instalar"; html = `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`; }
+  else if (!AUTH_USER && !modoApp() && esIOS()) { clave = "ios"; html = `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`; }
   else if (soportaPush && !aqui && (modoApp() || !esIOS()) && Notification.permission !== "denied") { clave = "avisos_" + (modoApp() ? "app" : "web"); html = `<div class="pasos">${cierre}<b>🔔 Activa los avisos</b><p>Recibe tus resúmenes y recordatorios como notificaciones de esta app.</p><button class="btn" data-activar-ya="1">🔔 Activar notificaciones</button></div>`; }
   if (!clave) return "";
   if (S.bannerClave !== clave && vistoBanner(clave)) return ""; // ya se enseñó en una apertura anterior
@@ -991,14 +1013,17 @@ let nxGestoInicio=null,nxGestoRefresco=false;document.addEventListener("touchsta
 const vistas = {
   inicio() {
     const ev = S.datos.eventos, cuenta = (t) => ev.filter((e) => e.tipo === t && !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
+    const banner = bannerApp();
     const t = (c, i, titulo, d, v, cls = "", extra = "") => `<button class="tarjeta ${cls}" data-ir="${v}" ${extra}><div class="ico ${c}">${ic(i)}</div><div><b>${titulo}</b><span class="d">${d}</span></div></button>`;
     const tt = (k, d) => t(TIPOS[k].color, TIPOS[k].icono, TIPOS[k].titulo, d, "tipo", "", `data-tipo="${k}"`);
     const n = (k, uno, varios, vacio) => { const c = cuenta(k); return c ? `${c} ${c === 1 ? uno : varios}` : vacio; };
     const hoy = S.datos.resumenHoy || [];
-    const resumenCard=`<button class="nx-resumen" data-resumen-diario="1"><span class="nx-res-icon">${ic("nota")}</span><span class="nx-res-text"><b>Tu resumen diario</b><small>${hoy.length?`${hoy.length} secciones disponibles`:"Noticias y temas que te interesan"}</small></span><span class="nx-res-link">Ver resumen ›</span></button>`;
+    const resumenCard=`<button class="nx-resumen nx-dashboard-resumen" data-resumen-diario="1"><span class="nx-res-icon">${ic("nota")}</span><span class="nx-res-text"><b>Tu resumen diario</b><small>${hoy.length?`${hoy.length} secciones disponibles`:"Noticias y temas que te interesan"}</small></span><span class="nx-res-link">Ver resumen ›</span></button>`;
     const mini=(clase,icono,titulo,d,vista,tipo="")=>`<button class="nx-mini ${clase}" data-ir="${vista}" ${tipo?`data-tipo="${tipo}"`:""}><span class="nx-mini-ico">${ic(icono)}</span><span><b>${titulo}</b><small>${d}</small></span></button>`;
-    return `${cabecera()}${bannerApp()}<section class="nx-grupo"><div class="nx-kicker">ORGANIZACIÓN</div><div class="nx-organiza">
+    return `<div class="nx-dashboard">${cabecera()}${banner ? `<div class="nx-dashboard-banner">${banner}</div>` : ""}<section class="nx-grupo nx-dashboard-organiza"><div class="nx-kicker">ORGANIZACIÓN</div><div class="nx-organiza">
     ${mini("nx-alarm","alarma","Alarmas",n("alarma","pendiente","pendientes","A tu hora"),"tipo","alarma")}${mini("nx-cita","cal","Citas",n("cita","próxima","próximas","Próximas"),"tipo","cita")}${mini("nx-tarea","check","Tareas",n("tarea","pendiente","pendientes","Todo al día"),"tipo","tarea")}${mini("nx-nota","nota","Notas",ev.filter(e=>e.tipo==="nota").length?"Guardadas":"Apuntes","tipo","nota")}</div></section>${resumenCard}<section class="nx-grupo"><div class="nx-kicker">TU ESPACIO PERSONAL</div><div class="nx-areas">${t("c4","economia","Economía","Ingresos · gastos","economia")}${t("c5","salud","Salud","Peso · entrenamientos","salud")}${t("c5","cesta","Compra",cp?`${cp} por comprar`:"Todo al día","compra")}${t("nx-seguridad","check","Seguridad","Claves · secretos","seguridad")}</div></section><button class="nx-personaliza" data-ir="secciones"><b>＋ Personaliza tus secciones</b><small>Temas y horarios de notificación</small><span>›</span></button><button class="fab fab-global" data-abrir-anadir="1" aria-label="Añadir">${ic("mas")}</button>`;
+    return `<div class="nx-dashboard">${cabecera()}${bannerApp()}<section class="nx-grupo nx-dashboard-organiza"><div class="nx-kicker">ORGANIZACIÓN</div><div class="nx-organiza">
+    ${mini("nx-alarm","alarma","Alarmas",n("alarma","pendiente","pendientes","A tu hora"),"tipo","alarma")}${mini("nx-cita","cal","Citas",n("cita","próxima","próximas","Próximas"),"tipo","cita")}${mini("nx-tarea","check","Tareas",n("tarea","pendiente","pendientes","Todo al día"),"tipo","tarea")}${mini("nx-nota","nota","Notas",ev.filter(e=>e.tipo==="nota").length?"Guardadas":"Apuntes","tipo","nota")}</div></section>${resumenCard}<section class="nx-grupo nx-dashboard-areas"><div class="nx-kicker">TU ESPACIO PERSONAL</div><div class="nx-areas">${t("c4","economia","Economía","Ingresos · gastos","economia")}${t("c5","salud","Salud","Peso · entrenamientos","salud")}${t("c5","cesta","Compra",cp?`${cp} por comprar`:"Todo al día","compra")}${t("nx-seguridad","check","Seguridad","Claves · secretos","seguridad")}</div></section><button class="nx-personaliza" data-ir="secciones"><b>＋ Personaliza tus secciones</b><small>Temas y horarios de notificación</small><span>›</span></button></div><button class="fab fab-global" data-abrir-anadir="1" aria-label="Añadir">${ic("mas")}</button>`;
   },
   seguridad() {
     let existe=false;try{existe=!!localStorage.getItem("nexora-vault-v1")}catch{}const abierto=!!VAULT_KEY,items=abierto?VAULT_DATA:[];
@@ -1070,7 +1095,8 @@ const vistas = {
       <label>Fecha de nacimiento (para el horóscopo)</label><input type="date" id="nac" value="${esc(u.nacimiento || "")}">
       <button class="btn ancho" data-perfil="1">Guardar</button>
       <div class="etq">Preferencias</div>
-      <div class="lista">${fila("secciones", "🧩", "Mis secciones", `${act} activa${act === 1 ? "" : "s"} · horas y temas`)}${fila("apariencia", "🎨", "Apariencia", "Estilo y tema")}${fila("dispositivos", "📲", "App y notificaciones", "Instalar, avisos y otros dispositivos")}</div>`;
+      <div class="lista">${fila("secciones", "🧩", "Mis secciones", `${act} activa${act === 1 ? "" : "s"} · horas y temas`)}${fila("apariencia", "🎨", "Apariencia", "Estilo y tema")}${fila("dispositivos", "📲", "App y notificaciones", "Instalar, avisos y otros dispositivos")}</div>
+      ${AUTH_USER ? `<div class="etq">Cuenta</div><button class="btn sec ancho" type="button" data-cerrar-cuenta="1">Cerrar sesión</button>` : ""}`;
   },
   compra() {
     const l = S.datos.compra, pend = l.items.filter((x) => !x.hecho), hechos = l.items.filter((x) => x.hecho);
@@ -1149,9 +1175,8 @@ const vistas = {
 function pintar() {
   if (!S.datos) return;
   const avisoDemo = !AUTH_USER && DEMO ? `<div class="demo-cuenta"><b>Vista previa</b><span>Los datos que ves son de ejemplo. Crea una cuenta para guardar tu información.</span></div>` : "";
-  const barraCuenta = AUTH_USER ? `<div class="cuenta-activa"><span>${esc(AUTH_USER.email || "Cuenta conectada")}</span><button type="button" data-cerrar-cuenta>Cerrar sesión</button></div>` : "";
   const barraInstalacion = AUTH_USER ? "" : `<div class="barra-instalacion"><span>Nexora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
-  $("#app").innerHTML = barraInstalacion + avisoDemo + barraCuenta + vistas[S.vista]();
+  $("#app").innerHTML = barraInstalacion + avisoDemo + vistas[S.vista]();
   if (S.vista === "ver") ponerFoto();
   if (S.vista === "inicio") actualizarClima(false);
 }
