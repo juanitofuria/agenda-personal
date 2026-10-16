@@ -12,13 +12,13 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "icon-nexora-192.png?v=20261014-icon",
+      "src": "icon-nexora-flechas-192.png?v=20261017-arrows",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-nexora-512.png?v=20261014-icon",
+      "src": "icon-nexora-flechas-512.png?v=20261017-arrows",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

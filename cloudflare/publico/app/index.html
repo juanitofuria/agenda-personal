@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261017-splash-black">
-<link rel="apple-touch-icon" href="icon-nexora-512.png?v=20261014-icon">
-<link id="favicon" rel="icon" type="image/png" href="icon-nexora-192.png?v=20261014-icon">
+<link rel="manifest" href="manifest.webmanifest?v=20261017-arrows">
+<link rel="apple-touch-icon" href="icon-nexora-flechas-512.png?v=20261017-arrows">
+<link id="favicon" rel="icon" type="image/png" href="icon-nexora-flechas-192.png?v=20261017-arrows">
 
 <meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -45,17 +45,16 @@ html.inicio-biometrico #nx-bienvenida{display:grid!important;opacity:1!important
 html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:#000}
 #nx-bienvenida.oculta{opacity:0;pointer-events:none}
 .nx-bienvenida-centro{display:flex;flex-direction:column;align-items:center;gap:20px;transform:translateY(-2vh)}
-.nx-bienvenida-icono-fondo{display:grid;width:min(58vw,260px);aspect-ratio:1;place-items:center;overflow:hidden;border-radius:23%;background:#000;box-shadow:0 16px 32px rgba(0,0,0,.34)}
-.nx-bienvenida-icono{display:block;width:100%;height:100%;object-fit:contain}
+.nx-bienvenida-icono{display:block;width:min(68vw,320px);height:auto;object-fit:contain}
 .nx-bienvenida-nombre{display:flex;align-items:baseline;font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
 html[data-modo=oscuro] .nx-bienvenida-nombre{text-shadow:0 3px 20px rgba(0,0,0,.35)}
 .nx-bienvenida-n{font-size:.74em}
 .nx-bienvenida-x{position:relative;font-size:1.3em;line-height:.8;color:transparent;background:linear-gradient(315deg,#e500f5 0%,#702cff 30%,#ff9a00 62%,#16df28 100%);background-clip:text;-webkit-background-clip:text}
 #nx-inicio[hidden]{display:none!important}
-#nx-inicio{position:fixed;inset:0;z-index:9500;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:auto;padding:clamp(32px,8vh,72px) 22px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:radial-gradient(ellipse at 50% 28%,#fff 0,#f4f7fc 54%,#e7edf7 100%)}
-html[data-modo=oscuro] #nx-inicio{color:#fff;background:radial-gradient(ellipse at 50% 28%,#27304f 0,#191f3b 43%,#10162d 100%)}
+#nx-inicio{position:fixed;inset:0;z-index:9500;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:auto;padding:clamp(32px,8vh,72px) 22px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:#fff}
+html[data-modo=oscuro] #nx-inicio{color:#fff;background:#000}
 .nx-inicio-marca{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-.nx-inicio-marca img{width:min(30vw,150px);height:auto;filter:drop-shadow(0 12px 24px rgba(0,0,0,.2))}
+.nx-inicio-marca img{width:min(30vw,150px);height:auto}
 .nx-inicio-marca .nx-bienvenida-nombre{margin-top:12px}
 .nx-inicio-marca p{max-width:32ch;margin:16px 0 0;color:var(--suave);font-size:16px;font-weight:700;line-height:1.5}
 .nx-inicio-acciones{display:grid;width:min(100%,390px);gap:11px}
@@ -135,6 +134,10 @@ html[data-estilo=formal] .btn{border-radius:10px;background:var(--azul);box-shad
 .acceso-modal>.acceso-cuenta{position:relative;width:min(100%,440px);max-height:calc(100dvh - 36px);overflow:auto;margin:auto}
 .acceso-modal.acceso-obligatorio{z-index:9500;display:block;padding:clamp(24px,6vh,56px) 18px;background:var(--fondo)}
 .acceso-modal.acceso-obligatorio>.acceso-cuenta{max-height:none;overflow:visible;margin:0 auto;border-color:transparent;background:transparent;box-shadow:none}
+html[data-modo=oscuro] .acceso-modal{background:#000}
+html[data-modo=oscuro] .acceso-modal.acceso-obligatorio{background:#000}
+html[data-modo=oscuro] .acceso-modal:not(.acceso-obligatorio)>.acceso-cuenta{border-color:#252525;background:#050505;box-shadow:0 16px 48px rgba(0,0,0,.55)}
+html[data-modo=oscuro] .acceso-modal input[type=email],html[data-modo=oscuro] .acceso-modal input[type=password]{border-color:#303030;background:#0a0a0a}
 .acceso-cerrar{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:50%;background:color-mix(in srgb,var(--azul) 10%,transparent);font-size:21px;cursor:pointer}
 .acceso-cuenta>img{border-radius:26%;margin:2px auto 12px}
 .acceso-cuenta h1{font:800 24px/1.2 var(--titulo);margin:8px 0}
@@ -649,14 +652,13 @@ ymbol>
 </defs></svg>
 <div id="nx-bienvenida" role="status" aria-label="Nexora se está iniciando">
   <div class="nx-bienvenida-centro">
-    <div class="nx-bienvenida-icono-fondo"><img class="nx-bienvenida-icono" src="icon-nexora-512.png?v=20261014-icon" alt=""></div>
-    <div class="nx-bienvenida-nombre"><span class="nx-bienvenida-n">N</span>e<span class="nx-bienvenida-x">X</span>ora</div>
+    <img class="nx-bienvenida-icono" src="icon-nexora-flechas-512.png?v=20261017-arrows" alt="">
   </div>
 </div>
 <script>window.__nexoraSplashInicio=performance.now();</script>
 <section id="nx-inicio" hidden aria-labelledby="nx-inicio-titulo">
   <div class="nx-inicio-marca">
-    <img src="icon-nexora-512.png?v=20261014-icon" alt="">
+    <img src="icon-nexora-flechas-512.png?v=20261017-arrows" alt="">
     <div class="nx-bienvenida-nombre" id="nx-inicio-titulo"><span class="nx-bienvenida-n">N</span>e<span class="nx-bienvenida-x">X</span>ora</div>
     <p>Tu espacio personal, organizado y siempre contigo.</p>
   </div>
@@ -696,8 +698,13 @@ const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático) ---------- */
 function actualizarIconos() {
-  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-192.png?v=20261014-icon";
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-512.png?v=20261014-icon";
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-flechas-192.png?v=20261017-arrows";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-flechas-512.png?v=20261017-arrows";
+}
+function actualizarColorTema(modo, accesoVisible) {
+  const metaTema = document.querySelector('meta[name="theme-color"]');
+  if (!metaTema) return;
+  metaTema.content = accesoVisible ? (modo === "oscuro" ? "#000000" : "#ffffff") : (getComputedStyle(document.documentElement).getPropertyValue("--fondo").trim() || "#eef5fd");
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
@@ -707,9 +714,7 @@ function aplicarTema() {
   const logo = modo === "oscuro" ? "--logo-fondo:#f4f8ff;--logo-borde:#dfe9f8;--logo-tapa:#ef4a5a;--logo-check:#3d6fcf" : "--logo-fondo:#fff;--logo-borde:#2f6fd6;--logo-tapa:#ef4a5a;--logo-check:#27a85a";
   const formal = root.dataset.estilo === "formal" ? "--logo-fondo:transparent;--logo-borde:currentColor;--logo-tapa:transparent;--logo-check:currentColor" : logo;
   root.style.cssText = formal;
-  const bg = getComputedStyle(root).getPropertyValue("--fondo").trim() || "#eef5fd";
-  const metaTema = document.querySelector('meta[name="theme-color"]');
-  if (metaTema) metaTema.content = root.classList.contains("biometria-fallida") ? (modo === "oscuro" ? "#000000" : "#ffffff") : bg;
+  actualizarColorTema(modo, root.classList.contains("inicio-biometrico") || root.classList.contains("biometria-fallida") || !$("#nx-inicio").hidden || !!$("#modal-acceso") || !!$("#modal-biometria"));
 }
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarTema);
 
@@ -1611,7 +1616,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-splash-black", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-arrows", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
@@ -1992,12 +1997,19 @@ window.addEventListener("focus", refrescar);
         try {
           await desbloquearConBiometria();
         } catch {
+          configuracionBiometricaInvalida = true;
           ARRANCADO = true;
           $("#app").replaceChildren();
           pedirContrasenaPorBiometria();
           return;
         }
-      } else if (reingresoConProveedor) bloqueoBiometrico = null;
+      } else if (reingresoConProveedor) {
+        if (bloqueoBiometrico) {
+          localStorage.removeItem(BIO_ACCESO);
+          configuracionBiometricaInvalida = true;
+        }
+        bloqueoBiometrico = null;
+      }
     }
     const url = new URL(location.href);
     await cargar(); registrarSW(); if (!DEMO) await refrescarDispositivos();
@@ -2017,9 +2029,7 @@ window.addEventListener("focus", refrescar);
       : "";
     if (!AUTH_USER) mostrarInicio(avisoInicio);
     else if (modoApp()) {
-      if (!bloqueoBiometrico && localStorage.getItem("nexora-app-biometric-offer") === "1") {
-        setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 300);
-      }
+      if (!bloqueoBiometrico) setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 300);
     }
     if (AUTH_USER) {
       if (ver) abrirVer(ver);
@@ -2045,6 +2055,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
   if ($("#modal-acceso")) {
     actualizarBloqueoAcceso();
     $("#modal-acceso").classList.toggle("acceso-obligatorio", REGISTRO_OBLIGATORIO);
+    actualizarColorTema(document.documentElement.dataset.modo, true);
     if (mensaje) $(".acceso-mensaje", $("#modal-acceso")).textContent = mensaje;
     return;
   }
@@ -2056,7 +2067,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
   modal.className = REGISTRO_OBLIGATORIO ? "acceso-modal acceso-obligatorio" : "acceso-modal";
   modal.innerHTML = `<section class="acceso-cuenta" role="dialog" aria-modal="true" aria-labelledby="titulo-acceso">
     ${desdeInicio ? `<button type="button" class="acceso-cerrar" data-volver-inicio aria-label="Volver">←</button>` : REGISTRO_OBLIGATORIO ? "" : `<button type="button" class="acceso-cerrar" data-cerrar-acceso aria-label="Cerrar">×</button>`}
-    <img src="icon-nexora-192.png?v=20261014-icon" alt="" width="76" height="76">
+    <img src="icon-nexora-flechas-192.png?v=20261017-arrows" alt="" width="76" height="76">
     <h1 id="titulo-acceso">${modo === "registro" ? "Crea tu cuenta Nexora" : "Inicia sesión"}</h1>
     <p id="acceso-descripcion">${modo === "registro" ? "Te enviaremos un enlace para verificar tu correo. Así podrás guardar tus datos y sincronizarlos en todos tus dispositivos." : "Accede a tu agenda y recupera tus datos y configuraciones guardados."}</p>
     ${AUTH_CONFIGURED ? `<form id="form-acceso">
@@ -2075,6 +2086,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
   </section>`;
   document.body.appendChild(modal);
   actualizarBloqueoAcceso();
+  actualizarColorTema(document.documentElement.dataset.modo, true);
   const form = $("#form-acceso", modal);
   if (!form) { $("#reintentar-auth", modal)?.addEventListener("click", () => location.reload()); return; }
   const email = () => $("#acceso-email", modal).value.trim();
@@ -2093,7 +2105,6 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
       if (!form.reportValidity()) return;
       if (password().length < 8) throw Object.assign(new Error("La contraseña debe tener al menos 8 caracteres."), { code: "auth/weak-password" });
       await window.bexoraAuth.crearCuenta(email(), password(), modoApp() ? "app" : "web");
-      if (modoApp()) localStorage.setItem("nexora-app-biometric-offer", "1");
       $(".acceso-mensaje", modal).textContent = "Te hemos enviado un correo de confirmación. Revisa tu bandeja y pulsa el enlace para verificar tu dirección; al volver podrás iniciar sesión.";
       return;
     }
@@ -2107,8 +2118,9 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
       bloqueoBiometrico = null;
       biometriaFallida = false;
       document.documentElement.classList.remove("biometria-fallida");
+      const ofrecerBiometriaTrasLogin = configuracionBiometricaInvalida;
       if (configuracionBiometricaInvalida) {
-        localStorage.removeItem("nexora-app-biometric-v1");
+        localStorage.removeItem(BIO_ACCESO);
         configuracionBiometricaInvalida = false;
       }
       DEMO = false;
@@ -2116,6 +2128,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
       accesoDesdeInicio = false;
       pintar();
       ocultarInicio();
+      if (ofrecerBiometriaTrasLogin) setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 250);
     }
   }); });
   $("#cambiar-modo-acceso").addEventListener("click", () => {
@@ -2159,6 +2172,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
 function mostrarInicio(mensaje = "") {
   const pantalla = $("#nx-inicio"), acciones = $(".nx-inicio-acciones", pantalla);
   pantalla.hidden = false;
+  actualizarColorTema(document.documentElement.dataset.modo, true);
   if (bloqueoBiometrico) {
     acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje || "Desbloquea Nexora para abrir tu agenda.")}</p>
       ${biometriaFallida ? `<button class="btn" type="button" data-bio-reintentar>Reintentar biometría</button><button class="btn sec" type="button" data-bio-password>Usar contraseña</button>` : ""}
@@ -2174,6 +2188,7 @@ function mostrarInicio(mensaje = "") {
 
 function ocultarInicio() {
   $("#nx-inicio").hidden = true;
+  actualizarColorTema(document.documentElement.dataset.modo, document.documentElement.classList.contains("biometria-fallida") || !!$("#modal-acceso"));
   actualizarBloqueoAcceso();
 }
 
@@ -2221,7 +2236,6 @@ async function registrarBiometriaAcceso() {
   }
   const saved = { uid: AUTH_USER.uid, id: vb64(credencial.rawId), publicKey: vb64(publicKey), algorithm: -7, created: Date.now() };
   localStorage.setItem(BIO_ACCESO, JSON.stringify(saved));
-  localStorage.removeItem("nexora-app-biometric-offer");
   return saved;
 }
 
@@ -2281,7 +2295,7 @@ async function desbloquearConBiometria() {
 async function ofrecerBiometria() {
   if (!modoApp() || !AUTH_USER || !bioDisponible()) return;
   const saved = leerBiometriaAcceso(AUTH_USER.uid);
-  if (saved || localStorage.getItem(`nexora-bio-rechazado-${AUTH_USER.uid}`) === "1") return;
+  if (saved || sessionStorage.getItem(`nexora-bio-rechazado-${AUTH_USER.uid}`) === "1") return;
   const disponible = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
   if (!disponible) return;
   const modal = document.createElement("div");
@@ -2303,6 +2317,7 @@ async function ofrecerBiometria() {
     try {
       await registrarBiometriaAcceso();
       modal.remove();
+      actualizarColorTema(document.documentElement.dataset.modo, !!$("#modal-acceso") || !$("#nx-inicio").hidden);
       actualizarBloqueoAcceso();
       aviso("Biometría activada. La próxima vez podrás usarla para abrir Nexora.");
     } catch (error) {
@@ -2311,9 +2326,9 @@ async function ofrecerBiometria() {
     }
   });
   modal.querySelector("[data-biometria-omitir]").addEventListener("click", () => {
-    localStorage.setItem(`nexora-bio-rechazado-${AUTH_USER.uid}`, "1");
-    localStorage.removeItem("nexora-app-biometric-offer");
+    sessionStorage.setItem(`nexora-bio-rechazado-${AUTH_USER.uid}`, "1");
     modal.remove();
+    actualizarColorTema(document.documentElement.dataset.modo, !!$("#modal-acceso") || !$("#nx-inicio").hidden);
     actualizarBloqueoAcceso();
   });
 }
@@ -2357,6 +2372,7 @@ function cerrarAcceso(cancelarOperacion = true) {
     pendiente.reject(new Error("Acción cancelada. Puedes volver a intentarlo cuando quieras."));
   }
   if (volverAInicio) return mostrarInicio(avisoInicio);
+  actualizarColorTema(document.documentElement.dataset.modo, !$("#nx-inicio").hidden || document.documentElement.classList.contains("biometria-fallida"));
   actualizarBloqueoAcceso();
 }
 
