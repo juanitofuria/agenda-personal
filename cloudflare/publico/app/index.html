@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
 <link rel="manifest" href="manifest.webmanifest?v=20261018">
-<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261017-arrows">
-<link id="favicon" rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261017-arrows">
+<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261017-arrows-v2">
+<link id="favicon" rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261017-arrows-v2">
 
 <meta name="theme-color" content="#182653">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -504,7 +504,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 #nx-hero .nx-c-gota{position:absolute;top:-14%;width:2px;height:var(--h);border-radius:2px;background:linear-gradient(transparent,rgba(210,232,255,.95));transform:rotate(10deg);animation:nx-c-caer var(--d) linear var(--l) infinite}
 @keyframes nx-c-caer{to{top:110%}}
 @media(prefers-reduced-motion:reduce){#nx-hero .nx-capa *{animation:none!important}}
-.app > .cargando{padding-top:34px}.app > .cargando::before{content:"";display:block;width:76px;height:76px;margin:0 auto 18px;background:url("icon-nexora.svg?v=20261017-arrows") center/contain no-repeat}
+.app > .cargando{padding-top:34px}.app > .cargando::before{content:"";display:block;width:76px;height:76px;margin:0 auto 18px;background:url("icon-nexora.svg?v=20261017-arrows-v2") center/contain no-repeat}
 </style>
 </head>
 <body>
@@ -576,8 +576,8 @@ const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
 function actualizarIconos() {
-  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora.svg?v=20261017-arrows";
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora.svg?v=20261017-arrows";
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora.svg?v=20261017-arrows-v2";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora.svg?v=20261017-arrows-v2";
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
