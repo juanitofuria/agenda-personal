@@ -8,8 +8,8 @@
   "id": "/app/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#eef5fd",
-  "theme_color": "#0756d6",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "icon-nexora-192.png?v=20261014-icon",

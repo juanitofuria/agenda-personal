@@ -4,17 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261014-icon">
+<link rel="manifest" href="manifest.webmanifest?v=20261017-splash">
 <link rel="apple-touch-icon" href="icon-nexora-512.png?v=20261014-icon">
 <link id="favicon" rel="icon" type="image/png" href="icon-nexora-192.png?v=20261014-icon">
 
-<meta name="theme-color" content="#10162d">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nexora">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <script>
-  document.documentElement.dataset.modo = matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+  const modoInicial = matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+  document.documentElement.dataset.modo = modoInicial;
+  document.querySelector('meta[name="theme-color"]').content = modoInicial === "oscuro" ? "#000000" : "#ffffff";
   try {
     const instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
     if (instalada && localStorage.getItem("nexora-app-biometric-v1")) document.documentElement.classList.add("inicio-biometrico");
@@ -32,10 +34,8 @@ html[data-estilo=formal][data-modo=oscuro]{--fondo:#0a1832;--fondo2:#071127;--ta
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html.cargando-app body{overflow:hidden}
 html.cargando-app #app{visibility:hidden}
-html.inicio-biometrico #nx-bienvenida{display:none}
-html.inicio-biometrico body{background:var(--fondo)}
-#nx-bienvenida{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;overflow:hidden;padding:24px 20px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:radial-gradient(ellipse at 50% 42%,#fff 0,#f4f7fc 55%,#e7edf7 100%);opacity:1;transition:opacity .24s ease}
-html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:radial-gradient(ellipse at 50% 42%,#27304f 0,#191f3b 43%,#10162d 100%)}
+#nx-bienvenida{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;overflow:hidden;padding:24px 20px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:#fff;opacity:1;transition:opacity .24s ease}
+html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:#000}
 #nx-bienvenida.oculta{opacity:0;pointer-events:none}
 .nx-bienvenida-centro{display:flex;flex-direction:column;align-items:center;gap:20px;transform:translateY(-2vh)}
 .nx-bienvenida-icono{display:block;width:min(58vw,260px);height:auto;filter:drop-shadow(0 16px 32px rgba(0,0,0,.34))}
@@ -1602,7 +1602,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261020", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-splash", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
