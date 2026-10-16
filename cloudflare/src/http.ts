@@ -1,5 +1,8 @@
 import { HttpGet } from "../../firebase/functions/src/util";
-import { HttpPost } from "../../firebase/functions/src/telegram";
+
+interface HttpPost {
+  post(url: string, cuerpo?: unknown, opciones?: { timeout?: number }): Promise<{ data: unknown }>;
+}
 
 /**
  * Cliente HTTP sobre `fetch` con la forma de axios que espera el resto del código ({ data } y errores con `response`).

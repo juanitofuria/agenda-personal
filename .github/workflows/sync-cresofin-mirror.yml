@@ -1,0 +1,33 @@
+name: Sincronizar espejo de cresofin
+
+on:
+  push:
+    branches: [claude/android-notifications-app-pxj3sn]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-cresofin-mirror
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Copiar rama autoritativa a main del espejo
+        env:
+          MIRROR_TOKEN: ${{ secrets.CRESOFIN_MIRROR_TOKEN }}
+        run: |
+          if [ -z "$MIRROR_TOKEN" ]; then
+            echo "::error::Falta el secreto CRESOFIN_MIRROR_TOKEN."
+            exit 1
+          fi
+          set +x
+          auth="$(printf 'x-access-token:%s' "$MIRROR_TOKEN" | base64 -w0)"
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
+            push --force https://github.com/cresofin/agenda-personal.git \
+            "${GITHUB_SHA}:refs/heads/main"

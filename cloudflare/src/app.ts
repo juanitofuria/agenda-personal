@@ -1,194 +1,60 @@
 import { AlmacenD1, D1Like } from "./almacenD1";
 import { HttpFetch } from "./http";
-import { contenidoDeSeccion } from "../../firebase/functions/src/bot/bot";
-import { Deps } from "../../firebase/functions/src/bot/ctx";
-import { Canal, Teclado } from "../../firebase/functions/src/canal";
 import { actualizarTodos } from "../../firebase/functions/src/horoscopo";
-import { Programacion } from "../../firebase/functions/src/modelo";
-import { Contenido } from "../../firebase/functions/src/secciones/tipos";
+import { usuarioNuevo, Programacion } from "../../firebase/functions/src/modelo";
 import { FEED_PODCAST } from "../../firebase/functions/src/podcast";
 import { procesarProgramacion, ResultadoTick, sumar } from "../../firebase/functions/src/scheduler";
-import { CanalTelegram } from "../../firebase/functions/src/telegram";
-import { conPlazo, HttpGet } from "../../firebase/functions/src/util";
-import { manejarApi, manejarListaPublica, validarInitData } from "../../firebase/functions/src/miniapp";
-import { canjearAcceso, cerrarSesion, crearSesionAnonima, usuarioDeSesion } from "../../firebase/functions/src/sesiones";
+import { HttpGet } from "../../firebase/functions/src/util";
+import { manejarApi, manejarListaPublica } from "../../firebase/functions/src/api";
 import { crearEmisorPush } from "../../firebase/functions/src/webpush";
-import { iguales, procesarWebhook } from "../../firebase/functions/src/webhook";
+import { IdentidadFirebase, verificarTokenFirebase } from "./firebaseAuth";
 
 export interface Env {
   DB: D1Like;
-  /** Este mismo Worker (service binding): cada sección y cada aviso se atiende en una ejecución propia, con su propio límite de CPU y de peticiones. */
-  SELF?: { fetch(req: Request): Promise<Response> };
-  TELEGRAM_BOT_TOKEN: string;      // secreto (`wrangler secret put`)
-  TELEGRAM_WEBHOOK_SECRET: string; // secreto
-  /**
-   * Secreto (`wrangler secret put ADMIN_CHAT_ID`): tu número de Telegram (el bot te lo dice con /miid). Si no está, el bot es abierto; si está,
-   * es privado: solo entran tú y quien invites o apruebes.
-   */
-  ADMIN_CHAT_ID?: string;
+  APP_ORIGINS?: string;
   HOROSCOPO_BASE_URL?: string;
   HOROSCOPO_IDIOMA?: string;
-  /** Feed RSS del podcast con un episodio por signo y día (botón «Escuchar»). */
+  FIREBASE_WEB_CONFIG?: {
+    apiKey: string;
+    authDomain: string;
+    appId: string;
+    messagingSenderId: string;
+    projectId: string;
+    storageBucket: string;
+  };
   PODCAST_FEED?: string;
 }
 
-/** Contexto de ejecución de Cloudflare (solo lo que usamos). */
 export interface Ctx { waitUntil(p: Promise<unknown>): void }
+export interface Servicios { http: HttpGet; restantes?: () => number }
+export type Fabrica = () => Servicios;
 
-/** Servicios externos de una ejecución. En producción son Telegram y `fetch`; los tests los sustituyen. */
-export interface Servicios { canal: Canal; http: HttpGet; restantes?: () => number }
-export type Fabrica = (env: Env) => Servicios;
-
-const fabricaReal: Fabrica = (env) => {
+const fabricaReal: Fabrica = () => {
   const http = new HttpFetch();
-  return { canal: new CanalTelegram(env.TELEGRAM_BOT_TOKEN, http), http, restantes: () => http.restantes };
+  return { http, restantes: () => http.restantes };
 };
 
 const ZONA = "Europe/Madrid";
-/** Cron del planificador (cada minuto) y cron del horóscopo (cada 10 min entre las 04:00 y las 10:59 UTC). */
 export const CRON_HOROSCOPO = "*/10 4-10 * * *";
-/** Una sección que tarda más de esto se da por fallida (la ejecución principal tiene unos 30 s de margen tras responder a Telegram). */
-const PLAZO_SECCION_MS = 15_000;
-/** Programaciones que se atienden como máximo en cada ejecución del cron, y cuántas a la vez. */
 const MAX_PROGRAMACIONES = 20;
 const SIMULTANEAS = 5;
-/** Sin SELF (desarrollo local): peticiones salientes que debe quedar de margen para empezar otra programación. */
 const MARGEN_PETICIONES = 22;
 
-const RUTA_SECCION = "/interno/seccion";
-const RUTA_PROGRAMACION = "/interno/programacion";
-
-/** Llama a otra ejecución de este mismo Worker. Devuelve su respuesta JSON, o null si no se pudo. */
-async function llamarInterno<T>(env: Env, ruta: string, cuerpo: unknown): Promise<T | null> {
-  if (!env.SELF) return null;
-  try {
-    const r = await env.SELF.fetch(new Request(`https://interno${ruta}`, {
-      method: "POST", headers: { "x-interno": env.TELEGRAM_WEBHOOK_SECRET, "content-type": "application/json" }, body: JSON.stringify(cuerpo),
-    }));
-    return r.ok ? ((await r.json().catch(() => ({}))) as T) : null;
-  } catch { return null; }
-}
-
-/** `directo`: el horóscopo se pide primero a 20minutos.es y horoscopefree queda de respaldo (su servicio público falla a veces). */
 const horoscopoCfg = (env: Env) => ({ baseUrl: env.HOROSCOPO_BASE_URL ?? "https://horoscopefree.fly.dev", idioma: env.HOROSCOPO_IDIOMA ?? "es", directo: true });
 
-/** `remoto`: las secciones se construyen en otra ejecución (la principal solo las envía). */
-function dependencias(env: Env, s: Servicios, remoto: boolean, urlBase?: string): Deps & { almacen: AlmacenD1 } {
+function dependencias(env: Env, s: Servicios, urlBase?: string) {
   const almacen = new AlmacenD1(env.DB);
   return {
-    almacen, canal: s.canal, push: crearEmisorPush(almacen, () => new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status, (m) => console.warn(m)), http: s.http, ahora: () => new Date(), horoscopoCfg: horoscopoCfg(env),
-    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST, adminId: env.ADMIN_CHAT_ID?.trim() || undefined, urlBase,
-    construirRemoto: remoto && env.SELF ? async (p) => {
-      const r = await llamarInterno<{ html?: string; teclado?: Teclado; grupos?: Contenido["grupos"]; tiempo?: Contenido["tiempo"]; error?: string }>(env, RUTA_SECCION, p);
-      if (!r) throw new Error("no se pudo contactar con la ejecución interna");
-      if (r.error || !r.html) throw new Error(r.error ?? "respuesta vacía");
-      return { html: r.html, teclado: r.teclado, grupos: r.grupos, tiempo: r.tiempo };
-    } : undefined,
+    almacen,
+    http: s.http,
+    ahora: () => new Date(),
+    horoscopoCfg: horoscopoCfg(env),
+    podcastFeed: env.PODCAST_FEED ?? FEED_PODCAST,
+    urlBase,
+    push: crearEmisorPush(almacen, () => new Date(), async (url, cabeceras, cuerpo) => (await fetch(url, { method: "POST", headers: cabeceras, body: cuerpo })).status, (m) => console.warn(m)),
   };
 }
 
-/** La programación va con la hora del cron que la reparte: todas las de un mismo minuto se evalúan en el mismo instante. */
-const aJson = (p: Programacion, ahora: Date) => ({ ...p, proximo: p.proximo.getTime(), ahora: ahora.getTime() });
-const deJson = (j: Omit<Programacion, "proximo"> & { proximo: number }): Programacion => ({ ...j, proximo: new Date(j.proximo) });
-
-/** Rutas que solo se llaman a sí mismos los Workers (con el secreto en la cabecera): construyen y envían UNA sección o procesan UNA programación. */
-async function manejarInterno(req: Request, env: Env, ruta: string, fabrica: Fabrica): Promise<Response> {
-  if (req.method !== "POST" || !iguales(req.headers.get("x-interno") ?? "", env.TELEGRAM_WEBHOOK_SECRET)) return new Response("forbidden", { status: 403 });
-  const cuerpo = (await req.json().catch(() => null)) as any;
-  if (!cuerpo) return new Response("bad request", { status: 400 });
-  const s = fabrica(env);
-  const dep = dependencias(env, s, false);
-  if (ruta === RUTA_SECCION) {
-    // Construye UNA sección y devuelve su contenido (no la envía: lo hace la ejecución principal, así salen en orden).
-    const u = await dep.almacen.getUsuario(String(cuerpo.uid));
-    if (!u) return Response.json({ error: "usuario no encontrado" });
-    try {
-      const c = await conPlazo(contenidoDeSeccion(dep, u, String(cuerpo.ref)), PLAZO_SECCION_MS, "la sección tardó demasiado");
-      return Response.json({ html: c.html, teclado: c.teclado, grupos: c.grupos, tiempo: c.tiempo });
-    } catch (e) {
-      console.warn(`sección ${cuerpo.ref}: ${(e as Error).message}`);
-      return Response.json({ error: String((e as Error).message ?? e).slice(0, 120) });
-    }
-  }
-  if (ruta === RUTA_PROGRAMACION) {
-    const instante = typeof cuerpo.ahora === "number" ? cuerpo.ahora : Date.now();
-    const r = await procesarProgramacion({ ...dep, ahora: () => new Date(instante), log: (m) => console.warn(m) }, deJson(cuerpo));
-    return Response.json(r);
-  }
-  return new Response("not found", { status: 404 });
-}
-
-/** Lista de la compra compartida por enlace: no lleva firma de Telegram, la protege el código del enlace. */
-async function manejarListaCompartida(req: Request, env: Env, fabrica: Fabrica): Promise<Response> {
-  const json = (estado: number, cuerpo: unknown) => Response.json(cuerpo, { status: estado, headers: { "cache-control": "no-store" } });
-  if (req.method !== "POST") return json(405, { error: "método no permitido" });
-  const cuerpo = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
-  try {
-    const r = await manejarListaPublica(dependencias(env, fabrica(env), false), cuerpo);
-    return json(r.estado, r.cuerpo);
-  } catch (e) { console.error(`lista: ${(e as Error).message}`); return json(500, { error: "Algo ha fallado. Inténtalo de nuevo." }); }
-}
-
-/** API de la mini app de Telegram: cada petición va firmada por Telegram (cabecera `Authorization: tma <initData>`). */
-async function manejarMiniApp(req: Request, env: Env, url: URL, fabrica: Fabrica): Promise<Response> {
-  const json = (estado: number, cuerpo: unknown) => Response.json(cuerpo, { status: estado, headers: { "cache-control": "no-store" } });
-  if (req.method !== "POST") return json(405, { error: "método no permitido" });
-  const dep = dependencias(env, fabrica(env), true, url.origin);
-  const cuerpo = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
-
-  // Cambiar el enlace de acceso (de un solo uso) por una sesión en este dispositivo: es la única ruta que no pide estar ya identificado.
-  if (url.pathname === "/api/sesion") {
-    const codigo = String(cuerpo.codigo ?? "");
-    if (!codigo) {
-      const r = await crearSesionAnonima(dep.almacen, new Date());
-      return json(200, { token: r.token });
-    }
-    const r = await canjearAcceso(dep.almacen, codigo, new Date());
-    return r ? json(200, { token: r.token }) : json(401, { error: "El enlace ya se usó o ha caducado." });
-  }
-
-  // Identificación: dentro de Telegram, con los datos firmados por Telegram; fuera, con la sesión de un dispositivo vinculado.
-  const cab = req.headers.get("authorization") ?? "";
-  let uid: string | null = null, token = "";
-  if (/^tma\s/i.test(cab)) uid = validarInitData(cab.replace(/^tma\s+/i, ""), env.TELEGRAM_BOT_TOKEN, new Date())?.id ?? null;
-  else if (/^sesion\s/i.test(cab)) { token = cab.replace(/^sesion\s+/i, ""); uid = await usuarioDeSesion(dep.almacen, token, new Date(), url.pathname === "/api/estado"); }
-  if (!uid) return json(401, { error: token ? "Tu sesión ha caducado. Pide un enlace nuevo con /app en el bot." : "Abre esta app desde Telegram" });
-  if (url.pathname === "/api/salir") { if (token) await cerrarSesion(dep.almacen, token, new Date()); return json(200, { ok: true }); }
-
-  const admin = dep.adminId;
-  if (admin && uid !== admin && !uid.startsWith("web-") && !(await dep.almacen.getAcceso(uid))) return json(403, { error: "No tienes acceso al bot" });
-  const u = await dep.almacen.getUsuario(uid);
-  if (!u) return json(404, { error: "Escribe /start al bot para empezar" });
-  try {
-    const r = await manejarApi(dep, u, url.pathname, cuerpo);
-    return json(r.estado, r.cuerpo);
-  } catch (e) {
-    console.error(`api ${url.pathname}: ${(e as Error).message}`);
-    return json(500, { error: "Algo ha fallado. Inténtalo de nuevo." });
-  }
-}
-
-export async function manejarFetch(req: Request, env: Env, ctx?: Ctx, fabrica: Fabrica = fabricaReal): Promise<Response> {
-  const url = new URL(req.url);
-  if (url.pathname.startsWith("/interno/")) return manejarInterno(req, env, url.pathname, fabrica);
-  if (url.pathname === "/api/lista") return manejarListaCompartida(req, env, fabrica);
-  if (url.pathname.startsWith("/api/")) return manejarMiniApp(req, env, url, fabrica);
-  if (url.pathname === "/" || url.pathname === "/agenda" || url.pathname === "/agenda/") return Response.redirect(new URL("/app/" + url.search + url.hash, url), 302);
-  if (url.pathname !== "/telegram") return new Response("not found", { status: 404 });
-  const cuerpo = await req.json().catch(() => null);
-  const cabeceraSecreta = req.headers.get("x-telegram-bot-api-secret-token") ?? undefined;
-  const valido = req.method === "POST" && iguales(cabeceraSecreta ?? "", env.TELEGRAM_WEBHOOK_SECRET);
-  const trabajo = procesarWebhook(dependencias(env, fabrica(env), true, url.origin), env.TELEGRAM_WEBHOOK_SECRET, { metodo: req.method, cabeceraSecreta, cuerpo }, (m) => console.error(m));
-  if (valido && ctx) {
-    // Se responde 200 a Telegram al instante y el trabajo sigue en segundo plano (hasta 30 s): así no depende de que Telegram espere.
-    ctx.waitUntil(trabajo.catch((e) => console.error(`webhook: ${(e as Error).message}`)));
-    return new Response("ok", { status: 200 });
-  }
-  const r = await trabajo;
-  return new Response(r.texto, { status: r.estado });
-}
-
-/** Ejecuta `tareas` con como mucho `n` a la vez. */
 async function enParalelo<T>(tareas: (() => Promise<T>)[], n: number): Promise<T[]> {
   const res: T[] = new Array(tareas.length);
   let i = 0;
@@ -198,24 +64,15 @@ async function enParalelo<T>(tareas: (() => Promise<T>)[], n: number): Promise<T
   return res;
 }
 
-/**
- * Cron de cada minuto: busca lo vencido y reparte cada programación en una ejecución propia (con SELF).
- * Sin SELF (local) las procesa una a una mientras quede presupuesto de peticiones.
- */
 export async function manejarTick(env: Env, ahora: () => Date = () => new Date(), fabrica: Fabrica = fabricaReal): Promise<ResultadoTick> {
-  const s = fabrica(env);
-  const dep = { ...dependencias(env, s, false), ahora, log: (m: string) => console.warn(m) };
+  const s = fabrica();
+  const dep = { ...dependencias(env, s), ahora, log: (m: string) => console.warn(m) };
+  const instante = ahora();
+  const vencidas = await dep.almacen.programacionesVencidas(instante, MAX_PROGRAMACIONES);
   let total: ResultadoTick = { enviados: 0, omitidos: 0, fallidos: 0 };
-  const vencidas = await dep.almacen.programacionesVencidas(ahora(), MAX_PROGRAMACIONES);
-  if (env.SELF) {
-    const respuestas = await enParalelo(vencidas.map((p) => () => llamarInterno<ResultadoTick>(env, RUTA_PROGRAMACION, aJson(p, ahora()))), SIMULTANEAS);
-    for (const r of respuestas) total = sumar(total, r ?? { enviados: 0, omitidos: 0, fallidos: 1 }); // una llamada fallida se reintentará: sigue vencida
-  } else {
-    for (const p of vencidas) {
-      if ((s.restantes?.() ?? Infinity) < MARGEN_PETICIONES) break; // lo que falte irá en el minuto siguiente
-      total = sumar(total, await procesarProgramacion(dep, p));
-    }
-  }
+  const tareas = vencidas.map((p) => () => procesarProgramacion({ ...dep, ahora: () => instante }, p));
+  const resultados = await enParalelo(tareas, SIMULTANEAS);
+  for (const r of resultados) total = sumar(total, r);
   const t = ahora();
   if (t.getUTCHours() === 3 && t.getUTCMinutes() === 0) await dep.almacen.limpiarCache(t);
   if (total.enviados || total.fallidos) console.info("tick", total);
@@ -233,8 +90,96 @@ export async function manejarHoroscopo(env: Env, ahora = new Date()) {
     fechaGuardada: async (id) => (await almacen.getHoroscopo(id))?.fecha,
     log: (m) => console.info(m),
     intentos: 2, esperaMs: 500,
-    maxPedidos: 4, // 4 signos por ejecución: así no se pasa del límite de peticiones; el cron se repite cada 10 min
+    maxPedidos: 4,
   });
   if (r.actualizados.length || r.fallidos.length) console.info("horóscopo", r);
   return r;
+}
+
+async function manejarApiWeb(
+  req: Request,
+  env: Env,
+  url: URL,
+  fabrica: Fabrica,
+  verificarFirebase: (token: string, proyecto: string) => Promise<IdentidadFirebase | null>,
+): Promise<Response> {
+  const json = (status: number, body: unknown) => Response.json(body, { status, headers: { "cache-control": "no-store" } });
+  if (req.method !== "POST") return json(405, { error: "método no permitido" });
+  const authorization = req.headers.get("authorization") ?? "";
+  const bearer = /^Bearer\s+(.+)$/i.exec(authorization);
+  const projectId = env.FIREBASE_WEB_CONFIG?.projectId;
+  if (!bearer || !projectId) return json(401, { error: "Inicia sesión en Nexora para continuar." });
+
+  let identidad: IdentidadFirebase | null;
+  try {
+    identidad = await verificarFirebase(bearer[1], projectId);
+  } catch (error) {
+    console.error(`Firebase token verification unavailable: ${(error as Error).message}`);
+    return json(503, { error: "No se pudo validar la sesión. Inténtalo de nuevo." });
+  }
+  if (!identidad) return json(401, { error: "La sesión no es válida. Inicia sesión de nuevo." });
+
+  const deps = dependencias(env, fabrica(), url.origin);
+  let usuario = await deps.almacen.getUsuario(identidad.uid);
+  if (!usuario) {
+    const nombre = identidad.nombre?.trim() || identidad.email?.split("@")[0] || "Usuario";
+    usuario = usuarioNuevo(identidad.uid, nombre, new Date());
+    await deps.almacen.guardarUsuario(usuario);
+  }
+  try {
+    const respuesta = await manejarApi(deps, usuario, url.pathname, ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>);
+    return json(respuesta.estado, respuesta.cuerpo);
+  } catch (error) {
+    console.error(`api ${url.pathname}: ${(error as Error).message}`);
+    return json(500, { error: "Algo ha fallado. Inténtalo de nuevo." });
+  }
+}
+
+export async function manejarFetch(
+  req: Request,
+  env: Env,
+  _ctx?: Ctx,
+  fabrica: Fabrica = fabricaReal,
+  verificarFirebase: (token: string, proyecto: string) => Promise<IdentidadFirebase | null> = verificarTokenFirebase,
+): Promise<Response> {
+  const url = new URL(req.url);
+  if (url.pathname.startsWith("/api/")) {
+    const origin = req.headers.get("origin") ?? "";
+    const permitido = origin && (env.APP_ORIGINS ?? "").split(",").map((x) => x.trim()).includes(origin);
+    if (req.method === "OPTIONS") {
+      if (!permitido) return new Response(null, { status: 403 });
+      const methods = url.pathname === "/api/config" ? "GET, OPTIONS" : "POST, OPTIONS";
+      return new Response(null, { status: 204, headers: {
+        "access-control-allow-origin": origin,
+        "access-control-allow-methods": methods,
+        "access-control-allow-headers": "Authorization, Content-Type",
+        "access-control-max-age": "600",
+        "vary": "Origin",
+      } });
+    }
+    let response: Response;
+    if (url.pathname === "/api/config") {
+      response = req.method === "GET"
+        ? Response.json({ firebase: env.FIREBASE_WEB_CONFIG ?? null }, { headers: { "cache-control": "no-store" } })
+        : Response.json({ error: "método no permitido" }, { status: 405, headers: { allow: "GET, OPTIONS" } });
+    } else if (url.pathname === "/api/lista") {
+      if (req.method !== "POST") response = Response.json({ error: "método no permitido" }, { status: 405, headers: { "cache-control": "no-store" } });
+      else {
+        const body = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+        const result = await manejarListaPublica(dependencias(env, fabrica()), body);
+        response = Response.json(result.cuerpo, { status: result.estado, headers: { "cache-control": "no-store" } });
+      }
+    } else {
+      response = await manejarApiWeb(req, env, url, fabrica, verificarFirebase);
+    }
+    if (!permitido) return response;
+    const headers = new Headers(response.headers);
+    headers.set("access-control-allow-origin", origin);
+    headers.set("access-control-allow-methods", url.pathname === "/api/config" ? "GET, OPTIONS" : "POST, OPTIONS");
+    headers.set("access-control-allow-headers", "Authorization, Content-Type");
+    headers.set("vary", "Origin");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+  if (url.pathname === "/" || url.pathname === "/agenda" || url.pathname === "/agenda/") return Response.redirect(new URL("/app/" + url.search + url.hash, url), 302);
+  return new Response("not found", { status: 404 });
 }

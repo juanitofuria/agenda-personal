@@ -1,4 +1,4 @@
-import { esc, escAttr } from "./canal";
+import { esc, escAttr } from "./html";
 
 export interface Noticia { titulo: string; fuente: string; enlace: string; fecha: number; /** Miniatura de la noticia (Bing News la incluye en el RSS). */ imagen?: string }
 

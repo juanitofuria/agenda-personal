@@ -21,10 +21,7 @@ export interface Tema { id: string; titulo: string; emoji: string; consulta: str
 
 export interface Ciudad { nombre: string; provincia: string; lat: number; lon: number }
 
-/** Paso de una conversación en curso (el bot espera un texto del usuario). */
-export interface Estado { flujo: string; paso: string; datos: Record<string, unknown> }
-
-/** Aspecto del bot: el estilo (informal o formal) y el modo (claro u oscuro) que usa en Telegram, para elegir las cabeceras y los colores. */
+/** Aspecto visual de la app. */
 export type Estilo = "informal" | "formal";
 /** `auto`: cambia solo según la hora (de claro a oscuro y al revés), como lo hace el sistema de muchos dispositivos. */
 export type Modo = "claro" | "oscuro" | "auto";
@@ -45,17 +42,16 @@ export interface EntrenamientoSalud { id:string; titulo:string; tipo:string; dur
 export interface PlanSalud { id:string; titulo:string; dias:string; enfoque:string; detalle:string; inicio?:string; fin?:string; ejercicios?:string[] }
 export interface Salud { peso:RegistroPeso[]; entrenamientos:EntrenamientoSalud[]; planes:PlanSalud[] }
 
-/** Imagen del usuario: un avatar (emoji sobre un fondo de color), su foto de Telegram o una foto subida (se guarda aparte). Sin elegir: burbuja con su inicial. */
-export type Avatar = { tipo: "emoji"; emoji: string; color: number } | { tipo: "telegram" } | { tipo: "foto" };
+/** Imagen del usuario: un avatar (emoji sobre un fondo de color) o una foto subida. Sin elegir: burbuja con su inicial. */
+export type Avatar = { tipo: "emoji"; emoji: string; color: number } | { tipo: "foto" };
 
 /** Dispositivo que recibe notificaciones push (Web Push). */
 export interface SuscripcionPush { endpoint: string; p256dh: string; auth: string; dispositivo: string; desde: string }
-/** Por dónde recibe los avisos y resúmenes programados: Telegram, la app instalada o ambos. */
 export type SonidoAviso = "signature" | "crystal" | "pulse" | "halo" | "orbit" | "velvet";
-export interface AjustesAvisos { canal: "telegram" | "app" | "ambos"; sonido?: SonidoAviso; suscripciones: SuscripcionPush[] }
+export interface AjustesAvisos { sonido?: SonidoAviso; suscripciones: SuscripcionPush[] }
 
 export interface Usuario {
-  id: string;                 // id del chat
+  id: string;                 // Firebase Authentication UID
   nombre: string;
   estilo: Estilo;
   modo: Modo;
@@ -70,10 +66,6 @@ export interface Usuario {
   notificaciones: AjustesAvisos;
   secciones: Record<SeccionId, ConfigSeccion>;
   temas: Tema[];
-  estado: Estado | null;
-  onboardingHecho: boolean;
-  activo: boolean;            // false si ha bloqueado el bot
-  ultimoUpdate: number;       // para ignorar actualizaciones repetidas de Telegram
   creadoEn: Date;
 }
 
@@ -115,15 +107,6 @@ export interface HoroscopoDoc {
   signo: string; fecha: string; prediccion: string; idioma?: string; fuente?: string; fuenteUrl?: string;
 }
 
-/** Persona autorizada a usar el bot (solo se comprueba si hay un administrador configurado). */
-export interface Acceso { id: string; rol: "admin" | "usuario"; nombre: string; desde: Date }
-
-/** Invitación de un solo uso. Con `para` solo vale para esa persona (la que pidió acceso y fue aprobada). */
-export interface Invitacion { codigo: string; caduca: Date; creadaPor: string; para?: string }
-
-/** Petición de acceso de alguien no autorizado, pendiente de que el administrador decida (o rechazada: no se puede repetir). */
-export interface Solicitud { id: string; nombre: string; usuario?: string; fecha: Date; estado: "pendiente" | "rechazada" }
-
 /** Hora a la que se avisa de un evento (evento - antelación). */
 export function momentoAviso(e: Evento): Date | null {
   return e.fechaHora ? new Date(e.fechaHora.getTime() - e.antelacionMin * 60_000) : null;
@@ -133,8 +116,6 @@ export function usuarioNuevo(id: string, nombre: string, ahora: Date): Usuario {
   const secciones = {} as Record<SeccionId, ConfigSeccion>;
   for (const s of ORDEN_SECCIONES) secciones[s] = { activa: false, hora: SECCIONES[s].horaDefecto };
   return {
-    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, economia: { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] }, salud: { peso: [], entrenamientos: [], planes: [] }, avatar: null, notificaciones: { canal: "telegram", sonido: "signature", suscripciones: [] }, secciones, temas: [], estado: null,
-    onboardingHecho: false, activo: true, ultimoUpdate: 0, creadoEn: ahora,
+    id, nombre, estilo: "informal", modo: "claro", nacimiento: null, zona: "Europe/Madrid", ciudad: null, compra: { items: [], historial: [], token: null }, economia: { movimientos: [], facturas: [], presupuestoMensual: null, objetivos: [] }, salud: { peso: [], entrenamientos: [], planes: [] }, avatar: null, notificaciones: { sonido: "signature", suscripciones: [] }, secciones, temas: [], creadoEn: ahora,
   };
 }
-

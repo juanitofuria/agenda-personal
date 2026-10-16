@@ -1,8 +1,8 @@
-import { esc } from "../canal";
+import { esc } from "../html";
 import { fechaIso, formatearFechaHora, partesEnZona } from "../fechas";
 import { Evento } from "../modelo";
 import { cabecera } from "../util";
-import { Contenido, Contexto, NAV_MENU } from "./tipos";
+import { Contenido, Contexto } from "./tipos";
 
 export const EMOJI_TIPO = { alarma: "⏰", cita: "🩺", tarea: "✅", mensaje: "💬", nota: "📝" } as const;
 
@@ -29,5 +29,5 @@ export async function contenidoAgenda(ctx: Contexto): Promise<Contenido> {
     "📌 <b>Hoy y mañana</b>\n" + (lineasEv.length ? lineasEv.join("\n") : "<i>Sin citas ni alarmas.</i>"),
     "📝 <b>Tareas pendientes</b>\n" + (lineasTa.length ? lineasTa.join("\n") : "<i>Nada pendiente 🎉</i>"),
   ].join("\n\n");
-  return { html, teclado: [[{ texto: "➕ Nueva", datos: "n:menu" }, { texto: "📅 Mis eventos", datos: "e:lista" }], NAV_MENU] };
+  return { html, acciones: [{ texto: "➕ Nueva", ir: "eventos" }, { texto: "📅 Mis eventos", ir: "eventos" }] };
 }

@@ -1,5 +1,4 @@
 import { Almacen } from "../almacen";
-import { Teclado } from "../canal";
 import { Usuario } from "../modelo";
 import { Config } from "../horoscopo";
 import { HttpGet } from "../util";
@@ -16,7 +15,7 @@ export interface Contexto {
 /** Noticias de un bloque (Economía, Política…), para pintarlas como tarjetas en la app. */
 export interface GrupoNoticias { titulo: string; noticias: { titulo: string; fuente: string; enlace: string; fecha: number; imagen?: string }[] }
 
-/** Datos del tiempo ya preparados para que la app los pinte como tarjetas (el texto de Telegram sale de los mismos datos). */
+/** Datos del tiempo ya preparados para que la app los pinte como tarjetas. */
 export interface PanelTiempo {
   vista: "resumen" | "horas" | "luna";
   ciudad: string; actualizado: string;
@@ -32,7 +31,6 @@ export interface PanelTiempo {
   luna?: { mes: string; hoy: { emoji: string; nombre: string; iluminada: number; dias: number; dia: number }; llena: string; nueva: string; semanas: ({ d: number; emoji: string } | null)[][] };
 }
 
-/** Mensaje listo para enviar. `grupos`: las mismas noticias de forma estructurada (la app las muestra con su foto). */
-export interface Contenido { html: string; teclado?: Teclado; grupos?: GrupoNoticias[]; tiempo?: PanelTiempo }
-
-export const NAV_MENU = [{ texto: "🏠 Menú", datos: "m:menu" }];
+/** Contenido generado para la agenda web. */
+export interface AccionContenido { texto: string; url?: string; ref?: string; ir?: string }
+export interface Contenido { html: string; acciones?: AccionContenido[]; grupos?: GrupoNoticias[]; tiempo?: PanelTiempo }

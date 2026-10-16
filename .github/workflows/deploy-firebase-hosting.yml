@@ -1,0 +1,36 @@
+name: Desplegar en Firebase Hosting
+
+on:
+  push:
+    branches: [claude/android-notifications-app-pxj3sn]
+    paths:
+      - "cloudflare/publico/**"
+      - "firebase/firebase.json"
+      - "firebase/.firebaserc"
+      - ".github/workflows/deploy-firebase-hosting.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-firebase-hosting
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    if: github.ref == 'refs/heads/claude/android-notifications-app-pxj3sn' && vars.FIREBASE_HOSTING_READY == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar contenido de Hosting dentro del proyecto Firebase
+        run: |
+          mkdir -p firebase/hosting-public
+          cp -a cloudflare/publico/. firebase/hosting-public/
+      - name: Desplegar sitio de producción
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BEXORA_AGENDA_PERSONAL }}
+          projectId: bexora-agenda-personal
+          channelId: live
+          entryPoint: firebase

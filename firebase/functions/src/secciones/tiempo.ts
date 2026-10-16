@@ -1,8 +1,8 @@
-import { esc } from "../canal";
+import { esc } from "../html";
 import { fechaIso, formatearFechaHora, localAUtc, partesEnZona } from "../fechas";
 import { edadDias, faseDelDia, iluminacion, proximoDia } from "../luna";
 import { cabecera, cacheado, conReintentos, grados, num0, num1, sparkline } from "../util";
-import { Contenido, Contexto, NAV_MENU, PanelTiempo } from "./tipos";
+import { Contenido, Contexto, PanelTiempo } from "./tipos";
 
 export interface HoraTiempo {
   fecha: string; hora: number; temp: number; codigo: number; prob: number; mm: number; viento: number;
@@ -202,22 +202,22 @@ async function pedirPrevision(ctx: Contexto): Promise<DatosTiempo> {
 
 export async function contenidoTiempo(ctx: Contexto): Promise<Contenido> {
   if (!ctx.usuario.ciudad) {
-    return { html: "🌤 <b>Tiempo</b>\nPara darte el tiempo necesito saber dónde vives.", teclado: [[{ texto: "📍 Indicar mi ciudad", datos: "p:ciudad" }], NAV_MENU] };
+    return { html: "🌤 <b>Tiempo</b>\nPara darte el tiempo necesito saber dónde vives.", acciones: [{ texto: "📍 Indicar mi ciudad", ir: "perfil" }] };
   }
   const d = await pedirPrevision(ctx);
   return {
     html: renderTiempo(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora),
     tiempo: panelResumen(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora),
-    teclado: [[{ texto: "🕐 Hora a hora", datos: "sev:tiempo:horas" }, { texto: "🌙 Calendario lunar", datos: "sev:tiempo:luna" }], NAV_MENU],
+    acciones: [{ texto: "🕐 Hora a hora", ref: "tiempo:horas" }, { texto: "🌙 Calendario lunar", ref: "tiempo:luna" }],
   };
 }
 
 export async function contenidoHoraAHora(ctx: Contexto): Promise<Contenido> {
   if (!ctx.usuario.ciudad) return contenidoTiempo(ctx);
   const d = await pedirPrevision(ctx);
-  return { html: renderHoraAHora(d, ctx.usuario.ciudad.nombre), tiempo: panelHoras(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora), teclado: [[{ texto: "⬅️ Resumen", datos: "sev:tiempo" }], NAV_MENU] };
+  return { html: renderHoraAHora(d, ctx.usuario.ciudad.nombre), tiempo: panelHoras(d, ctx.usuario.ciudad.nombre, ctx.usuario.zona, ctx.ahora), acciones: [{ texto: "⬅️ Resumen", ref: "tiempo" }] };
 }
 
 export async function contenidoLuna(ctx: Contexto): Promise<Contenido> {
-  return { html: renderLuna(ctx.ahora, ctx.usuario.zona), tiempo: panelLuna(ctx.usuario.ciudad?.nombre ?? "", ctx.ahora, ctx.usuario.zona), teclado: [[{ texto: "⬅️ Resumen del tiempo", datos: "sev:tiempo" }], NAV_MENU] };
+  return { html: renderLuna(ctx.ahora, ctx.usuario.zona), tiempo: panelLuna(ctx.usuario.ciudad?.nombre ?? "", ctx.ahora, ctx.usuario.zona), acciones: [{ texto: "⬅️ Resumen del tiempo", ref: "tiempo" }] };
 }

@@ -1,21 +1,29 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="cargando-app">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261018">
-<link rel="apple-touch-icon" href="icon-nexora.svg?v=20261018">
-<link id="favicon" rel="icon" type="image/svg+xml" href="icon-nexora.svg?v=20261018">
+<link rel="manifest" href="manifest.webmanifest?v=20261017-arrows">
+<link rel="apple-touch-icon" href="icon-nexora-flechas-512.png?v=20261017-arrows">
+<link id="favicon" rel="icon" type="image/png" href="icon-nexora-flechas-192.png?v=20261017-arrows">
 
-<meta name="theme-color" content="#182653">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nexora">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script>
+  const modoInicial = matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+  document.documentElement.dataset.modo = modoInicial;
+  document.querySelector('meta[name="theme-color"]').content = modoInicial === "oscuro" ? "#000000" : "#ffffff";
+  try {
+    const instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    if (instalada && localStorage.getItem("nexora-app-biometric-v1")) document.documentElement.classList.add("inicio-biometrico");
+  } catch {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Nunito:wght@600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 /* ===== Temas: estilo (informal/formal) × modo (claro/oscuro). El script pone data-estilo y data-modo en <html>. ===== */
 :root{--fondo:#eef5fd;--fondo2:#dcebfa;--tarjeta:#fff;--tinta:#0f2347;--suave:#51658a;--linea:rgba(30,70,140,.12);--azul:#2f6fd6;--azul2:#46a0ff;--ok:#27a85a;--rojo:#ef4a5a;--sombra:0 10px 28px rgba(40,90,170,.14);
@@ -24,6 +32,40 @@ html[data-modo=oscuro]{--fondo:#0d1b34;--fondo2:#0a1630;--tarjeta:#14274a;--tint
 html[data-estilo=formal]{--fondo:#f4f7fb;--fondo2:#fff;--tarjeta:#fff;--tinta:#0b1f4a;--suave:#5d6b86;--azul:#2f6fd6;--radio:14px;--titulo:'Playfair Display',Georgia,serif;--sombra:0 6px 20px rgba(11,31,74,.08)}
 html[data-estilo=formal][data-modo=oscuro]{--fondo:#0a1832;--fondo2:#071127;--tarjeta:#0e2142;--tinta:#fff;--suave:#7f9bc8;--linea:rgba(127,155,200,.2);--azul:#2f8bff;--sombra:0 6px 20px rgba(0,0,0,.4)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html.cargando-app body{overflow:hidden}
+html.cargando-app #app{visibility:hidden}
+html.inicio-biometrico,html.inicio-biometrico body{background:#fff!important;background-image:none!important}
+html[data-modo=oscuro].inicio-biometrico,html[data-modo=oscuro].inicio-biometrico body{background:#000!important}
+html.biometria-fallida,html.biometria-fallida body{background:#fff!important;background-image:none!important}
+html[data-modo=oscuro].biometria-fallida,html[data-modo=oscuro].biometria-fallida body{background:#000!important}
+html.biometria-fallida #nx-inicio{background:#fff!important}
+html[data-modo=oscuro].biometria-fallida #nx-inicio{background:#000!important}
+#nx-bienvenida{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;overflow:hidden;padding:24px 20px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:#fff;opacity:1;transition:opacity .24s ease}
+html.inicio-biometrico #nx-bienvenida{display:grid!important;opacity:1!important}
+html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:#000}
+#nx-bienvenida.oculta{opacity:0;pointer-events:none}
+.nx-bienvenida-centro{display:flex;flex-direction:column;align-items:center;gap:20px;transform:translateY(-2vh)}
+.nx-bienvenida-icono{display:block;width:min(68vw,320px);height:auto;object-fit:contain}
+.nx-bienvenida-nombre{display:flex;align-items:baseline;font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
+html[data-modo=oscuro] .nx-bienvenida-nombre{text-shadow:0 3px 20px rgba(0,0,0,.35)}
+.nx-bienvenida-n{font-size:.74em}
+.nx-bienvenida-x{position:relative;font-size:1.3em;line-height:.8;color:transparent;background:linear-gradient(315deg,#e500f5 0%,#702cff 30%,#ff9a00 62%,#16df28 100%);background-clip:text;-webkit-background-clip:text}
+#nx-inicio[hidden]{display:none!important}
+#nx-inicio{position:fixed;inset:0;z-index:9500;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:auto;padding:clamp(32px,8vh,72px) 22px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:#fff}
+html[data-modo=oscuro] #nx-inicio{color:#fff;background:#000}
+.nx-inicio-marca{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.nx-inicio-marca img{width:min(30vw,150px);height:auto}
+.nx-inicio-marca .nx-bienvenida-nombre{margin-top:12px}
+.nx-inicio-marca p{max-width:32ch;margin:16px 0 0;color:var(--suave);font-size:16px;font-weight:700;line-height:1.5}
+.nx-inicio-acciones{display:grid;width:min(100%,390px);gap:11px}
+.nx-inicio-acciones .btn{min-height:50px;font-size:15px}
+.nx-inicio-acciones .nx-inicio-prueba{border:1px solid var(--linea);background:var(--tarjeta);color:var(--tinta);box-shadow:none}
+.nx-inicio-mensaje{min-height:0;margin:0 0 12px;color:var(--suave);font-size:14px;font-weight:800;line-height:1.45;text-align:center}
+.nx-inicio-mensaje:empty{display:none}
+.nx-desbloqueo{display:grid;width:min(100%,390px);gap:10px;margin-top:16px}
+.nx-biometria-modal{z-index:9600}
+@media(min-width:700px){#nx-inicio{padding-top:40px}.nx-inicio-marca img{width:150px}}
+@media(prefers-reduced-motion:reduce){#nx-bienvenida{transition:none}}
 body{margin:0;font-family:var(--fuente);color:var(--tinta);background-color:var(--fondo);background-image:linear-gradient(160deg,color-mix(in srgb,var(--fondo) 78%,transparent),color-mix(in srgb,var(--fondo2) 82%,transparent)),url("fondo-agenda.svg?v=20261008");background-repeat:repeat;background-size:auto,320px 320px;min-height:100vh;padding-bottom:calc(env(safe-area-inset-bottom) + 24px)}
 button,input,select{font:inherit;color:inherit}
 .app{max-width:560px;margin:0 auto;padding:14px 16px}
@@ -87,6 +129,29 @@ html[data-estilo=formal] .btn{border-radius:10px;background:var(--azul);box-shad
 .btn.peligro{background:color-mix(in srgb,var(--rojo) 12%,transparent);color:var(--rojo);box-shadow:none}
 .btn.chico{padding:8px 12px;font-size:13px;border-radius:11px}
 .btn.ancho{width:100%;margin-top:10px}
+.acceso-cuenta{max-width:440px;margin:30px auto;padding:24px;border:1px solid var(--linea);border-radius:var(--radio);background:var(--tarjeta);box-shadow:var(--sombra);text-align:center}
+.acceso-modal{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;padding:18px;background:rgba(4,14,34,.62);overflow:auto}
+.acceso-modal>.acceso-cuenta{position:relative;width:min(100%,440px);max-height:calc(100dvh - 36px);overflow:auto;margin:auto}
+.acceso-modal.acceso-obligatorio{z-index:9500;display:block;padding:clamp(24px,6vh,56px) 18px;background:var(--fondo)}
+.acceso-modal.acceso-obligatorio>.acceso-cuenta{max-height:none;overflow:visible;margin:0 auto;border-color:transparent;background:transparent;box-shadow:none}
+html[data-modo=oscuro] .acceso-modal{background:#000}
+html[data-modo=oscuro] .acceso-modal.acceso-obligatorio{background:#000}
+html[data-modo=oscuro] .acceso-modal:not(.acceso-obligatorio)>.acceso-cuenta{border-color:#252525;background:#050505;box-shadow:0 16px 48px rgba(0,0,0,.55)}
+html[data-modo=oscuro] .acceso-modal input[type=email],html[data-modo=oscuro] .acceso-modal input[type=password]{border-color:#303030;background:#0a0a0a}
+.acceso-cerrar{position:absolute;top:10px;right:10px;width:36px;height:36px;border:0;border-radius:50%;background:color-mix(in srgb,var(--azul) 10%,transparent);font-size:21px;cursor:pointer}
+.acceso-cuenta>img{border-radius:26%;margin:2px auto 12px}
+.acceso-cuenta h1{font:800 24px/1.2 var(--titulo);margin:8px 0}
+.acceso-cuenta>p{color:var(--suave);font-weight:600}
+.acceso-cuenta form{text-align:left;margin-top:18px}
+.acceso-cuenta input[type=email],.acceso-cuenta input[type=password]{width:100%;border:1px solid var(--linea);background:var(--tarjeta);border-radius:14px;padding:13px;font-weight:700;font-size:15px;color:var(--tinta)}
+.acceso-separador{margin:20px 0 4px;color:var(--suave);font-size:12px;font-weight:800}
+.enlace-acceso{border:0;background:none;color:var(--azul);font-weight:800;padding:14px;cursor:pointer}
+.acceso-mensaje{min-height:20px;color:var(--suave);font-size:13px;font-weight:700}
+.demo-cuenta{display:flex;flex-direction:column;gap:2px;margin:0 0 12px;padding:11px 14px;border:1px solid var(--linea);border-radius:14px;background:var(--tarjeta);font-size:12px;color:var(--suave)}
+.demo-cuenta b{color:var(--tinta);font-size:13px}
+.barra-instalacion{position:sticky;top:6px;top:max(6px,env(safe-area-inset-top));z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 12px;border:1px solid var(--linea);border-radius:14px;background:var(--tarjeta);box-shadow:var(--sombra)}
+.barra-instalacion span{min-width:0;font-weight:800;font-size:13px}
+.barra-instalacion .instalacion-activa{color:var(--ok);white-space:nowrap}
 .acciones{display:flex;gap:8px;flex-wrap:wrap}
 .vacio{text-align:center;color:var(--suave);font-weight:700;padding:30px 10px}
 .interr{width:50px;height:30px;border-radius:15px;background:var(--linea);border:0;position:relative;cursor:pointer;flex:none;transition:.2s}
@@ -425,7 +490,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 
 .econ-icon-porcentajes{background:linear-gradient(145deg,#58a6dc,#2864a8)!important;color:#d9dee5!important;font-size:21px!important;-webkit-text-stroke:.55px currentColor}
 /* Nexora: estilos completos de la nueva pantalla principal */
-.nx-hero{position:relative;isolation:isolate;overflow:hidden;min-height:144.4px;border-radius:22px;padding:17.1px 16px;display:block;color:#fff;background:linear-gradient(125deg,#1264c5,#42a9ed 62%,#c8eaff);box-shadow:0 10px 26px rgba(28,90,170,.18);margin-bottom:12px}
+.nx-hero{position:relative;isolation:isolate;overflow:hidden;min-height:144.4px;border-radius:22px;padding:7px 16px;display:block;color:#fff;background:linear-gradient(125deg,#1264c5,#42a9ed 62%,#c8eaff);box-shadow:0 10px 26px rgba(28,90,170,.18);margin-bottom:12px}
 .nx-cielo{position:absolute;inset:0;overflow:hidden;z-index:0;background:linear-gradient(180deg,#63b8f3 0%,#d6efff 100%);pointer-events:none}
 .nx-hero:after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(5,31,73,.84),rgba(5,31,73,.53) 68%,rgba(5,31,73,.08))}
 .nx-hero-text,.nx-tiempo,.nx-hero .engranaje{position:relative;z-index:2}
@@ -433,7 +498,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 .nx-saludo{font-size:clamp(19px,5vw,25px);line-height:1.12;font-weight:900;margin:0 0 11px;letter-spacing:-.4px}
 .nx-label{font-size:10px;font-weight:900;letter-spacing:1.3px;margin-bottom:4px;opacity:.94}
 .nx-frase{font-family:var(--mano);font-size:clamp(17px,4.2vw,21px);line-height:1.15;font-weight:700;max-width:100%;overflow-wrap:anywhere}
-.nx-cabecera-linea .nx-saludo{font-size:clamp(26.4px,6.82vw,35.2px)!important;line-height:1.08!important;letter-spacing:-.55px!important}.nx-hero .nx-label{font-size:12px!important;letter-spacing:1.5px!important;margin-top:12px!important;margin-bottom:7px!important}.nx-hero .nx-frase{font-size:clamp(21px,5.355vw,26.25px)!important;line-height:1.22!important}.nx-cabecera-linea{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-right:30px;margin-bottom:12px}.nx-cabecera-linea .nx-saludo{margin:0;flex:1;min-width:0}.nx-tiempo{flex:0 0 auto;text-align:right;min-width:76px;padding:0;background:transparent;backdrop-filter:none}.nx-temp{font-size:clamp(25px,6vw,31px);line-height:1;font-weight:900;white-space:nowrap}.nx-estado{font-size:12px;font-weight:800;margin-top:4px}.nx-ciudad{font-size:clamp(13px,3.7vw,17px);font-weight:600;margin-top:3px;white-space:normal;overflow-wrap:anywhere}.nx-clima-btn{display:none!important}
+.nx-cabecera-linea .nx-saludo{font-size:clamp(26.4px,6.82vw,35.2px)!important;line-height:1.08!important;letter-spacing:-.55px!important}.nx-hero .nx-label{font-size:12.48px!important;letter-spacing:1.5px!important;margin-top:6px!important;margin-bottom:7px!important}.nx-hero .nx-frase{font-size:clamp(21.84px,5.5692vw,27.3px)!important;line-height:1.22!important}.nx-cabecera-linea{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-right:30px;margin-bottom:6px}.nx-cabecera-linea .nx-saludo{margin:0;flex:1;min-width:0}.nx-tiempo{flex:0 0 auto;text-align:right;min-width:76px;padding:0;background:transparent;backdrop-filter:none}.nx-temp{font-size:clamp(25px,6vw,31px);line-height:1;font-weight:900;white-space:nowrap}.nx-estado{font-size:12px;font-weight:800;margin-top:2px}.nx-ciudad{font-size:clamp(13px,3.7vw,17px);font-weight:600;margin-top:1px;white-space:normal;overflow-wrap:anywhere}.nx-clima-btn{display:none!important}
 .nx-temp{font-size:25px;line-height:1;font-weight:900}.nx-estado{font-size:10px;font-weight:800;margin-top:5px}
 .nx-hero .engranaje{position:absolute;top:8px;right:8px;width:31px;height:31px;border:1px solid #ffffff65;border-radius:50%;background:#ffffff20;color:white;display:grid;place-items:center;padding:5px}
 .nx-sol{position:absolute;width:44px;height:44px;border-radius:50%;right:28px;top:28px;background:#fff3a5;box-shadow:0 0 30px #fff7b0;animation:nx-sol-pulso 5s ease-in-out infinite}
@@ -462,7 +527,31 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 .nx-personaliza b{font-size:12px}.nx-personaliza small{font-size:10px;color:var(--suave)}.nx-personaliza span{grid-column:2;grid-row:1/3;color:var(--azul);font-size:23px}
 .nx-int-row{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--linea)}.nx-int-row small{font-size:11px;color:var(--suave)}
 .nx-vault-intro{display:flex;gap:12px;align-items:center;padding:14px;border-radius:17px;background:var(--tarjeta);border:1px solid var(--linea);margin-top:12px}.nx-vault-intro>b{font-size:28px;color:var(--azul)}.nx-vault-intro span{display:flex;flex-direction:column;gap:4px}.nx-vault-intro small{font-size:11px;color:var(--suave)}
-@media(max-width:390px){.app{padding:10px}.nx-hero{min-height:145px;padding:12px;grid-template-columns:minmax(0,1fr) 78px}.nx-tiempo{min-width:72px;padding:7px 4px}.nx-temp{font-size:22px}.nx-cabecera-linea .nx-saludo{font-size:clamp(26.4px,6.82vw,35.2px)!important}.nx-hero .nx-frase{font-size:clamp(17.85px,5.355vw,26.25px)!important}.nx-mini{gap:7px;padding:8px;min-height:76px}.nx-mini-ico{width:32px;height:32px;flex-basis:32px}.nx-mini b{font-size:12px}.nx-mini small{font-size:9px}.nx-areas>.tarjeta{gap:7px;padding:8px}.nx-res-link{font-size:10px}}
+.nx-dashboard{display:flex;flex-direction:column}
+@media(min-width:1024px){
+  .app{width:100%;max-width:1480px;padding:22px clamp(24px,4vw,64px)}
+  .nx-dashboard{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);grid-template-areas:"hero hero" "banner banner" "organiza areas" "resumen personaliza";gap:14px;align-items:stretch}
+  .nx-dashboard>#nx-hero{grid-area:hero;min-height:132px;margin:0;padding:16px 20px}
+  .nx-dashboard-banner{grid-area:banner}
+  .nx-dashboard-banner .pasos{margin:0}
+  .nx-dashboard-organiza{grid-area:organiza}
+  .nx-dashboard-areas{grid-area:areas}
+  .nx-dashboard-resumen{grid-area:resumen}
+  .nx-dashboard>.nx-personaliza{grid-area:personaliza}
+  .nx-dashboard .nx-grupo{min-width:0;margin:0;padding:14px}
+  .nx-dashboard .nx-organiza{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .nx-dashboard .nx-mini{min-height:72px;padding:8px;gap:8px}
+  .nx-dashboard .nx-mini-ico{width:34px;height:34px;flex-basis:34px;border-radius:10px}
+  .nx-dashboard .nx-mini b{font-size:13px}
+  .nx-dashboard .nx-mini small{font-size:11px}
+  .nx-dashboard .nx-areas{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .nx-dashboard .nx-areas>.tarjeta{min-height:70px;padding:9px;gap:8px}
+  .nx-dashboard-resumen{min-height:72px;margin:0}
+  .nx-dashboard>.nx-personaliza{min-height:72px;margin:0;padding:10px 16px}
+  .nx-dashboard>.nx-personaliza b{font-size:13px}
+  .nx-dashboard>.nx-personaliza small{font-size:12px}
+}
+@media(max-width:390px){.app{padding:10px}.nx-hero{min-height:145px;padding:6px 12px;grid-template-columns:minmax(0,1fr) 78px}.nx-tiempo{min-width:72px;padding:7px 4px}.nx-temp{font-size:22px}.nx-cabecera-linea .nx-saludo{font-size:clamp(26.4px,6.82vw,35.2px)!important}.nx-hero .nx-frase{font-size:clamp(18.564px,5.5692vw,27.3px)!important}.nx-mini{gap:7px;padding:8px;min-height:76px}.nx-mini-ico{width:32px;height:32px;flex-basis:32px}.nx-mini b{font-size:12px}.nx-mini small{font-size:9px}.nx-areas>.tarjeta{gap:7px;padding:8px}.nx-res-link{font-size:10px}}
 
 /* Nexora: cielo animado del clima. Lo pinta nxCielo() (JS) dentro de .nx-cielo según el estado de actualizarClima(). */
 #nx-hero{isolation:isolate;overflow:hidden}
@@ -478,6 +567,7 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 #nx-hero[data-cielo="dia-lluvia"]:after,#nx-hero[data-cielo^="noche"]:after{background:linear-gradient(90deg,rgba(4,25,60,.2),rgba(4,25,60,0) 70%)}
 #nx-hero .nx-hero-text,#nx-hero .nx-tiempo{position:relative;z-index:2}
 #nx-hero .nx-hero-text,#nx-hero .nx-tiempo{text-shadow:0 1px 7px rgba(0,25,70,.55)}
+#nx-hero .engranaje{position:absolute;z-index:4;top:8px;right:8px;width:40px;height:40px;padding:0;display:grid;place-items:center}
 #nx-hero .nx-capa{position:absolute;inset:0;animation:nx-c-in .8s ease both}
 @keyframes nx-c-in{from{opacity:0}to{opacity:1}}
 /* Sol: rayos giratorios y reflejos */
@@ -504,6 +594,15 @@ button.econ-accion-gestionar,button.econ-accion-informe{
 #nx-hero .nx-c-gota{position:absolute;top:-14%;width:2px;height:var(--h);border-radius:2px;background:linear-gradient(transparent,rgba(210,232,255,.95));transform:rotate(10deg);animation:nx-c-caer var(--d) linear var(--l) infinite}
 @keyframes nx-c-caer{to{top:110%}}
 @media(prefers-reduced-motion:reduce){#nx-hero .nx-capa *{animation:none!important}}
+@media(max-width:360px){
+  .nx-cabecera-linea{display:block;padding-right:30px}
+  .nx-cabecera-linea .nx-saludo{font-size:22px!important;margin:0 0 5px}
+  .nx-cabecera-linea .nx-tiempo{display:flex;align-items:baseline;justify-content:flex-start;gap:8px;width:100%;min-width:0;padding:0;text-align:left;flex-wrap:wrap}
+  .nx-cabecera-linea .nx-tiempo>div{margin:0}.nx-cabecera-linea .nx-tiempo>.nx-ciudad{flex-basis:100%}
+  .nx-cabecera-linea .nx-temp{font-size:22px}
+  .nx-cabecera-linea .nx-estado{font-size:11px}
+  .nx-cabecera-linea .nx-ciudad{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -551,11 +650,35 @@ ymbol>
 <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></symbol>
 <symbol id="i-logo" viewBox="0 0 64 64"><rect x="9" y="12" width="46" height="42" rx="10" fill="var(--logo-fondo,#f4f8ff)" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 26h46" stroke="var(--logo-borde,#dfe9f8)" stroke-width="3"/><path d="M9 22a10 10 0 0 1 10-10h26a10 10 0 0 1 10 10v4H9z" fill="var(--logo-tapa,#ef4a5a)"/><rect x="20" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><rect x="39" y="6" width="5" height="12" rx="2.500" fill="var(--logo-borde,#dfe9f8)"/><path d="M22 39l7 7 14-15" fill="none" stroke="var(--logo-check,#3d6fcf)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>
+<div id="nx-bienvenida" role="status" aria-label="Nexora se está iniciando">
+  <div class="nx-bienvenida-centro">
+    <img class="nx-bienvenida-icono" src="icon-nexora-flechas-512.png?v=20261017-arrows" alt="">
+  </div>
+</div>
+<script>window.__nexoraSplashInicio=performance.now();</script>
+<section id="nx-inicio" hidden aria-labelledby="nx-inicio-titulo">
+  <div class="nx-inicio-marca">
+    <img src="icon-nexora-flechas-512.png?v=20261017-arrows" alt="">
+    <div class="nx-bienvenida-nombre" id="nx-inicio-titulo"><span class="nx-bienvenida-n">N</span>e<span class="nx-bienvenida-x">X</span>ora</div>
+    <p>Tu espacio personal, organizado y siempre contigo.</p>
+  </div>
+  <div class="nx-inicio-acciones">
+    <p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status"></p>
+    <button class="btn" type="button" data-inicio-login>Iniciar sesión</button>
+    <button class="btn sec" type="button" data-inicio-registro>Registrarse</button>
+    <button class="btn nx-inicio-prueba" type="button" data-inicio-prueba>Probar app</button>
+  </div>
+</section>
 <div class="app" id="app"><div class="cargando">Cargando…</div></div>
 <script src="frases.js"></script>
+<script>window.__bexoraAuthReady = new Promise((resolve, reject) => { const limite = setTimeout(() => reject(new Error("No se pudo iniciar el módulo de autenticación. Recarga la página.")), 15000); window.__bexoraAuthResolve = (value) => { clearTimeout(limite); resolve(value); }; window.__bexoraAuthReject = (error) => { clearTimeout(limite); reject(error); }; });</script>
+<script>window.BEXORA_API_ORIGIN = location.hostname === "bexora-agenda-personal.web.app" ? "https://agenda-personal.cresofin.workers.dev" : "";</script>
+<script type="module" src="firebase-auth.js?v=20261014-nexora"></script>
 <script>
-const TG = window.Telegram && Telegram.WebApp;
-const DEMO = new URLSearchParams(location.search).has("demo");
+let DEMO = new URLSearchParams(location.search).has("demo");
+let AUTH_CONFIGURED = false, AUTH_USER = null, ARRANCADO = false, REGISTRO_OBLIGATORIO = false;
+let accesoDesdeInicio = false, modoAccesoInicial = "login", avisoInicio = "", bloqueoBiometrico = null, biometriaFallida = false, configuracionBiometricaInvalida = false;
+let accesoPendiente = null;
 const NAV_GUARDADA = (() => { try { const n = JSON.parse(sessionStorage.getItem("agenda-vista") || "null"); return n && typeof n.vista === "string" ? n : null; } catch { return null; } })();
 const S = { datos: null, vista: NAV_GUARDADA?.vista || "inicio", pila: Array.isArray(NAV_GUARDADA?.pila) ? NAV_GUARDADA.pila : [], tipo: NAV_GUARDADA?.tipo || "alarma" };
 function guardarNavegacion() { try { sessionStorage.setItem("agenda-vista", JSON.stringify({ vista: S.vista, pila: S.pila, tipo: S.tipo })); } catch {} }
@@ -573,54 +696,105 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
-/* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático = el del propio Telegram, o sea, el de tu dispositivo) ---------- */
+/* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático) ---------- */
 function actualizarIconos() {
-  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-512.png?v=20261017";
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-512.png?v=20261017";
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-flechas-192.png?v=20261017-arrows";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-flechas-512.png?v=20261017-arrows";
+}
+function actualizarColorTema(modo, accesoVisible) {
+  const metaTema = document.querySelector('meta[name="theme-color"]');
+  if (!metaTema) return;
+  metaTema.content = accesoVisible ? (modo === "oscuro" ? "#000000" : "#ffffff") : (getComputedStyle(document.documentElement).getPropertyValue("--fondo").trim() || "#eef5fd");
 }
 function aplicarTema() {
   const u = S.datos?.usuario, root = document.documentElement;
-  const sistema = (TG && TG.initData && TG.colorScheme) || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const sistema = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   const modo = !u || u.modo === "auto" ? (sistema === "dark" ? "oscuro" : "claro") : u.modo;
   root.dataset.estilo = u ? u.estilo : "informal"; root.dataset.modo = modo; actualizarIconos(modo);
   const logo = modo === "oscuro" ? "--logo-fondo:#f4f8ff;--logo-borde:#dfe9f8;--logo-tapa:#ef4a5a;--logo-check:#3d6fcf" : "--logo-fondo:#fff;--logo-borde:#2f6fd6;--logo-tapa:#ef4a5a;--logo-check:#27a85a";
   const formal = root.dataset.estilo === "formal" ? "--logo-fondo:transparent;--logo-borde:currentColor;--logo-tapa:transparent;--logo-check:currentColor" : logo;
   root.style.cssText = formal;
-  if (TG) { const bg = getComputedStyle(root).getPropertyValue("--fondo").trim() || "#eef5fd"; try { TG.setHeaderColor(bg); TG.setBackgroundColor(bg); } catch (e) {} }
+  actualizarColorTema(modo, root.classList.contains("inicio-biometrico") || root.classList.contains("biometria-fallida") || !$("#nx-inicio").hidden || !!$("#modal-acceso") || !!$("#modal-biometria"));
 }
-if (TG) TG.onEvent("themeChanged", aplicarTema);
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarTema);
 
 /* ---------- API ---------- */
-/* Identificación: dentro de Telegram, con sus datos firmados; fuera (navegador o app instalada), con la sesión que crea el enlace de acceso (/app en el bot). */
-const enTelegram = () => !!(TG && TG.initData);
-const leerSesion = () => { try { return localStorage.getItem("sesion") || ""; } catch (e) { return ""; } };
-const guardarSesion = (t) => { try { t ? localStorage.setItem("sesion", t) : localStorage.removeItem("sesion"); } catch (e) {} };
+/* Identificación mediante Firebase Authentication. */
+const CLAVE_ESCRITURA_PENDIENTE = "bexora-escritura-pendiente";
+function quitarEscrituraPendiente() {
+  try { localStorage.removeItem(CLAVE_ESCRITURA_PENDIENTE); } catch {}
+  try { sessionStorage.removeItem(CLAVE_ESCRITURA_PENDIENTE); } catch {}
+}
+function leerEscrituraPendiente() {
+  let texto;
+  try {
+    texto = localStorage.getItem(CLAVE_ESCRITURA_PENDIENTE);
+  } catch {}
+  if (!texto) {
+    try { texto = sessionStorage.getItem(CLAVE_ESCRITURA_PENDIENTE); } catch { return null; }
+  }
+  try {
+    const pendiente = JSON.parse(texto || "null");
+    if (!pendiente || typeof pendiente.ruta !== "string" || !/^\/api\/[a-z0-9/_-]+$/i.test(pendiente.ruta) ||
+      !pendiente.cuerpo || typeof pendiente.cuerpo !== "object" || !Number.isFinite(pendiente.creada) ||
+      Date.now() - pendiente.creada > 86400000) {
+      quitarEscrituraPendiente();
+      return null;
+    }
+    try {
+      if (localStorage.getItem(CLAVE_ESCRITURA_PENDIENTE) !== texto) localStorage.setItem(CLAVE_ESCRITURA_PENDIENTE, texto);
+    } catch {}
+    try {
+      if (sessionStorage.getItem(CLAVE_ESCRITURA_PENDIENTE) === texto) sessionStorage.removeItem(CLAVE_ESCRITURA_PENDIENTE);
+    } catch {}
+    return pendiente;
+  } catch { return null; }
+}
+function guardarEscrituraPendiente(ruta, cuerpo) {
+  const pendiente = JSON.stringify({ ruta, cuerpo, creada: Date.now() });
+  try {
+    localStorage.setItem(CLAVE_ESCRITURA_PENDIENTE, pendiente);
+    try { sessionStorage.removeItem(CLAVE_ESCRITURA_PENDIENTE); } catch {}
+  } catch (error) {
+    try { sessionStorage.setItem(CLAVE_ESCRITURA_PENDIENTE, pendiente); }
+    catch (errorSesion) {
+      console.error("No se pudo conservar la operación pendiente.", error, errorSesion);
+      throw new Error("No se pudo conservar lo que has creado. Activa el almacenamiento del navegador e inténtalo de nuevo.");
+    }
+  }
+}
+function borrarEscrituraPendiente(ruta, cuerpo) {
+  try {
+    const pendiente = leerEscrituraPendiente();
+    if (pendiente && pendiente.ruta === ruta && JSON.stringify(pendiente.cuerpo) === JSON.stringify(cuerpo)) {
+      quitarEscrituraPendiente();
+    }
+  } catch (error) { console.error("No se pudo limpiar la operación guardada en esta pestaña.", error); }
+}
 async function api(ruta, cuerpo = {}, reintentar = true) {
+  const soloLectura = ruta === "/api/estado" || ruta === "/api/ver" || ruta === "/api/foto" || (ruta === "/api/ciudad" && !cuerpo.elegir);
+  if (DEMO && !AUTH_USER && !soloLectura) {
+    if (!AUTH_CONFIGURED) throw new Error("El registro no está disponible temporalmente. Puedes seguir explorando la app y volver a intentarlo más tarde.");
+    guardarEscrituraPendiente(ruta, cuerpo);
+    await pedirAcceso();
+    return api(ruta, cuerpo, reintentar);
+  }
   if (DEMO) return demo(ruta, cuerpo);
-  if (!enTelegram() && !leerSesion() && ruta !== "/api/sesion") {
-    const sr = await fetch("/api/sesion", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-    const sj = await sr.json().catch(() => ({}));
-    if (!sr.ok || !sj.token) throw new Error(sj.error || "No he podido iniciar tu agenda");
-    guardarSesion(sj.token);
-  }
   const cab = { "content-type": "application/json" };
-  if (enTelegram()) cab.authorization = "tma " + TG.initData; else if (leerSesion()) cab.authorization = "sesion " + leerSesion();
-  const r = await fetch(ruta, { method: "POST", headers: cab, body: JSON.stringify(cuerpo) });
+  if (AUTH_USER) cab.authorization = `Bearer ${await AUTH_USER.getIdToken()}`;
+  else throw Object.assign(new Error("Inicia sesión para continuar"), { sesion: true });
+  const r = await fetch(`${window.BEXORA_API_ORIGIN || ""}${ruta}`, { method: "POST", headers: cab, body: JSON.stringify(cuerpo) });
   const j = await r.json().catch(() => ({}));
-  if (r.status === 401 && !enTelegram() && ruta !== "/api/sesion" && reintentar) {
-    guardarSesion("");
-    return api(ruta, cuerpo, false);
-  }
-  if (r.status === 401 && !enTelegram() && ruta !== "/api/sesion") { guardarSesion(""); const e = new Error(j.error || "Tu sesión ha caducado"); e.sesion = true; throw e; }
+  if (r.status === 401 && reintentar) { const e = new Error(j.error || "Inicia sesión para continuar"); e.sesion = true; throw e; }
   if (!r.ok) throw new Error(j.error || "Algo ha fallado");
+  borrarEscrituraPendiente(ruta, cuerpo);
   return j;
 }
-async function cargar() { S.datos = await api("/api/estado"); try { const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); const mesAnterior=d.toISOString().slice(0,7); await api("/api/economia",{accion:"archivar_mes",mes:mesAnterior}); S.datos = await api("/api/estado"); } catch {} aplicarTema(); if (S.vista === "dispositivos" && typeof refrescarDispositivos === "function") await refrescarDispositivos(); }
+async function cargar() { S.datos = await api("/api/estado"); if (!DEMO) try { const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); const mesAnterior=d.toISOString().slice(0,7); await api("/api/economia",{accion:"archivar_mes",mes:mesAnterior}); S.datos = await api("/api/estado"); } catch {} aplicarTema(); if (S.vista === "dispositivos" && typeof refrescarDispositivos === "function") await refrescarDispositivos(); }
 function aviso(t) { const d = document.createElement("div"); d.className = "aviso"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
 async function hacer(f, ok) { try { const r = await f(); if (ok) aviso(typeof ok === "function" ? ok(r) : ok); await cargar(); pintar(); return r; } catch (e) { aviso(e.message); return false; } }
 
-/* ---------- Contenido de Telegram → HTML seguro (solo etiquetas simples y enlaces https) ---------- */
+/* ---------- Contenido remoto → HTML seguro (solo etiquetas simples y enlaces https) ---------- */
 function limpiar(html) {
   const d = new DOMParser().parseFromString("<body>" + html + "</body>", "text/html");
   const ok = new Set(["B", "STRONG", "I", "EM", "U", "S", "CODE", "PRE", "BLOCKQUOTE", "A"]);
@@ -680,12 +854,6 @@ new MutationObserver((cambios) => {
     }
   }
 }).observe(document.body, { childList: true });
-function botonAtras() {
-  if (!TG || !TG.BackButton) return;
-  if (S.vista === "inicio") TG.BackButton.hide(); else TG.BackButton.show();
-}
-if (TG && TG.BackButton) TG.BackButton.onClick(atras);
-
 // La frase del día: una por cada día del año (frases.js), la misma para todo el mundo ese día.
 {
   const h = new Date(), dia = Math.floor((Date.UTC(h.getFullYear(), h.getMonth(), h.getDate()) - Date.UTC(h.getFullYear(), 0, 0)) / 864e5); // 1..366
@@ -693,12 +861,11 @@ if (TG && TG.BackButton) TG.BackButton.onClick(atras);
 }
 
 /* ---------- Avatar: foto, avatar de emoji o burbuja con la inicial ---------- */
-const fotoTelegram = () => (TG && TG.initDataUnsafe && TG.initDataUnsafe.user && TG.initDataUnsafe.user.photo_url) || "";
 function burbuja(tam) {
   const u = S.datos.usuario, a = S.datos.avatar, nombre = (u.nombre || "").trim();
   const inicial = (nombre.charAt(0) || "?").toUpperCase();
   const g = a && a.tipo === "emoji" ? a.color : [...nombre].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) % 8;
-  const foto = a && a.tipo === "foto" ? S.datos.fotoAvatar : a && a.tipo === "telegram" ? fotoTelegram() : "";
+  const foto = a && a.tipo === "foto" ? S.datos.fotoAvatar : "";
   const dentro = a && a.tipo === "emoji" ? a.emoji : inicial;
   return `<span class="av g${g}" style="width:${tam}px;height:${tam}px;font-size:${Math.round(tam * 0.46)}px">${dentro}${foto ? `<img src="${esc(foto)}" alt="" onerror="this.remove()">` : ""}</span>`;
 }
@@ -709,19 +876,19 @@ const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.p
 const vistoBanner = (k) => { try { return !!localStorage.getItem("visto_" + k); } catch (e) { return false; } };
 const marcarBanner = (k) => { try { localStorage.setItem("visto_" + k, "1"); } catch (e) {} };
 function bannerApp() {
-  if (enTelegram() || DEMO) return "";
+  if (DEMO) return "";
   const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const aqui = S.aqui && S.aqui.suscrito, cierre = `<button class="x" data-cerrar-banner="1" aria-label="Ahora no">✕</button>`;
   let clave = "", html = "";
-  if (!modoApp() && S.instalacion) { clave = "instalar"; html = `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`; }
-  else if (!modoApp() && esIOS()) { clave = "ios"; html = `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`; }
+  if (!AUTH_USER && !modoApp() && S.instalacion) { clave = "instalar"; html = `<div class="pasos">${cierre}<b>📲 Instala la app</b><p>Se abre como cualquier app, a pantalla completa, y recibe tus avisos.</p><button class="btn" data-instalar="1">⬇️ Instalar ahora</button></div>`; }
+  else if (!AUTH_USER && !modoApp() && esIOS()) { clave = "ios"; html = `<div class="pasos">${cierre}<b>📲 Instala la app en tu iPhone</b><p>Safari → Compartir → «Añadir a pantalla de inicio». Después ábrela desde su icono para activar los avisos.</p><button class="btn" data-ir="dispositivos">Ver cómo</button></div>`; }
   else if (soportaPush && !aqui && (modoApp() || !esIOS()) && Notification.permission !== "denied") { clave = "avisos_" + (modoApp() ? "app" : "web"); html = `<div class="pasos">${cierre}<b>🔔 Activa los avisos</b><p>Recibe tus resúmenes y recordatorios como notificaciones de esta app.</p><button class="btn" data-activar-ya="1">🔔 Activar notificaciones</button></div>`; }
   if (!clave) return "";
   if (S.bannerClave !== clave && vistoBanner(clave)) return ""; // ya se enseñó en una apertura anterior
   S.bannerClave = clave; marcarBanner(clave); // se queda en pantalla durante esta sesión; la próxima vez no sale
   return S.bannerOculto === clave ? "" : html;
 }
-const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${S.datos.usuario.nombre ? `¡Hola, ${esc(S.datos.usuario.nombre)}!` : "¡Hola!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div><div class="nx-estado" id="nx-estado">Consultando tiempo…</div><div class="nx-ciudad" id="nx-city">Cargando ciudad…</div></div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
+const cabecera = () => `<section class="nx-hero" id="nx-hero"><div class="nx-cielo"></div><button class="engranaje" data-ir="ajustes" aria-label="Ajustes">${ic("ajustes")}</button><div class="nx-hero-text"><div class="nx-cabecera-linea"><div class="nx-saludo">${AUTH_USER && S.datos.usuario.nombre ? `¡Bienvenido, ${esc(S.datos.usuario.nombre)}!` : "¡Bienvenido!"}</div><div class="nx-tiempo"><div class="nx-temp" id="nx-temp">--°</div>${AUTH_USER ? `<div class="nx-ciudad" id="nx-city">Cargando ciudad…</div>` : ""}<div class="nx-estado" id="nx-estado">Consultando tiempo…</div></div></div><div class="nx-label">LA FRASE DEL DÍA</div><div class="nx-frase">${esc(S.frase)}</div></div></section>`;
 const barra = (t, extra = "") => `<div class="barra"><button class="atras" data-a="volver" aria-label="Atrás">${ic("atras")}</button><h2>${t}</h2>${extra}</div>`;
 
 /* ---------- Vistas ---------- */
@@ -868,14 +1035,17 @@ let nxGestoInicio=null,nxGestoRefresco=false;document.addEventListener("touchsta
 const vistas = {
   inicio() {
     const ev = S.datos.eventos, cuenta = (t) => ev.filter((e) => e.tipo === t && !e.hecho).length, cp = S.datos.compra.items.filter((x) => !x.hecho).length;
+    const banner = bannerApp();
     const t = (c, i, titulo, d, v, cls = "", extra = "") => `<button class="tarjeta ${cls}" data-ir="${v}" ${extra}><div class="ico ${c}">${ic(i)}</div><div><b>${titulo}</b><span class="d">${d}</span></div></button>`;
     const tt = (k, d) => t(TIPOS[k].color, TIPOS[k].icono, TIPOS[k].titulo, d, "tipo", "", `data-tipo="${k}"`);
     const n = (k, uno, varios, vacio) => { const c = cuenta(k); return c ? `${c} ${c === 1 ? uno : varios}` : vacio; };
     const hoy = S.datos.resumenHoy || [];
-    const resumenCard=`<button class="nx-resumen" data-resumen-diario="1"><span class="nx-res-icon">${ic("nota")}</span><span class="nx-res-text"><b>Tu resumen diario</b><small>${hoy.length?`${hoy.length} secciones disponibles`:"Noticias y temas que te interesan"}</small></span><span class="nx-res-link">Ver resumen ›</span></button>`;
+    const resumenCard=`<button class="nx-resumen nx-dashboard-resumen" data-resumen-diario="1"><span class="nx-res-icon">${ic("nota")}</span><span class="nx-res-text"><b>Tu resumen diario</b><small>${hoy.length?`${hoy.length} secciones disponibles`:"Noticias y temas que te interesan"}</small></span><span class="nx-res-link">Ver resumen ›</span></button>`;
     const mini=(clase,icono,titulo,d,vista,tipo="")=>`<button class="nx-mini ${clase}" data-ir="${vista}" ${tipo?`data-tipo="${tipo}"`:""}><span class="nx-mini-ico">${ic(icono)}</span><span><b>${titulo}</b><small>${d}</small></span></button>`;
-    return `${cabecera()}${bannerApp()}<section class="nx-grupo"><div class="nx-kicker">ORGANIZACIÓN</div><div class="nx-organiza">
+    return `<div class="nx-dashboard">${cabecera()}${banner ? `<div class="nx-dashboard-banner">${banner}</div>` : ""}<section class="nx-grupo nx-dashboard-organiza"><div class="nx-kicker">ORGANIZACIÓN</div><div class="nx-organiza">
     ${mini("nx-alarm","alarma","Alarmas",n("alarma","pendiente","pendientes","A tu hora"),"tipo","alarma")}${mini("nx-cita","cal","Citas",n("cita","próxima","próximas","Próximas"),"tipo","cita")}${mini("nx-tarea","check","Tareas",n("tarea","pendiente","pendientes","Todo al día"),"tipo","tarea")}${mini("nx-nota","nota","Notas",ev.filter(e=>e.tipo==="nota").length?"Guardadas":"Apuntes","tipo","nota")}</div></section>${resumenCard}<section class="nx-grupo"><div class="nx-kicker">TU ESPACIO PERSONAL</div><div class="nx-areas">${t("c4","economia","Economía","Ingresos · gastos","economia")}${t("c5","salud","Salud","Peso · entrenamientos","salud")}${t("c5","cesta","Compra",cp?`${cp} por comprar`:"Todo al día","compra")}${t("nx-seguridad","check","Seguridad","Claves · secretos","seguridad")}</div></section><button class="nx-personaliza" data-ir="secciones"><b>＋ Personaliza tus secciones</b><small>Temas y horarios de notificación</small><span>›</span></button><button class="fab fab-global" data-abrir-anadir="1" aria-label="Añadir">${ic("mas")}</button>`;
+    return `<div class="nx-dashboard">${cabecera()}${bannerApp()}<section class="nx-grupo nx-dashboard-organiza"><div class="nx-kicker">ORGANIZACIÓN</div><div class="nx-organiza">
+    ${mini("nx-alarm","alarma","Alarmas",n("alarma","pendiente","pendientes","A tu hora"),"tipo","alarma")}${mini("nx-cita","cal","Citas",n("cita","próxima","próximas","Próximas"),"tipo","cita")}${mini("nx-tarea","check","Tareas",n("tarea","pendiente","pendientes","Todo al día"),"tipo","tarea")}${mini("nx-nota","nota","Notas",ev.filter(e=>e.tipo==="nota").length?"Guardadas":"Apuntes","tipo","nota")}</div></section>${resumenCard}<section class="nx-grupo nx-dashboard-areas"><div class="nx-kicker">TU ESPACIO PERSONAL</div><div class="nx-areas">${t("c4","economia","Economía","Ingresos · gastos","economia")}${t("c5","salud","Salud","Peso · entrenamientos","salud")}${t("c5","cesta","Compra",cp?`${cp} por comprar`:"Todo al día","compra")}${t("nx-seguridad","check","Seguridad","Claves · secretos","seguridad")}</div></section><button class="nx-personaliza" data-ir="secciones"><b>＋ Personaliza tus secciones</b><small>Temas y horarios de notificación</small><span>›</span></button></div><button class="fab fab-global" data-abrir-anadir="1" aria-label="Añadir">${ic("mas")}</button>`;
   },
   seguridad() {
     let existe=false;try{existe=!!localStorage.getItem("nexora-vault-v1")}catch{}const abierto=!!VAULT_KEY,items=abierto?VAULT_DATA:[];
@@ -947,7 +1117,8 @@ const vistas = {
       <label>Fecha de nacimiento (para el horóscopo)</label><input type="date" id="nac" value="${esc(u.nacimiento || "")}">
       <button class="btn ancho" data-perfil="1">Guardar</button>
       <div class="etq">Preferencias</div>
-      <div class="lista">${fila("secciones", "🧩", "Mis secciones", `${act} activa${act === 1 ? "" : "s"} · horas y temas`)}${fila("apariencia", "🎨", "Apariencia", "Estilo y tema")}${fila("dispositivos", "📲", "App y notificaciones", "Instalar, avisos y otros dispositivos")}</div>`;
+      <div class="lista">${fila("secciones", "🧩", "Mis secciones", `${act} activa${act === 1 ? "" : "s"} · horas y temas`)}${fila("apariencia", "🎨", "Apariencia", "Estilo y tema")}${fila("dispositivos", "📲", "App y notificaciones", "Instalar, avisos y otros dispositivos")}</div>
+      ${AUTH_USER ? `<div class="etq">Cuenta</div><button class="btn sec ancho" type="button" data-cerrar-cuenta="1">Cerrar sesión</button>` : ""}`;
   },
   compra() {
     const l = S.datos.compra, pend = l.items.filter((x) => !x.hecho), hechos = l.items.filter((x) => x.hecho);
@@ -975,7 +1146,7 @@ const vistas = {
         : x.grupos && x.grupos.length ? `${noticiasHTML(x.grupos)}${botones(x)}${pie(x)}`
         : `<div class="doc">${limpiar(x.html)}${botones(x)}</div>${pie(x)}`).join("");
     const conPanel = v.secciones && v.secciones.length === 1 && v.secciones[0].tiempo;
-    return `${conPanel ? "" : barra(v.titulo)}${cuerpo}${v.secciones && v.ref !== "todo" ? `<button class="btn sec ancho" data-chat="${esc(v.ref)}">📨 Enviármelo también al chat</button>` : ""}`;
+    return `${conPanel ? "" : barra(v.titulo)}${cuerpo}`;
   },
   secciones() {
     const vis = S.datos.secciones.filter((s) => !s.oculta), ocultas = S.datos.secciones.filter((s) => s.oculta);
@@ -993,44 +1164,41 @@ const vistas = {
       <label>Estilo</label><div class="seg">${b("estilo", "informal", "😊 Informal")}${b("estilo", "formal", "👔 Formal")}</div>
       <p class="nota">${u.estilo === "formal" ? "Sobrio y profesional: tipografía con serifa y acentos de color." : "Cercano y colorido: iconos con color y letra redondeada."}</p>
       <label>Tema</label><div class="seg">${b("modo", "claro", "☀️ Claro")}${b("modo", "oscuro", "🌙 Oscuro")}${b("modo", "auto", "🔄 Automático")}</div>
-      <p class="nota">Automático sigue el tema de tu dispositivo, el mismo que usa Telegram. Los mensajes del chat no pueden leerlo: ahí «Automático» cambia con el anochecer y el amanecer de tu ciudad (${esc(u.sol)}).</p>`;
+      <p class="nota">Automático sigue el tema de tu dispositivo. «Automático» también adapta los detalles de la app al amanecer y anochecer de tu ciudad (${esc(u.sol)}).</p>`;
   },
   dispositivos() {
-    const n = S.datos.notificaciones, fuera = !enTelegram(), aqui = S.aqui || { suscrito: false };
+    const n = S.datos.notificaciones, aqui = S.aqui || { suscrito: false };
     const instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const soportaPush = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-    const canal = (v, txt) => `<button class="${n.canal === v ? "on" : ""}" data-canal="${v}">${txt}</button>`;
     const sonido = sonidoValido(n.sonido);
     const sonidos = Object.entries(SONIDOS).map(([id, x]) => `<button class="${sonido === id ? "on" : ""}" data-sonido="${id}"><span>${x.emoji}</span>${x.nombre}</button>`).join("");
     let notis;
-    if (!fuera) notis = `<p class="nota">Las notificaciones de la app se activan desde la app instalada, no desde Telegram.</p>`;
-    else if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
+    if (ios && !instalada) notis = `<p class="nota">En iPhone, primero instala la app en la pantalla de inicio (arriba) y ábrela desde su icono: así Apple permite las notificaciones.</p>`;
     else if (!soportaPush) notis = `<p class="nota">Este navegador no admite notificaciones.</p>`;
     else notis = aqui.suscrito ? `<button class="btn peligro ancho" data-push="off">🔕 Desactivar en este dispositivo</button>` : `<button class="btn ancho" data-push="on">🔔 Activar en este dispositivo</button>`;
     return `${barra("App y notificaciones")}
-      ${!fuera ? `<p class="nota">Estás dentro de Telegram: para instalar la app, abre un <b>enlace de acceso</b> (más abajo) en el navegador del dispositivo donde la quieras.</p>` : ""}${fuera && instalada ? `<div class="aviso-ok" style="margin-bottom:8px">✅ Esta app ya está instalada en este dispositivo.</div>` : ""}${fuera && !instalada && S.instalacion ? `<button class="btn ancho" data-instalar="1" style="margin-bottom:8px">⬇️ Instalar en este dispositivo</button>` : ""}
+      ${instalada ? `<div class="aviso-ok" style="margin-bottom:8px">✅ Esta app ya está instalada en este dispositivo.</div>` : ""}${!instalada && S.instalacion ? `<button class="btn ancho" data-instalar="1" style="margin-bottom:8px">⬇️ Instalar en este dispositivo</button>` : ""}
       <label>Guía paso a paso</label>${guiaHTML()}
-      <label>Usar en otro dispositivo</label>
-      <p class="nota">Crea un enlace de un solo uso (caduca en 10 minutos) y ábrelo en el móvil u ordenador donde quieras tener la app. También lo puedes pedir con <b>/app</b> en el bot.</p>
-      <button class="btn sec ancho" data-enlace="1">🔗 Crear enlace de acceso</button>
-      <label>Cómo recibir tus avisos</label>
-      <div class="seg">${canal("telegram", "✈️ Telegram")}${canal("app", "📲 App")}${canal("ambos", "Ambos")}</div>
-      <p class="nota">Resúmenes diarios y recordatorios. «App» envía una notificación al dispositivo; si no llega a ninguno, te lo mando por Telegram para que no se pierda.</p>
+      <label>Tu cuenta en otros dispositivos</label>
+      <p class="nota">Inicia sesión con la misma cuenta para acceder a tus datos desde cualquier navegador o dispositivo.</p>
+      <label>Notificaciones</label>
+      <p class="nota">Los resúmenes y recordatorios se envían como notificaciones web a los dispositivos que actives. Si un dispositivo no está disponible, el aviso se reintentará.</p>
       <label>Sonido de las notificaciones</label>
       <div class="so">${sonidos}</div>
       <button class="btn sec ancho" data-probar-sonido="${sonido}">🔊 Probar ${SONIDOS[sonido].nombre}</button>
       <p class="nota">El sonido se guarda para todos tus dispositivos. Si la app está abierta, reproduce este sonido al recibir un aviso; cuando está cerrada, el sistema puede usar su sonido predeterminado.</p>
       ${notis}
       ${n.dispositivos.length ? `<label>Dispositivos con notificaciones</label><div class="lista">${n.dispositivos.map((d) => `<div class="fila"><div class="emo">📲</div><div class="t"><b>${esc(d.nombre)}</b><small>desde ${new Date(d.desde).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</small></div><button class="btn chico peligro" data-pushquitar="${esc(d.id)}">✕</button></div>`).join("")}</div><button class="btn sec ancho" data-probar="1">🔔 Enviarme una prueba</button>` : ""}
-      ${fuera && leerSesion() ? `<button class="btn peligro ancho" style="margin-top:22px" data-salir="1">Cerrar sesión en este dispositivo</button>` : ""}`;
+      `;
   },
 };
 
 function pintar() {
   if (!S.datos) return;
-  $("#app").innerHTML = vistas[S.vista]();
-  botonAtras();
+  const avisoDemo = !AUTH_USER && DEMO ? `<div class="demo-cuenta"><b>Vista previa</b><span>Los datos que ves son de ejemplo. Crea una cuenta para guardar tu información.</span></div>` : "";
+  const barraInstalacion = AUTH_USER ? "" : `<div class="barra-instalacion"><span>Nexora · tu agenda personal</span>${modoApp() ? `<span class="instalacion-activa">✓ Instalada</span>` : `<button type="button" class="btn chico" data-instalar-app>⬇ Instalar</button>`}</div>`;
+  $("#app").innerHTML = barraInstalacion + avisoDemo + vistas[S.vista]();
   if (S.vista === "ver") ponerFoto();
   if (S.vista === "inicio") actualizarClima(false);
 }
@@ -1210,7 +1378,7 @@ function hojaWa(e) {
   });
 }
 
-/* Compartir: se crea un enlace a una lista que cualquiera puede abrir y modificar (marcar, añadir, quitar). Telegram no ofrece el menú «Compartir» del sistema dentro de las mini apps, así que se ofrecen los destinos más usados. */
+/* Compartir: se crea un enlace a una lista que cualquiera puede abrir y modificar (marcar, añadir, quitar). */
 function mensajeCompra(enlace) {
   const pend = S.datos.compra.items.filter((x) => !x.hecho);
   return "🛒 Lista de la compra\n" + pend.map((x) => "• " + x.texto).join("\n") + "\n\nÁbrela y ve marcando lo que compras:\n" + enlace;
@@ -1219,7 +1387,7 @@ async function copiar(t) {
   try { await navigator.clipboard.writeText(t); return true; } catch (e) {}
   try { const a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select(); const ok = document.execCommand("copy"); a.remove(); return ok; } catch (e) { return false; }
 }
-function abrirEnlace(u) { if (TG && TG.openLink) TG.openLink(u); else window.open(u, "_blank"); }
+function abrirEnlace(u) { window.open(u, "_blank", "noopener,noreferrer"); }
 async function hojaCompartir() {
   if (!S.datos.compra.items.length) return aviso("La lista está vacía");
   let enlace;
@@ -1229,7 +1397,6 @@ async function hojaCompartir() {
   h.innerHTML = `<div><h3>Compartir la lista</h3><p class="nota">Quien reciba el enlace podrá <b>ver, añadir y marcar</b> productos, y tú verás los cambios aquí. Al terminar la compra, el enlace deja de valer y la siguiente lista tendrá uno nuevo.</p><div class="doc" style="white-space:pre-wrap;font-size:13px">${esc(texto)}</div>
     <button class="btn ancho" data-c="wa">💬 WhatsApp</button>
     <button class="btn ancho" data-c="mail">✉️ Correo</button>
-    <button class="btn ancho" data-c="tg">✈️ Telegram</button>
     ${navigator.share ? `<button class="btn ancho" data-c="otras">📤 Otras aplicaciones…</button>` : ""}
     <button class="btn sec ancho" data-c="copiar">📋 Copiar el mensaje</button>
     <button class="btn peligro ancho" data-c="parar">🚫 Dejar de compartir</button>
@@ -1242,7 +1409,6 @@ async function hojaCompartir() {
     const t = encodeURIComponent(texto);
     if (c === "wa") abrirEnlace("https://wa.me/?text=" + t);
     else if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Lista de la compra") + "&body=" + t);
-    else if (c === "tg") { const u = "https://t.me/share/url?url=" + encodeURIComponent(enlace) + "&text=" + encodeURIComponent("🛒 Lista de la compra"); if (TG && TG.openTelegramLink) TG.openTelegramLink(u); else window.open(u, "_blank"); }
     else if (c === "otras") { try { await navigator.share({ title: "Lista de la compra", text: texto }); } catch (err) {} }
     else if (c === "copiar") { aviso((await copiar(texto)) ? "📋 Copiado" : "No he podido copiar"); return; }
     else if (c === "parar") { h.remove(); return hacer(() => api("/api/compra", { accion: "descompartir" }), "🚫 Enlace desactivado"); }
@@ -1271,7 +1437,6 @@ function hojaAvatar() {
     h.innerHTML = `<div><h3>Tu avatar</h3>
       <div style="display:flex;justify-content:center;margin:10px 0">${burbuja(84)}</div>
       <button class="btn ancho" data-av="foto">📷 Subir una foto</button><input type="file" id="f-foto" accept="image/*" hidden>
-      ${fotoTelegram() ? `<button class="btn sec ancho" data-av="telegram">✈️ Usar mi foto de Telegram</button>` : ""}
       <label>O elige un avatar</label>
       <div class="colores">${[0,1,2,3,4,5,6,7].map((i) => `<button class="av g${i} ${i === color ? "on" : ""}" data-col="${i}" style="width:28px;height:28px;box-shadow:none"></button>`).join("")}</div>
       <div class="rej-av">${S.datos.avatares.map((e) => `<button class="av g${color}" data-emo="${e}" style="width:auto;height:auto;box-shadow:none">${e}</button>`).join("")}</div>
@@ -1287,7 +1452,6 @@ function hojaAvatar() {
     if (emo) return guardar({ tipo: "emoji", emoji: emo.dataset.emo, color });
     if (acc === "no") return h.remove();
     if (acc === "foto") return $("#f-foto", h).click();
-    if (acc === "telegram") return guardar({ tipo: "telegram" });
     if (acc === "ninguno") return guardar({ tipo: "ninguno" });
   });
   h.addEventListener("change", async (e) => {
@@ -1319,8 +1483,7 @@ const GUIAS = {
   android: {
     nota: "Necesitas Chrome. Vale cualquier Android reciente.",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot, o usa «Crear enlace de acceso» más abajo."],
-      ["Ábrelo en Chrome", "Pulsa <b>🌐 Abrir ahora en el navegador</b>. Si se abre dentro de Telegram, copia el enlace y pégalo en Chrome."],
+      ["Abre Nexora en Chrome", "Visita la web de Nexora directamente en tu navegador."],
       ["Instálala", "Pulsa <b>⬇️ Instalar ahora</b> en el recuadro de la pantalla de inicio. Si no sale: menú <b>⋮</b> → <b>Instalar aplicación</b>.", "No elijas «Añadir a pantalla de inicio»: eso crea solo un acceso directo a la web."],
       ["Confirma y ábrela desde su icono", "Se verá a pantalla completa, sin barra del navegador."],
     ],
@@ -1328,7 +1491,6 @@ const GUIAS = {
       ["Abre la app instalada", "Desde su icono, no desde Chrome."],
       ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
       ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>: debe sonar en el móvil."],
-      ["Elige cómo recibir los avisos", "<b>App</b> (solo notificaciones) o <b>Ambos</b> (también por Telegram)."],
     ],
     fallos: [
       ["Se abre con la barra del navegador", "Es un acceso directo, no la app. Mantén pulsado el icono → <b>Quitar</b>, y vuelve a instalarla con «Instalar aplicación»."],
@@ -1339,8 +1501,7 @@ const GUIAS = {
   ios: {
     nota: "Necesitas <b>iOS 16.4 o superior</b> (Ajustes → General → Información) y usar <b>Safari</b>.",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot."],
-      ["Ábrelo en Safari", "No sirve Chrome ni el navegador de dentro de Telegram. Copia el enlace y pégalo en Safari."],
+      ["Abre Nexora en Safari", "Visita la web de Nexora directamente en Safari."],
       ["Pulsa Compartir", "El icono del cuadrado con una flecha hacia arriba (abajo en el centro, o arriba a la derecha en iPad)."],
       ["Elige «Añadir a pantalla de inicio»", "Desliza la lista hacia abajo si no lo ves y pulsa <b>Añadir</b>."],
       ["Ábrela desde el icono nuevo", "Siempre desde ese icono, no desde Safari: así se ve a pantalla completa y Apple permite las notificaciones."],
@@ -1349,7 +1510,6 @@ const GUIAS = {
       ["Abre la app desde su icono", "Es imprescindible para poder activar los avisos en iPhone."],
       ["Activa las notificaciones", "<b>Mi perfil → Instalar la app y notificaciones → 🔔 Activar en este dispositivo</b> y pulsa <b>Permitir</b>."],
       ["Comprueba que funciona", "Pulsa <b>🔔 Enviarme una prueba</b>."],
-      ["Mejor «Ambos»", "En iPhone las notificaciones pueden retrasarse algo. Con <b>Ambos</b> también te llega por Telegram."],
     ],
     fallos: [
       ["No me sale el botón de activar avisos", "Ábrela desde el icono de la pantalla de inicio, no desde Safari. Y comprueba que tienes iOS 16.4 o superior."],
@@ -1360,8 +1520,7 @@ const GUIAS = {
   windows: {
     nota: "Vale Chrome o Edge.",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram (en el móvil o en el ordenador) escribe <b>/app</b> al bot y copia el enlace."],
-      ["Ábrelo en Chrome o Edge", "Pégalo en la barra de direcciones."],
+      ["Abre Nexora en Chrome o Edge", "Visita la web de Nexora en la barra de direcciones."],
       ["Instálala", "Pulsa <b>⬇️ Instalar ahora</b>, o el icono de instalar (un monitor con flecha) al final de la barra de direcciones. También: Chrome <b>⋮ → Transmitir, guardar y compartir → Instalar página como aplicación</b>; Edge <b>⋯ → Aplicaciones → Instalar este sitio como una aplicación</b>."],
       ["Ábrela desde su icono", "Se abre en su propia ventana. Puedes anclarla a la barra de tareas o al menú Inicio."],
     ],
@@ -1380,8 +1539,7 @@ const GUIAS = {
   mac: {
     nota: "Vale Chrome, Edge o Safari (macOS Sonoma 14 o superior).",
     instalar: [
-      ["Pide el enlace de acceso", "En Telegram escribe <b>/app</b> al bot y copia el enlace."],
-      ["Ábrelo en tu navegador", "Chrome, Edge o Safari."],
+      ["Abre Nexora en tu navegador", "Visita la web de Nexora con Chrome, Edge o Safari."],
       ["Instálala", "Chrome o Edge: <b>⬇️ Instalar ahora</b> o el icono de instalar en la barra de direcciones. Safari: menú <b>Archivo → Añadir al Dock</b>."],
       ["Ábrela desde el Dock o Launchpad", "Se abre en su propia ventana, como cualquier app."],
     ],
@@ -1411,8 +1569,33 @@ function guiaHTML() {
 
 /* ---------- App instalable y notificaciones ---------- */
 let peticionInstalar = null;
-window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); peticionInstalar = e; S.instalacion = true; if (S.vista === "dispositivos" || S.vista === "inicio") pintar(); });
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); peticionInstalar = e; S.instalacion = true; });
 window.addEventListener("appinstalled", () => { peticionInstalar = null; S.instalacion = false; if (S.vista === "dispositivos") pintar(); });
+async function instalarApp() {
+  if (peticionInstalar) {
+    let resultado = {};
+    try {
+      await peticionInstalar.prompt();
+      resultado = await peticionInstalar.userChoice;
+    } catch (error) {
+      aviso(`No se pudo abrir la instalación: ${error.message}`);
+    }
+    peticionInstalar = null;
+    S.instalacion = false;
+    if (resultado.outcome === "accepted") aviso("✅ Nexora se ha instalado");
+    return;
+  }
+  const instrucciones = esIOS()
+    ? "En Safari, pulsa Compartir y elige «Añadir a pantalla de inicio»."
+    : /Android/i.test(navigator.userAgent)
+      ? "Abre el menú ⋮ de tu navegador y pulsa «Instalar aplicación» o «Añadir a pantalla de inicio»."
+      : "Abre el menú de instalación de tu navegador (normalmente junto a la dirección web) y elige «Instalar Nexora».";
+  const hoja = document.createElement("div");
+  hoja.className = "hoja";
+  hoja.innerHTML = `<div><h3>Instalar Nexora</h3><p class="nota">${esc(instrucciones)}</p><button class="btn ancho" data-cerrar-instalar>Entendido</button></div>`;
+  document.body.appendChild(hoja);
+  hoja.addEventListener("click", (e) => { if (e.target === hoja || e.target.closest("[data-cerrar-instalar]")) hoja.remove(); });
+}
 const deB64u = (s) => Uint8Array.from(atob((s + "=".repeat((4 - (s.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 function nombreDispositivo() {
   const ua = navigator.userAgent;
@@ -1421,7 +1604,7 @@ function nombreDispositivo() {
   return nav ? `${so} · ${nav}` : so;
 }
 async function registrarSW() {
-  if (enTelegram() || DEMO || !("serviceWorker" in navigator)) return null;
+  if (DEMO || !("serviceWorker" in navigator)) return null;
   try {
     const habiaControlador = !!navigator.serviceWorker.controller;
     if (!window.__nexoraCambioSW) {
@@ -1433,7 +1616,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261019", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-arrows", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
@@ -1451,10 +1634,11 @@ async function reproducirSonido(sonido) {
     audioSonido.preload = "auto";
     audioSonido.volume = 0.85;
     await audioSonido.play();
-  } catch (e) { /* el navegador puede bloquear audio iniciado fuera de una interacción */ }
+    return true;
+  } catch (e) { return false; }
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => {
-  if (e.data?.tipo === "push-sonido") reproducirSonido(e.data.sonido);
+  if (e.data?.tipo === "push-sonido") reproducirSonido(e.data.sonido).then((reproducido) => e.ports[0]?.postMessage({ reproducido }));
   if (e.data?.tipo === "probar-sonido") reproducirSonido(e.data.sonido);
 });
 async function activarPush() {
@@ -1466,41 +1650,35 @@ async function activarPush() {
   const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deB64u(clave) }));
   const j = sub.toJSON();
   const r = await api("/api/push/suscribir", { suscripcion: { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, dispositivo: nombreDispositivo() });
-  S.canalCambiado = !!r.cambiado;
 }
 async function desactivarPush() {
   const reg = await navigator.serviceWorker.getRegistration("/app/"); const sub = reg && (await reg.pushManager.getSubscription());
   if (sub) { const endpoint = sub.endpoint; await sub.unsubscribe(); await api("/api/push/quitar", { endpoint }); }
 }
 async function refrescarDispositivos() { const aqui = await suscritoAqui(); S.aqui = { suscrito: !!aqui && S.datos.notificaciones.dispositivos.some((d) => d.id === aqui) }; }
-function hojaEnlace(enlace) {
-  const texto = "🔗 Enlace para abrir mi agenda (vale una vez y caduca en 10 minutos):\n" + enlace;
-  const h = document.createElement("div"); h.className = "hoja";
-  h.innerHTML = `<div><h3>Enlace de acceso</h3><p class="nota">Para usar la app <b>en este mismo dispositivo</b>, ábrelo ahora en el navegador. Para <b>otro dispositivo</b>, cópialo o envíatelo. <b>Vale una sola vez y caduca en 10 minutos.</b> No lo compartas con nadie más.</p>
-    <div class="doc" style="white-space:normal;font-size:12.5px;word-break:break-all">${esc(enlace)}</div>
-    <button class="btn ancho" data-e="abrir">🌐 Abrir ahora en el navegador</button>
-    <button class="btn sec ancho" data-e="copiar">📋 Copiar el enlace</button>
-    <button class="btn sec ancho" data-e="wa">💬 Enviármelo por WhatsApp</button>
-    <button class="btn sec ancho" data-e="mail">✉️ Enviármelo por correo</button>
-    <button class="btn sec ancho" data-e="no">Cerrar</button></div>`;
-  document.body.appendChild(h);
-  h.addEventListener("click", async (e) => {
-    const c = e.target.closest("[data-e]")?.dataset.e;
-    if (e.target === h || c === "no") return h.remove();
-    if (c === "abrir") { // fuera del navegador interno de Telegram: la app se instala y las notificaciones se activan desde el navegador del dispositivo
-      if (TG && TG.openLink) TG.openLink(enlace, { try_instant_view: false }); else window.open(enlace, "_blank");
-      return h.remove();
-    }
-    if (c === "copiar") aviso((await copiar(enlace)) ? "📋 Copiado" : "No he podido copiar");
-    if (c === "wa") abrirEnlace("https://wa.me/?text=" + encodeURIComponent(texto));
-    if (c === "mail") abrirEnlace("mailto:?subject=" + encodeURIComponent("Enlace de acceso a mi agenda") + "&body=" + encodeURIComponent(texto));
-  });
-}
-
 /* ---------- Eventos de la página ---------- */
 document.addEventListener("click", async (e) => {
   const q = (s) => e.target.closest(s);
   let el;
+  if (q("[data-inicio-login]")) { DEMO = false; return pintarAcceso("", "inicio", true); }
+  if (q("[data-inicio-registro]")) { DEMO = false; return pintarAcceso("", "registro", true); }
+  if (q("[data-inicio-prueba]") && !modoApp()) { DEMO = true; accesoDesdeInicio = false; ocultarInicio(); pintar(); return; }
+  if (q("[data-volver-inicio]")) return cerrarAcceso();
+  if (q("[data-bio-reintentar]")) {
+    const boton = q("[data-bio-reintentar]");
+    boton.disabled = true;
+    try { await desbloquearConBiometria(); biometriaFallida = false; }
+    catch { $("#nx-bio-mensaje").textContent = "No se pudo confirmar tu identidad. Puedes volver a intentarlo o usar tu contraseña."; }
+    finally { if (boton.isConnected) boton.disabled = false; }
+    return;
+  }
+  if (q("[data-bio-password]")) return pedirContrasenaPorBiometria();
+  if (q("[data-instalar-app]")) return instalarApp();
+  if (q("[data-cerrar-acceso]")) return cerrarAcceso();
+  if (q("[data-cerrar-cuenta]")) {
+    try { await window.bexoraAuth.salir(); } catch (err) { aviso(err.message); }
+    return;
+  }
   if((el=q("[data-clima]"))){el.disabled=true;try{await actualizarClima(true)}finally{el.disabled=false}return}
   if((el=q("[data-vault-action]"))){try{const a=el.dataset.vaultAction;if(a==="lock"){vbloquear();return pintar()}if(a==="unlock"){const p=$("#nx-vault-pass")?.value||"";if(!p)throw Error("Introduce la contraseña maestra.");await verificarBiometria();await vabre(p);return pintar()}if(a==="bio"){if(!VAULT_KEY)throw Error("Desbloquea primero la caja fuerte.");await activarBiometria();aviso("Autenticación del dispositivo activada");return pintar()}if(a==="save"){if(!VAULT_KEY)throw Error("Desbloquea primero la caja fuerte.");const title=($("#nx-vault-title")?.value||"").trim(),user=($("#nx-vault-user")?.value||"").trim(),secret=$("#nx-vault-secret")?.value||"";if(!title||!secret.trim())throw Error("Indica un título y el secreto.");VAULT_DATA.push({title,user,secret});await vguardar();aviso("Secreto guardado cifrado");return pintar()}}catch(err){aviso(err.message);return}}
   if((el=q("[data-vault-delete]"))){if(!VAULT_KEY)return aviso("Desbloquea la caja fuerte.");const i=Number(el.dataset.vaultDelete);if(!Number.isInteger(i)||i<0||i>=VAULT_DATA.length)return;if(!confirm("¿Eliminar este secreto?"))return;try{VAULT_DATA.splice(i,1);await vguardar();pintar();aviso("Secreto eliminado")}catch(err){aviso(err.message)}return}
@@ -1668,9 +1846,9 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
 @media(prefers-reduced-motion:reduce){#nx-hero .nx-sol,#nx-hero .nx-sol:before,#nx-hero .nx-sol:after,#nx-hero .nx-nube,#nx-hero .nx-lluvia,#nx-hero .nx-estrellas{animation:none!important}}
 
 
-/* Ajuste final: caja principal del tiempo un 10% más baja */
-.nx-hero{min-height:124px;padding-top:10px;padding-bottom:10px}
-@media (max-width:420px){.nx-hero{min-height:124px;padding-top:10px;padding-bottom:10px}}
+/* Ajuste final: caja principal del tiempo un 5% más baja */
+.nx-hero{min-height:117.8px;padding-top:9.5px;padding-bottom:9.5px}
+@media (max-width:420px){.nx-hero{min-height:117.8px;padding-top:9.5px;padding-bottom:9.5px}}
 </style><h1>Informe financiero mensual</h1><p>Periodo: ${ym}</p><div class="kpis"><div class="k"><b>Ingresos</b><h2>${euros(ingresos)}</h2></div><div class="k"><b>Gastos</b><h2>${euros(gastos)}</h2></div><div class="k"><b>Saldo</b><h2>${euros(ingresos-gastos)}</h2></div><div class="k"><b>Objetivo ahorro 20%</b><h2>${euros(ingresos*.2)}</h2><p>Saldo disponible: ${euros(ingresos-gastos)}</p></div></div><h2>Regla 50/30/20 · límites orientativos</h2><p>Necesidades básicas (50%): ${euros(ingresos*.5)} · Gastos variables (30%): ${euros(ingresos*.3)} · Ahorro recomendado (20%): ${euros(ingresos*.2)}.</p><p class="nota">El reparto es orientativo y se calcula sobre los ingresos registrados en el mes. Revisa las categorías de cada movimiento para analizar correctamente necesidades y deseos.</p><h2>Movimientos del mes (${ms.length})</h2><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>${filas||'<tr><td colspan="5">No hay movimientos registrados este mes.</td></tr>'}</tbody></table><p class="nota">Generado desde Nexora.</p></html>`;
     const url=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"})), a=document.createElement("a");a.href=url;a.download="informe-financiero-"+ym+".html";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;
   }
@@ -1683,27 +1861,22 @@ button.econ-accion-informe .econ-icon-informe{background:linear-gradient(145deg,
   if ((el = q("[data-wa]"))) return hojaWa(S.datos.eventos.find((x) => x.id === el.dataset.wa));
   if ((el = q("[data-so]"))) { S.guiaSO = el.dataset.so; return pintar(); }
   if (q("[data-cerrar-banner]")) { S.bannerOculto = S.bannerClave; return pintar(); }
-  const msgActivado = () => (S.canalCambiado ? "🔔 Activadas: ahora te llegan por la app y por Telegram" : "🔔 Notificaciones activadas");
+  const msgActivado = () => "🔔 Notificaciones activadas";
   if (q("[data-activar-ya]")) return hacer(async () => { await activarPush(); await cargar(); await refrescarDispositivos(); }, msgActivado);
-  if (q("[data-enlace]")) { try { const r = await api("/api/acceso/enlace"); return hojaEnlace(r.enlace); } catch (err) { return aviso(err.message); } }
-  if (q("[data-instalar]")) { if (peticionInstalar) { peticionInstalar.prompt(); const r = await peticionInstalar.userChoice.catch(() => ({})); peticionInstalar = null; S.instalacion = false; if (r.outcome === "accepted") aviso("✅ Instalada: ábrela desde su icono y activa los avisos"); pintar(); } return; }
-  if ((el = q("[data-canal]"))) return hacer(() => api("/api/notificaciones", { canal: el.dataset.canal }));
+  if (q("[data-instalar]")) return instalarApp();
   if ((el = q("[data-sonido]"))) return hacer(() => api("/api/notificaciones", { sonido: el.dataset.sonido }), "🔊 Sonido guardado");
   if ((el = q("[data-probar-sonido]"))) return reproducirSonido(el.dataset.probarSonido);
   if ((el = q("[data-push]"))) return hacer(async () => { if (el.dataset.push === "on") await activarPush(); else await desactivarPush(); await cargar(); await refrescarDispositivos(); }, el.dataset.push === "on" ? msgActivado : "🔕 Desactivadas");
   if ((el = q("[data-pushquitar]"))) return hacer(() => api("/api/push/quitar", { id: el.dataset.pushquitar }), "Dispositivo quitado");
   if (q("[data-probar]")) { try { await api("/api/push/probar"); aviso("🔔 Prueba enviada"); } catch (err) { aviso(err.message); } return; }
-  if (q("[data-salir]")) { if (!confirm("¿Cerrar la sesión en este dispositivo?")) return; try { await api("/api/salir"); } catch (err) {} guardarSesion(""); location.href = "/app/"; return; }
   if (q("[data-avatar]")) return hojaAvatar();
   if (q("[data-compartir]")) return hojaCompartir();
   if ((el = q("[data-repetir]"))) return compra({ accion: "repetir", id: el.dataset.repetir }, "↻ Añadido a la lista");
   if ((el = q("[data-olvidar]"))) { if (confirm("¿Eliminar esta compra del historial?")) compra({ accion: "olvidar", id: el.dataset.olvidar }); return; }
-  if ((el = q("[data-url]"))) { e.preventDefault(); const u = el.dataset.url; return TG && TG.openLink ? TG.openLink(u) : window.open(u, "_blank"); }
-  if ((el = q("[data-chat]"))) { el.disabled = true; try { await api("/api/enviar", { ref: el.dataset.chat }); aviso("📨 Enviado al chat"); } catch (err) { aviso(err.message); } el.disabled = false; return; }
+  if ((el = q("[data-url]"))) { e.preventDefault(); return window.open(el.dataset.url, "_blank", "noopener,noreferrer"); }
   if (q("[data-tema]")) { const t = $("#tema").value.trim(); if (!t) return; return hacer(() => api("/api/tema", { titulo: t }), "⭐ Tema añadido"); }
   if ((el = q("[data-temadel]"))) { if (!confirm("¿Eliminar este tema?")) return; return hacer(() => api("/api/tema", { borrar: el.dataset.temadel }), "🗑 Eliminado"); }
   if (q("[data-perfil]")) return hacer(() => api("/api/perfil", { nombre: $("#nombre").value, nacimiento: $("#nac").value }), "✅ Guardado");
-  if ((el = q("[data-enviar]"))) { const b = el; b.disabled = true; await hacer(async () => { await api("/api/enviar", { ref: b.dataset.enviar }); }, "📨 Enviado al chat"); return; }
   if (q("[data-abrir-anadir]")) return hojaAnadir();
   if ((el = q("[data-hecho]"))) return hacer(async () => { const r = await api("/api/evento/accion", { id: el.dataset.hecho, accion: "hecho" }); const x=S.datos.eventos.find((v)=>v.id===el.dataset.hecho); if(x&&r.evento) Object.assign(x,r.evento); return r; });
   if ((el = q("[data-borrar]"))) { if (!confirm("¿Eliminar?")) return; return hacer(() => api("/api/evento/accion", { id: el.dataset.borrar, accion: "borrar" }), "🗑 Eliminado"); }
@@ -1732,12 +1905,12 @@ document.addEventListener("change", (e) => {
   if (el && el.value) hacer(() => api("/api/seccion", { ref: el.dataset.hora, hora: el.value }), "🕒 Hora guardada");
 });
 
-/* ---------- Datos de muestra (solo con ?demo=1, para ver el diseño fuera de Telegram) ---------- */
+/* ---------- Datos de muestra para explorar la app sin guardar cambios ---------- */
 function demo(ruta, c) {
   const d = (window.__demo ||= {
     usuario: { nombre: "Ana", estilo: new URLSearchParams(location.search).get("estilo") || "informal", modo: new URLSearchParams(location.search).get("modo") || "auto", ciudad: "Córdoba", zona: "Europe/Madrid", sol: "amanece 08:12 · anochece 19:41", admin: true },
     secciones: [["tiempo", "🌤", "Tiempo", "Previsión por horas, lluvia, sol, viento, UV y luna", 1], ["noticias", "📰", "Noticias", "Economía, política y noticias de tu zona", 1], ["agenda", "🗓", "Agenda", "Tus citas y tareas de hoy y mañana", 0], ["horoscopo", "🔮", "Horóscopo", "El horóscopo del día de tu signo", 1], ["mercados", "📈", "Mercados", "Premercado de Wall Street y cierre de ayer", 0]].map(([ref, emoji, titulo, descripcion, a]) => ({ ref, emoji, titulo, descripcion, activa: !!a, hora: "07:30" })),
-    notificaciones: { canal: "telegram", dispositivos: [{ id: "abc", nombre: "Android · Chrome", desde: "2026-10-01T10:00:00Z" }] },
+    notificaciones: { sonido: "signature", dispositivos: [{ id: "abc", nombre: "Android · Chrome", desde: "2026-10-01T10:00:00Z" }] },
     avatar: null, fotoAvatar: null, avatares: ["🦊","🐼","🐨","🦁","🐯","🐸","🐵","🐧","🦉","🦄","🐙","🦋","🐢","🐬","🦈","🐳","🦖","🐝","🐞","🦔","🐰","🐻"],
     economia: {movimientos:[{id:"m1",tipo:"ingreso",concepto:"Nómina",categoria:"Ingresos",importe:2400,fecha:"2026-10-01"},{id:"m2",tipo:"gasto",concepto:"Alquiler",categoria:"Vivienda",importe:700,fecha:"2026-10-02"},{id:"m3",tipo:"gasto",concepto:"Compra semanal",categoria:"Alimentación",importe:210,fecha:"2026-10-04"}],facturas:[{id:"f1",concepto:"Luz",importe:65,vencimiento:"2026-10-15",pagada:false}],presupuestoMensual:1900,objetivos:[{id:"o1",titulo:"Vacaciones de verano",importe:3000,ahorrado:900,fechaObjetivo:"2027-06-15"}]},
     compra: { items: [{ id: "a", texto: "Leche", hecho: false }, { id: "b", texto: "Pan", hecho: true }, { id: "c", texto: "Huevos", hecho: false }], historial: [{ id: "h1", fecha: "2026-10-01T10:00:00Z", items: ["Arroz", "Tomates", "Café"] }] },
@@ -1786,30 +1959,501 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
 window.addEventListener("focus", refrescar);
 
 /* ---------- Arranque ---------- */
-const MENSAJE_ENTRADA = `<div class="cargando" style="line-height:1.6">Para usar la app fuera de Telegram necesitas un <b>enlace de acceso</b>.<br><br>Escribe <b>/app</b> al bot en Telegram y abre el enlace que te dé en este dispositivo.</div>`;
 (async () => {
-  if (TG) { TG.ready(); TG.expand(); }
-  const url = new URL(location.href);
+  const inicioSplash = window.__nexoraSplashInicio ?? performance.now();
+  let biometriaAlArranque = document.documentElement.classList.contains("inicio-biometrico");
   try {
-    if (!DEMO && !enTelegram()) {
-      const codigo = url.searchParams.get("acceso");
-      if (codigo) { // enlace de acceso de un solo uso: se cambia por una sesión de este dispositivo
-        $("#app").innerHTML = `<div class="cargando">Vinculando este dispositivo…</div>`;
-        const r = await api("/api/sesion", { codigo });
-        guardarSesion(r.token); url.searchParams.delete("acceso"); history.replaceState(null, "", url.pathname + (url.search || ""));
-      }
-      if (!leerSesion()) { $("#app").innerHTML = MENSAJE_ENTRADA; registrarSW(); return; }
+    const auth = await window.__bexoraAuthReady;
+    AUTH_CONFIGURED = auth.configurado;
+    if (AUTH_CONFIGURED) {
+      AUTH_USER = auth.usuario;
+      DEMO = !AUTH_USER;
+    } else DEMO = true;
+    REGISTRO_OBLIGATORIO = modoApp() && !AUTH_USER;
+    let reingresoConProveedor = false;
+    if (AUTH_USER) {
+      try {
+        reingresoConProveedor = sessionStorage.getItem("nexora-app-biometric-fallback") === AUTH_USER.uid;
+        sessionStorage.removeItem("nexora-app-biometric-fallback");
+      } catch {}
     }
-    await cargar(); registrarSW(); if (!enTelegram() && !DEMO) await refrescarDispositivos();
+    if (modoApp() && AUTH_USER) {
+      try {
+        bloqueoBiometrico = leerBiometriaAcceso(AUTH_USER.uid);
+      } catch (error) {
+        biometriaFallida = true;
+        configuracionBiometricaInvalida = true;
+        avisoInicio = error.message;
+        ARRANCADO = true;
+        $("#app").replaceChildren();
+        pintarAcceso(error.message, "inicio", true);
+        return;
+      }
+      if (bloqueoBiometrico && !reingresoConProveedor) {
+        biometriaAlArranque = true;
+        document.documentElement.classList.add("inicio-biometrico");
+        const metaTema = document.querySelector('meta[name="theme-color"]');
+        if (metaTema) metaTema.content = document.documentElement.dataset.modo === "oscuro" ? "#000000" : "#ffffff";
+        try {
+          await desbloquearConBiometria();
+        } catch {
+          configuracionBiometricaInvalida = true;
+          ARRANCADO = true;
+          $("#app").replaceChildren();
+          pedirContrasenaPorBiometria();
+          return;
+        }
+      } else if (reingresoConProveedor) {
+        if (bloqueoBiometrico) {
+          localStorage.removeItem(BIO_ACCESO);
+          configuracionBiometricaInvalida = true;
+        }
+        bloqueoBiometrico = null;
+      }
+    }
+    const url = new URL(location.href);
+    await cargar(); registrarSW(); if (!DEMO) await refrescarDispositivos();
+    ARRANCADO = true;
     const ver = url.searchParams.get("ver"), ir_ = url.searchParams.get("ir"), wa = url.searchParams.get("wa");
     if (ver || ir_ || wa) history.replaceState(null, "", url.pathname);
     history.replaceState({ n: 0 }, "");
     const destino = IR[ir_] || ir_;
     if (TIPOS_EV.includes(destino)) { irDirecto("tipo", destino); } else if (destino && destino !== "inicio" && vistas[destino]) { irDirecto(destino); } else pintar();
-    if (ver) abrirVer(ver);
-    if (wa) { const e = S.datos.eventos.find((x) => x.id === wa); if (e) { irDirecto("tipo", "mensaje"); hojaWa(e); } }
-  } catch (e) { $("#app").innerHTML = e.sesion ? MENSAJE_ENTRADA : `<div class="cargando" style="line-height:1.6">${esc(e.message)}<br><br>Escribe <b>/app</b> al bot en Telegram para pedir un enlace nuevo.</div>`; }
+    const vueltaVerificacion = window.__bexoraVerificationReturn;
+    avisoInicio = vueltaVerificacion
+      ? (AUTH_USER
+        ? "Correo verificado. Tu agenda está lista."
+        : vueltaVerificacion.origin === "app" && !modoApp()
+          ? "Has vuelto del enlace de verificación. Abre Nexora instalada e inicia sesión para continuar."
+          : "Has vuelto del enlace de verificación. Inicia sesión para continuar; si aún no verificaste tu correo, abre el enlace del mensaje.")
+      : "";
+    if (!AUTH_USER) mostrarInicio(avisoInicio);
+    else if (modoApp()) {
+      if (!bloqueoBiometrico) setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 300);
+    }
+    if (AUTH_USER) {
+      if (ver) abrirVer(ver);
+      if (wa) { const e = S.datos.eventos.find((x) => x.id === wa); if (e) { irDirecto("tipo", "mensaje"); hojaWa(e); } }
+    }
+    const pendiente = leerEscrituraPendiente();
+    if (pendiente) {
+      if (AUTH_USER) reanudarEscrituraPendiente().catch((error) => aviso(`No se pudo completar la operación pendiente: ${error.message}`));
+      else pintarAcceso("Tu operación sigue pendiente. Verifica tu correo o inicia sesión para guardarla.");
+    }
+  } catch (e) { $("#app").innerHTML = `<div class="cargando" style="line-height:1.6">${e.sesion ? "No se pudo iniciar la sesión. Recarga la página para volver a intentarlo." : esc(e.message)}</div>`; }
+  finally {
+    const restante = biometriaAlArranque ? 0 : Math.max(0, 2000 - (performance.now() - inicioSplash));
+    if (restante) await new Promise((resolve) => setTimeout(resolve, restante));
+    document.documentElement.classList.remove("cargando-app");
+    document.documentElement.classList.remove("inicio-biometrico");
+    const bienvenida = $("#nx-bienvenida");
+    if (bienvenida) { bienvenida.classList.add("oculta"); setTimeout(() => bienvenida.remove(), 260); }
+  }
 })();
+
+function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "inicio", desdeInicio = false) {
+  if ($("#modal-acceso")) {
+    actualizarBloqueoAcceso();
+    $("#modal-acceso").classList.toggle("acceso-obligatorio", REGISTRO_OBLIGATORIO);
+    actualizarColorTema(document.documentElement.dataset.modo, true);
+    if (mensaje) $(".acceso-mensaje", $("#modal-acceso")).textContent = mensaje;
+    return;
+  }
+  accesoDesdeInicio = desdeInicio;
+  modoAccesoInicial = modo;
+  $("#nx-inicio").hidden = true;
+  const modal = document.createElement("div");
+  modal.id = "modal-acceso";
+  modal.className = REGISTRO_OBLIGATORIO ? "acceso-modal acceso-obligatorio" : "acceso-modal";
+  modal.innerHTML = `<section class="acceso-cuenta" role="dialog" aria-modal="true" aria-labelledby="titulo-acceso">
+    ${desdeInicio ? `<button type="button" class="acceso-cerrar" data-volver-inicio aria-label="Volver">←</button>` : REGISTRO_OBLIGATORIO ? "" : `<button type="button" class="acceso-cerrar" data-cerrar-acceso aria-label="Cerrar">×</button>`}
+    <img src="icon-nexora-flechas-192.png?v=20261017-arrows" alt="" width="76" height="76">
+    <h1 id="titulo-acceso">${modo === "registro" ? "Crea tu cuenta Nexora" : "Inicia sesión"}</h1>
+    <p id="acceso-descripcion">${modo === "registro" ? "Te enviaremos un enlace para verificar tu correo. Así podrás guardar tus datos y sincronizarlos en todos tus dispositivos." : "Accede a tu agenda y recupera tus datos y configuraciones guardados."}</p>
+    ${AUTH_CONFIGURED ? `<form id="form-acceso">
+      <label for="acceso-email">Correo electrónico</label><input id="acceso-email" name="email" type="email" autocomplete="email" required>
+      <label for="acceso-password">Contraseña</label><input id="acceso-password" name="password" type="password" autocomplete="${modo === "registro" ? "new-password" : "current-password"}" minlength="${modo === "registro" ? "8" : "6"}" required>
+      <button class="btn ancho" id="enviar-acceso" type="submit">${modo === "registro" ? "Registrarse" : "Iniciar sesión"}</button>
+      <button class="btn sec ancho" id="cambiar-modo-acceso" type="button">${modo === "registro" ? "Ya tengo cuenta · Iniciar sesión" : "Crear cuenta"}</button>
+    </form>
+    <div class="acceso-separador">o continuar con</div>
+    <button class="btn sec ancho" id="entrar-google" type="button">Continuar con Google</button>
+    <button class="btn sec ancho" id="entrar-apple" type="button">Continuar con Apple</button>
+    <button class="enlace-acceso" id="comprobar-verificacion" type="button">Ya he verificado mi correo</button>
+    <button class="enlace-acceso" id="reenviar-verificacion" type="button">¿No recibiste el correo? Reenviar verificación</button>
+    <button class="enlace-acceso" id="recuperar-cuenta" type="button">¿Has olvidado la contraseña?</button>` : `<p class="acceso-mensaje" role="status">El registro no está disponible ahora. Comprueba tu conexión y vuelve a cargar la aplicación.</p><button class="btn ancho" id="reintentar-auth" type="button">Volver a intentar</button>`}
+    <p class="acceso-mensaje" role="status">${esc(mensaje)}</p>
+  </section>`;
+  document.body.appendChild(modal);
+  actualizarBloqueoAcceso();
+  actualizarColorTema(document.documentElement.dataset.modo, true);
+  const form = $("#form-acceso", modal);
+  if (!form) { $("#reintentar-auth", modal)?.addEventListener("click", () => location.reload()); return; }
+  const email = () => $("#acceso-email", modal).value.trim();
+  const password = () => $("#acceso-password", modal).value;
+  let modoAcceso = modo;
+  const ejecutar = async (fn) => {
+    const estado = $(".acceso-mensaje", modal), botones = [...modal.querySelectorAll("button")];
+    estado.textContent = "Un momento…";
+    botones.forEach((b) => { b.disabled = true; });
+    try { await fn(); }
+    catch (error) { estado.textContent = mensajeAuth(error); }
+    finally { if (modal.isConnected) botones.forEach((b) => { b.disabled = false; }); }
+  };
+  form.addEventListener("submit", (e) => { e.preventDefault(); ejecutar(async () => {
+    if (modoAcceso === "registro") {
+      if (!form.reportValidity()) return;
+      if (password().length < 8) throw Object.assign(new Error("La contraseña debe tener al menos 8 caracteres."), { code: "auth/weak-password" });
+      await window.bexoraAuth.crearCuenta(email(), password(), modoApp() ? "app" : "web");
+      $(".acceso-mensaje", modal).textContent = "Te hemos enviado un correo de confirmación. Revisa tu bandeja y pulsa el enlace para verificar tu dirección; al volver podrás iniciar sesión.";
+      return;
+    }
+    await window.bexoraAuth.entrar(email(), password());
+    if ((bloqueoBiometrico || biometriaFallida) && AUTH_USER?.uid === window.bexoraAuth.usuario?.uid) {
+      if (!S.datos) {
+        await cargar();
+        registrarSW();
+        await refrescarDispositivos();
+      }
+      bloqueoBiometrico = null;
+      biometriaFallida = false;
+      document.documentElement.classList.remove("biometria-fallida");
+      const ofrecerBiometriaTrasLogin = configuracionBiometricaInvalida;
+      if (configuracionBiometricaInvalida) {
+        localStorage.removeItem(BIO_ACCESO);
+        configuracionBiometricaInvalida = false;
+      }
+      DEMO = false;
+      modal.remove();
+      accesoDesdeInicio = false;
+      pintar();
+      ocultarInicio();
+      if (ofrecerBiometriaTrasLogin) setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 250);
+    }
+  }); });
+  $("#cambiar-modo-acceso").addEventListener("click", () => {
+    modoAcceso = modoAcceso === "registro" ? "inicio" : "registro";
+    $("#titulo-acceso", modal).textContent = modoAcceso === "registro" ? "Crea tu cuenta Nexora" : "Inicia sesión";
+    $("#acceso-descripcion", modal).textContent = modoAcceso === "registro"
+      ? "Te enviaremos un enlace para verificar tu correo. Así podrás guardar tus datos y sincronizarlos en todos tus dispositivos."
+      : "Accede a tu agenda y recupera los datos y preferencias guardados en tu cuenta.";
+    $("#enviar-acceso", modal).textContent = modoAcceso === "registro" ? "Registrarse" : "Iniciar sesión";
+    $("#cambiar-modo-acceso", modal).textContent = modoAcceso === "registro" ? "Ya tengo cuenta · Iniciar sesión" : "Crear cuenta";
+    $("#acceso-password", modal).autocomplete = modoAcceso === "registro" ? "new-password" : "current-password";
+    $("#acceso-password", modal).minLength = modoAcceso === "registro" ? 8 : 6;
+    $(".acceso-mensaje", modal).textContent = "";
+  });
+  $("#entrar-google").addEventListener("click", () => ejecutar(() => {
+    if (biometriaFallida && AUTH_USER) sessionStorage.setItem("nexora-app-biometric-fallback", AUTH_USER.uid);
+    return window.bexoraAuth.entrarGoogle();
+  }));
+  $("#entrar-apple").addEventListener("click", () => ejecutar(() => {
+    if (biometriaFallida && AUTH_USER) sessionStorage.setItem("nexora-app-biometric-fallback", AUTH_USER.uid);
+    return window.bexoraAuth.entrarApple();
+  }));
+  $("#comprobar-verificacion").addEventListener("click", () => ejecutar(async () => {
+    await window.bexoraAuth.comprobarVerificacion();
+    if (!window.bexoraAuth.usuario) $(".acceso-mensaje", modal).textContent = "Aún no vemos la verificación. Abre el enlace del correo y vuelve a esta página.";
+  }));
+  $("#reenviar-verificacion").addEventListener("click", () => ejecutar(async () => {
+    if (!email() || !password()) throw new Error("Escribe el correo y la contraseña usados al crear la cuenta.");
+    await window.bexoraAuth.reenviarVerificacion(email(), password());
+    $(".acceso-mensaje", modal).textContent = "Hemos enviado otro correo de verificación.";
+  }));
+  $("#recuperar-cuenta").addEventListener("click", () => ejecutar(async () => {
+    if (!email()) throw new Error("Escribe primero tu correo electrónico.");
+    await window.bexoraAuth.recuperar(email());
+    $(".acceso-mensaje", modal).textContent = "Si la cuenta existe, recibirás un correo para cambiar la contraseña.";
+  }));
+  modal.addEventListener("click", (e) => { if (e.target === modal && !REGISTRO_OBLIGATORIO) cerrarAcceso(); });
+  $("#acceso-email", modal).focus();
+}
+
+function mostrarInicio(mensaje = "") {
+  const pantalla = $("#nx-inicio"), acciones = $(".nx-inicio-acciones", pantalla);
+  pantalla.hidden = false;
+  actualizarColorTema(document.documentElement.dataset.modo, true);
+  if (bloqueoBiometrico) {
+    acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje || "Desbloquea Nexora para abrir tu agenda.")}</p>
+      ${biometriaFallida ? `<button class="btn" type="button" data-bio-reintentar>Reintentar biometría</button><button class="btn sec" type="button" data-bio-password>Usar contraseña</button>` : ""}
+      <p class="acceso-mensaje" id="nx-bio-mensaje" role="status">${biometriaFallida ? "" : "Confirma tu identidad en el dispositivo."}</p>`;
+  } else {
+    acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje)}</p>
+      <button class="btn" type="button" data-inicio-login>Iniciar sesión</button>
+      <button class="btn sec" type="button" data-inicio-registro>Registrarse</button>
+      <button class="btn nx-inicio-prueba" type="button" data-inicio-prueba${modoApp() ? " hidden" : ""}>Probar app</button>`;
+  }
+  actualizarBloqueoAcceso();
+}
+
+function ocultarInicio() {
+  $("#nx-inicio").hidden = true;
+  actualizarColorTema(document.documentElement.dataset.modo, document.documentElement.classList.contains("biometria-fallida") || !!$("#modal-acceso"));
+  actualizarBloqueoAcceso();
+}
+
+function pedirContrasenaPorBiometria() {
+  const mensaje = "No se pudo confirmar tu identidad con biometría. Inicia sesión con tu contraseña para continuar.";
+  biometriaFallida = true;
+  document.documentElement.classList.add("biometria-fallida");
+  const metaTema = document.querySelector('meta[name="theme-color"]');
+  if (metaTema) metaTema.content = document.documentElement.dataset.modo === "oscuro" ? "#000000" : "#ffffff";
+  mostrarInicio(mensaje);
+  pintarAcceso(mensaje, "inicio", true);
+  $("#acceso-password")?.focus();
+}
+
+const BIO_ACCESO = "nexora-app-biometric-v1";
+function leerBiometriaAcceso(uid) {
+  const raw = localStorage.getItem(BIO_ACCESO);
+  if (!raw) return null;
+  const saved = JSON.parse(raw);
+  if (!saved || typeof saved.uid !== "string" || typeof saved.id !== "string" || typeof saved.publicKey !== "string" || saved.algorithm !== -7) {
+    throw new Error("La configuración biométrica de este dispositivo está dañada. Inicia sesión con contraseña para volver a configurarla.");
+  }
+  return saved.uid === uid ? saved : null;
+}
+
+async function registrarBiometriaAcceso() {
+  if (!AUTH_USER || !bioDisponible()) throw new Error("Este dispositivo no ofrece biometría compatible para Nexora.");
+  const disponible = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  if (!disponible) throw new Error("No se encontró huella, reconocimiento facial o PIN seguro configurado en este dispositivo.");
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = new TextEncoder().encode(AUTH_USER.uid);
+  if (!userId.length || userId.length > 64) throw new Error("No se pudo preparar la cuenta para este dispositivo.");
+  const credencial = await navigator.credentials.create({ publicKey: {
+    challenge,
+    rp: { name: "Nexora", id: location.hostname },
+    user: { id: userId, name: AUTH_USER.email || AUTH_USER.uid, displayName: "Nexora" },
+    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+    authenticatorSelection: { authenticatorAttachment: "platform", residentKey: "discouraged", userVerification: "required" },
+    timeout: 60000,
+    attestation: "none",
+  } });
+  const publicKey = credencial?.response?.getPublicKey?.();
+  if (!credencial || !publicKey || credencial.response.getPublicKeyAlgorithm() !== -7) {
+    throw new Error("El dispositivo no pudo guardar una credencial biométrica compatible.");
+  }
+  const saved = { uid: AUTH_USER.uid, id: vb64(credencial.rawId), publicKey: vb64(publicKey), algorithm: -7, created: Date.now() };
+  localStorage.setItem(BIO_ACCESO, JSON.stringify(saved));
+  return saved;
+}
+
+function firmaEcdsaWebAuthn(firma) {
+  const der = new Uint8Array(firma);
+  if (der[0] !== 0x30) throw new Error("La respuesta biométrica no tiene un formato válido.");
+  let offset = der[1] > 0x80 ? 2 + (der[1] & 0x7f) : 2;
+  const enteros = [];
+  for (let parte = 0; parte < 2; parte++) {
+    if (der[offset++] !== 0x02) throw new Error("La firma biométrica no tiene un formato válido.");
+    const largo = der[offset++];
+    let valor = der.slice(offset, offset + largo);
+    offset += largo;
+    while (valor.length > 32 && valor[0] === 0) valor = valor.slice(1);
+    if (valor.length > 32) throw new Error("La firma biométrica supera el tamaño esperado.");
+    const ajustado = new Uint8Array(32);
+    ajustado.set(valor, 32 - valor.length);
+    enteros.push(ajustado);
+  }
+  return new Uint8Array([...enteros[0], ...enteros[1]]);
+}
+
+async function desbloquearConBiometria() {
+  const saved = bloqueoBiometrico;
+  if (!saved || !bioDisponible()) throw new Error("No se puede usar la biometría guardada en este navegador.");
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const credencial = await navigator.credentials.get({ publicKey: {
+    challenge,
+    rpId: location.hostname,
+    allowCredentials: [{ type: "public-key", id: vbytes(saved.id) }],
+    userVerification: "required",
+    timeout: 60000,
+  } });
+  if (!credencial || vb64(credencial.rawId) !== saved.id) throw new Error("No se pudo verificar tu identidad en este dispositivo.");
+  const respuesta = credencial.response;
+  const clientData = JSON.parse(new TextDecoder().decode(respuesta.clientDataJSON));
+  if (clientData.type !== "webauthn.get" || clientData.origin !== location.origin || clientData.challenge !== btoa(String.fromCharCode(...challenge)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")) {
+    throw new Error("La respuesta biométrica no corresponde a esta solicitud.");
+  }
+  const authenticatorData = new Uint8Array(respuesta.authenticatorData);
+  const rpHash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(location.hostname)));
+  if (authenticatorData.length < 37 || rpHash.some((byte, index) => byte !== authenticatorData[index]) || (authenticatorData[32] & 5) !== 5) {
+    throw new Error("El dispositivo no confirmó la identidad y el dominio de Nexora.");
+  }
+  const clave = await crypto.subtle.importKey("spki", vbytes(saved.publicKey), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  const hashClientData = new Uint8Array(await crypto.subtle.digest("SHA-256", respuesta.clientDataJSON));
+  const firmado = new Uint8Array(authenticatorData.length + hashClientData.length);
+  firmado.set(authenticatorData);
+  firmado.set(hashClientData, authenticatorData.length);
+  const valida = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, clave, firmaEcdsaWebAuthn(respuesta.signature), firmado);
+  if (!valida) throw new Error("La verificación biométrica no ha sido válida.");
+  bloqueoBiometrico = null;
+  document.documentElement.classList.remove("biometria-fallida");
+  ocultarInicio();
+}
+
+async function ofrecerBiometria() {
+  if (!modoApp() || !AUTH_USER || !bioDisponible()) return;
+  const saved = leerBiometriaAcceso(AUTH_USER.uid);
+  if (saved || sessionStorage.getItem(`nexora-bio-rechazado-${AUTH_USER.uid}`) === "1") return;
+  const disponible = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  if (!disponible) return;
+  const modal = document.createElement("div");
+  modal.id = "modal-biometria";
+  modal.className = "acceso-modal nx-biometria-modal";
+  modal.innerHTML = `<section class="acceso-cuenta" role="dialog" aria-modal="true" aria-labelledby="titulo-biometria">
+    <h2 id="titulo-biometria">Abre Nexora con biometría</h2>
+    <p>Configura la huella, el reconocimiento facial o el PIN seguro de este dispositivo para desbloquear la app la próxima vez.</p>
+    <button class="btn ancho" type="button" data-biometria-activar>Activar en este dispositivo</button>
+    <button class="btn sec ancho" type="button" data-biometria-omitir>Ahora no</button>
+    <p class="acceso-mensaje" role="status"></p>
+  </section>`;
+  document.body.appendChild(modal);
+  actualizarBloqueoAcceso();
+  modal.querySelector("[data-biometria-activar]").addEventListener("click", async (event) => {
+    const boton = event.currentTarget, estado = $(".acceso-mensaje", modal);
+    boton.disabled = true;
+    estado.textContent = "Sigue las instrucciones de tu dispositivo…";
+    try {
+      await registrarBiometriaAcceso();
+      modal.remove();
+      actualizarColorTema(document.documentElement.dataset.modo, !!$("#modal-acceso") || !$("#nx-inicio").hidden);
+      actualizarBloqueoAcceso();
+      aviso("Biometría activada. La próxima vez podrás usarla para abrir Nexora.");
+    } catch (error) {
+      estado.textContent = error.message;
+      boton.disabled = false;
+    }
+  });
+  modal.querySelector("[data-biometria-omitir]").addEventListener("click", () => {
+    sessionStorage.setItem(`nexora-bio-rechazado-${AUTH_USER.uid}`, "1");
+    modal.remove();
+    actualizarColorTema(document.documentElement.dataset.modo, !!$("#modal-acceso") || !$("#nx-inicio").hidden);
+    actualizarBloqueoAcceso();
+  });
+}
+
+let scrollBloqueadoPorAcceso = false, overflowPrevioAcceso = "";
+function actualizarBloqueoAcceso() {
+  const bloqueado = REGISTRO_OBLIGATORIO || !$("#nx-inicio").hidden || !!bloqueoBiometrico || !!$("#modal-acceso");
+  if (bloqueado && !scrollBloqueadoPorAcceso) {
+    overflowPrevioAcceso = document.body.style.overflow;
+    scrollBloqueadoPorAcceso = true;
+  } else if (!bloqueado && scrollBloqueadoPorAcceso) {
+    document.body.style.overflow = overflowPrevioAcceso;
+    scrollBloqueadoPorAcceso = false;
+  }
+  if (bloqueado) document.body.style.overflow = "hidden";
+  $("#app").inert = bloqueado;
+}
+
+function mensajeAuth(error) {
+  const mensajes = {
+    "auth/email-already-in-use": "Ese correo ya tiene una cuenta. Inicia sesión o recupera la contraseña.",
+    "auth/invalid-email": "Escribe un correo electrónico válido.",
+    "auth/weak-password": "La contraseña debe tener al menos 8 caracteres.",
+    "auth/invalid-credential": "El correo o la contraseña no son correctos.",
+    "auth/wrong-password": "El correo o la contraseña no son correctos.",
+    "auth/user-not-found": "No encontramos una cuenta con ese correo. Puedes crear una cuenta nueva.",
+    "auth/network-request-failed": "No hay conexión. Comprueba Internet y vuelve a intentarlo.",
+    "auth/too-many-requests": "Se han hecho demasiados intentos. Espera un momento y vuelve a probar.",
+  };
+  return mensajes[error?.code] || error?.message || "No se pudo completar el acceso. Inténtalo de nuevo.";
+}
+
+function cerrarAcceso(cancelarOperacion = true) {
+  $("#modal-acceso")?.remove();
+  const volverAInicio = accesoDesdeInicio && (!AUTH_USER || biometriaFallida);
+  accesoDesdeInicio = false;
+  if (cancelarOperacion) quitarEscrituraPendiente();
+  if (accesoPendiente) {
+    const pendiente = accesoPendiente;
+    accesoPendiente = null;
+    pendiente.reject(new Error("Acción cancelada. Puedes volver a intentarlo cuando quieras."));
+  }
+  if (volverAInicio) return mostrarInicio(avisoInicio);
+  actualizarColorTema(document.documentElement.dataset.modo, !$("#nx-inicio").hidden || document.documentElement.classList.contains("biometria-fallida"));
+  actualizarBloqueoAcceso();
+}
+
+function pedirAcceso() {
+  if (AUTH_USER) return Promise.resolve();
+  if (!AUTH_CONFIGURED) return Promise.reject(new Error("La creación de cuentas no está disponible temporalmente."));
+  if (accesoPendiente) {
+    pintarAcceso();
+    return accesoPendiente.promesa;
+  }
+  let resolve;
+  let reject;
+  const promesa = new Promise((ok, fallo) => { resolve = ok; reject = fallo; });
+  accesoPendiente = { promesa, resolve, reject };
+  pintarAcceso("", "registro");
+  return promesa;
+}
+
+async function reanudarEscrituraPendiente() {
+  const pendiente = leerEscrituraPendiente();
+  if (!pendiente || !AUTH_USER) return;
+  await api(pendiente.ruta, pendiente.cuerpo);
+  await cargar();
+  pintar();
+  aviso("✅ Tu operación pendiente se ha guardado.");
+}
+
+window.addEventListener("bexora-auth-state", async (e) => {
+  const user = e.detail.usuario;
+  if (!ARRANCADO || (user?.uid || null) === (AUTH_USER?.uid || null)) return;
+  AUTH_USER = user;
+  if (!user) {
+    REGISTRO_OBLIGATORIO = modoApp();
+    DEMO = true;
+    bloqueoBiometrico = null;
+    S.datos = await api("/api/estado");
+    const pendiente = leerEscrituraPendiente();
+    accesoDesdeInicio = false;
+    if (pendiente) pintarAcceso("No se completó el acceso. La operación sigue guardada; vuelve a intentarlo.", "registro");
+    else cerrarAcceso(false);
+    pintar();
+    if (!pendiente) mostrarInicio();
+    return;
+  }
+  REGISTRO_OBLIGATORIO = false;
+  DEMO = false;
+  bloqueoBiometrico = null;
+  try {
+    await cargar();
+    pintar();
+    ocultarInicio();
+    $("#modal-acceso")?.remove();
+    accesoDesdeInicio = false;
+    $("#modal-biometria")?.remove();
+    actualizarBloqueoAcceso();
+    if (accesoPendiente) {
+      const pendiente = accesoPendiente;
+      accesoPendiente = null;
+      pendiente.resolve();
+    } else await reanudarEscrituraPendiente();
+    setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 250);
+  }
+  catch (error) {
+    $("#modal-acceso")?.remove();
+    actualizarBloqueoAcceso();
+    if (accesoPendiente) {
+      const pendiente = accesoPendiente;
+      accesoPendiente = null;
+      pendiente.reject(error);
+    }
+    pintar();
+    aviso(`La cuenta se creó, pero no se pudo cargar la agenda: ${error.message}`);
+  }
+});
+window.addEventListener("bexora-verificacion-pendiente", (e) => {
+  const estado = $(".acceso-mensaje", $("#modal-acceso"));
+  if (estado) estado.textContent = `Confirma ${e.detail.email} desde el enlace del correo y vuelve a esta página. Comprobaremos la verificación y guardaremos tu operación pendiente.`;
+});
+window.addEventListener("bexora-auth-error", (e) => {
+  if (ARRANCADO) aviso(e.detail.mensaje);
+});
 </script>
 </body>
 </html>
