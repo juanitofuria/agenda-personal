@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261017-splash">
+<link rel="manifest" href="manifest.webmanifest?v=20261017-splash-black">
 <link rel="apple-touch-icon" href="icon-nexora-512.png?v=20261014-icon">
 <link id="favicon" rel="icon" type="image/png" href="icon-nexora-192.png?v=20261014-icon">
 
@@ -34,11 +34,19 @@ html[data-estilo=formal][data-modo=oscuro]{--fondo:#0a1832;--fondo2:#071127;--ta
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html.cargando-app body{overflow:hidden}
 html.cargando-app #app{visibility:hidden}
+html.inicio-biometrico,html.inicio-biometrico body{background:#fff!important;background-image:none!important}
+html[data-modo=oscuro].inicio-biometrico,html[data-modo=oscuro].inicio-biometrico body{background:#000!important}
+html.biometria-fallida,html.biometria-fallida body{background:#fff!important;background-image:none!important}
+html[data-modo=oscuro].biometria-fallida,html[data-modo=oscuro].biometria-fallida body{background:#000!important}
+html.biometria-fallida #nx-inicio{background:#fff!important}
+html[data-modo=oscuro].biometria-fallida #nx-inicio{background:#000!important}
 #nx-bienvenida{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;overflow:hidden;padding:24px 20px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:#fff;opacity:1;transition:opacity .24s ease}
+html.inicio-biometrico #nx-bienvenida{display:grid!important;opacity:1!important}
 html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:#000}
 #nx-bienvenida.oculta{opacity:0;pointer-events:none}
 .nx-bienvenida-centro{display:flex;flex-direction:column;align-items:center;gap:20px;transform:translateY(-2vh)}
-.nx-bienvenida-icono{display:block;width:min(58vw,260px);height:auto;filter:drop-shadow(0 16px 32px rgba(0,0,0,.34))}
+.nx-bienvenida-icono-fondo{display:grid;width:min(58vw,260px);aspect-ratio:1;place-items:center;overflow:hidden;border-radius:23%;background:#000;box-shadow:0 16px 32px rgba(0,0,0,.34)}
+.nx-bienvenida-icono{display:block;width:100%;height:100%;object-fit:contain}
 .nx-bienvenida-nombre{display:flex;align-items:baseline;font:800 clamp(42px,12vw,62px)/1 var(--fuente);letter-spacing:-2.5px;color:inherit;text-shadow:0 3px 20px rgba(15,28,55,.16)}
 html[data-modo=oscuro] .nx-bienvenida-nombre{text-shadow:0 3px 20px rgba(0,0,0,.35)}
 .nx-bienvenida-n{font-size:.74em}
@@ -641,7 +649,7 @@ ymbol>
 </defs></svg>
 <div id="nx-bienvenida" role="status" aria-label="Nexora se está iniciando">
   <div class="nx-bienvenida-centro">
-    <img class="nx-bienvenida-icono" src="icon-nexora-512.png?v=20261014-icon" alt="">
+    <div class="nx-bienvenida-icono-fondo"><img class="nx-bienvenida-icono" src="icon-nexora-512.png?v=20261014-icon" alt=""></div>
     <div class="nx-bienvenida-nombre"><span class="nx-bienvenida-n">N</span>e<span class="nx-bienvenida-x">X</span>ora</div>
   </div>
 </div>
@@ -700,7 +708,8 @@ function aplicarTema() {
   const formal = root.dataset.estilo === "formal" ? "--logo-fondo:transparent;--logo-borde:currentColor;--logo-tapa:transparent;--logo-check:currentColor" : logo;
   root.style.cssText = formal;
   const bg = getComputedStyle(root).getPropertyValue("--fondo").trim() || "#eef5fd";
-  const metaTema = document.querySelector('meta[name="theme-color"]'); if (metaTema) metaTema.content = bg;
+  const metaTema = document.querySelector('meta[name="theme-color"]');
+  if (metaTema) metaTema.content = root.classList.contains("biometria-fallida") ? (modo === "oscuro" ? "#000000" : "#ffffff") : bg;
 }
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", aplicarTema);
 
@@ -1602,7 +1611,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-splash", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-splash-black", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
@@ -1977,6 +1986,9 @@ window.addEventListener("focus", refrescar);
       }
       if (bloqueoBiometrico && !reingresoConProveedor) {
         biometriaAlArranque = true;
+        document.documentElement.classList.add("inicio-biometrico");
+        const metaTema = document.querySelector('meta[name="theme-color"]');
+        if (metaTema) metaTema.content = document.documentElement.dataset.modo === "oscuro" ? "#000000" : "#ffffff";
         try {
           await desbloquearConBiometria();
         } catch {
@@ -2094,6 +2106,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
       }
       bloqueoBiometrico = null;
       biometriaFallida = false;
+      document.documentElement.classList.remove("biometria-fallida");
       if (configuracionBiometricaInvalida) {
         localStorage.removeItem("nexora-app-biometric-v1");
         configuracionBiometricaInvalida = false;
@@ -2167,6 +2180,9 @@ function ocultarInicio() {
 function pedirContrasenaPorBiometria() {
   const mensaje = "No se pudo confirmar tu identidad con biometría. Inicia sesión con tu contraseña para continuar.";
   biometriaFallida = true;
+  document.documentElement.classList.add("biometria-fallida");
+  const metaTema = document.querySelector('meta[name="theme-color"]');
+  if (metaTema) metaTema.content = document.documentElement.dataset.modo === "oscuro" ? "#000000" : "#ffffff";
   mostrarInicio(mensaje);
   pintarAcceso(mensaje, "inicio", true);
   $("#acceso-password")?.focus();
@@ -2258,6 +2274,7 @@ async function desbloquearConBiometria() {
   const valida = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, clave, firmaEcdsaWebAuthn(respuesta.signature), firmado);
   if (!valida) throw new Error("La verificación biométrica no ha sido válida.");
   bloqueoBiometrico = null;
+  document.documentElement.classList.remove("biometria-fallida");
   ocultarInicio();
 }
 

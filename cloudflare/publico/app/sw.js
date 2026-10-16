@@ -1,6 +1,6 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
-const CACHE = "nexora-v37";
-const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261017-splash", "/app/icon-nexora-192.png?v=20261014-icon", "/app/icon-nexora-512.png?v=20261014-icon", "/app/icon-nexora-maskable.png?v=20261014-icon", "/app/fondo-agenda.svg?v=20261008"];
+const CACHE = "nexora-v38";
+const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261017-splash-black", "/app/icon-nexora-192.png?v=20261014-icon", "/app/icon-nexora-512.png?v=20261014-icon", "/app/fondo-agenda.svg?v=20261008"];
 
 self.addEventListener("message", (e) => { if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting(); });
 
