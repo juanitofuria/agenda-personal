@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
 <defs>
- <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#fbfbff"/></linearGradient>
- <linearGradient id="purple" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#f02bdc"/><stop offset="1" stop-color="#7028f3"/></linearGradient>
- <linearGradient id="orange" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ffb900"/><stop offset="1" stop-color="#ff382e"/></linearGradient>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#fdfdff"/></linearGradient>
+ <linearGradient id="purple" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ef2bda"/><stop offset="1" stop-color="#7028ef"/></linearGradient>
+ <linearGradient id="orange" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ffb900"/><stop offset="1" stop-color="#ff392f"/></linearGradient>
  <linearGradient id="green" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#00e879"/><stop offset="1" stop-color="#00cda0"/></linearGradient>
+ <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient>
 </defs>
-<rect width="512" height="512" rx="92" fill="url(#bg)"/>
-<g fill="none" stroke-linecap="round" stroke-linejoin="round">
- <path d="M164 207 L256 126 L348 207" stroke="#a92af2" stroke-width="56"/>
- <path d="M164 207 L256 126 L348 207" stroke="url(#purple)" stroke-width="50"/>
- <path d="M166 279 L256 216 L346 279" stroke="#ff7a13" stroke-width="56"/>
- <path d="M166 279 L256 216 L346 279" stroke="url(#orange)" stroke-width="50"/>
- <path d="M186 337 L256 289 L326 337" stroke="#00b966" stroke-width="53"/>
- <path d="M186 337 L256 289 L326 337" stroke="url(#green)" stroke-width="47"/>
+<rect width="512" height="512" fill="url(#bg)"/>
+<g stroke-linecap="round" stroke-linejoin="round" fill="none">
+ <path d="M160 208 L256 128 L352 208" stroke="#d72be9" stroke-width="58"/>
+ <path d="M160 208 L256 128 L352 208" stroke="url(#purple)" stroke-width="53"/>
+ <path d="M162 279 L256 216 L350 279" stroke="#ff8513" stroke-width="58"/>
+ <path d="M162 279 L256 216 L350 279" stroke="url(#orange)" stroke-width="53"/>
+ <path d="M182 338 L256 290 L330 338" stroke="#00bd69" stroke-width="55"/>
+ <path d="M182 338 L256 290 L330 338" stroke="url(#green)" stroke-width="50"/>
+ <path d="M160 204 L256 124 L352 204" stroke="url(#shine)" stroke-width="53"/>
+ <path d="M162 275 L256 212 L350 275" stroke="url(#shine)" stroke-width="53"/>
+ <path d="M182 334 L256 286 L330 334" stroke="url(#shine)" stroke-width="50"/>
 </g>
 </svg>
