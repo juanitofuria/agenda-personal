@@ -4,7 +4,7 @@ name: Desplegar en Cloudflare
 # También se puede ejecutar manualmente desde GitHub Actions.
 on:
   push:
-    branches: [main, claude/android-notifications-app-pxj3sn]
+    branches: [main, claude/android-notifications-app-pxj3sn, cresofin-cambiar-icono-app]
     paths:
       - "cloudflare/**"
       - "firebase/functions/src/**"
