@@ -13,7 +13,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nexora">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<script>document.documentElement.dataset.modo=matchMedia("(prefers-color-scheme: dark)").matches?"oscuro":"claro";</script>
+<script>
+  document.documentElement.dataset.modo = matchMedia("(prefers-color-scheme: dark)").matches ? "oscuro" : "claro";
+  try {
+    const instalada = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+    if (instalada && localStorage.getItem("nexora-app-biometric-v1")) document.documentElement.classList.add("inicio-biometrico");
+  } catch {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Nunito:wght@600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -26,6 +32,8 @@ html[data-estilo=formal][data-modo=oscuro]{--fondo:#0a1832;--fondo2:#071127;--ta
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html.cargando-app body{overflow:hidden}
 html.cargando-app #app{visibility:hidden}
+html.inicio-biometrico #nx-bienvenida{display:none}
+html.inicio-biometrico body{background:var(--fondo)}
 #nx-bienvenida{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;overflow:hidden;padding:24px 20px calc(24px + env(safe-area-inset-bottom));color:#17233d;background:radial-gradient(ellipse at 50% 42%,#fff 0,#f4f7fc 55%,#e7edf7 100%);opacity:1;transition:opacity .24s ease}
 html[data-modo=oscuro] #nx-bienvenida{color:#fff;background:radial-gradient(ellipse at 50% 42%,#27304f 0,#191f3b 43%,#10162d 100%)}
 #nx-bienvenida.oculta{opacity:0;pointer-events:none}
@@ -659,7 +667,7 @@ ymbol>
 <script>
 let DEMO = new URLSearchParams(location.search).has("demo");
 let AUTH_CONFIGURED = false, AUTH_USER = null, ARRANCADO = false, REGISTRO_OBLIGATORIO = false;
-let accesoDesdeInicio = false, modoAccesoInicial = "login", avisoInicio = "", bloqueoBiometrico = null, desbloqueoAutomaticoPendiente = false;
+let accesoDesdeInicio = false, modoAccesoInicial = "login", avisoInicio = "", bloqueoBiometrico = null, biometriaFallida = false, configuracionBiometricaInvalida = false;
 let accesoPendiente = null;
 const NAV_GUARDADA = (() => { try { const n = JSON.parse(sessionStorage.getItem("agenda-vista") || "null"); return n && typeof n.vista === "string" ? n : null; } catch { return null; } })();
 const S = { datos: null, vista: NAV_GUARDADA?.vista || "inicio", pila: Array.isArray(NAV_GUARDADA?.pila) ? NAV_GUARDADA.pila : [], tipo: NAV_GUARDADA?.tipo || "alarma" };
@@ -1594,7 +1602,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261019", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261020", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
@@ -1612,10 +1620,11 @@ async function reproducirSonido(sonido) {
     audioSonido.preload = "auto";
     audioSonido.volume = 0.85;
     await audioSonido.play();
-  } catch (e) { /* el navegador puede bloquear audio iniciado fuera de una interacción */ }
+    return true;
+  } catch (e) { return false; }
 }
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", (e) => {
-  if (e.data?.tipo === "push-sonido") reproducirSonido(e.data.sonido);
+  if (e.data?.tipo === "push-sonido") reproducirSonido(e.data.sonido).then((reproducido) => e.ports[0]?.postMessage({ reproducido }));
   if (e.data?.tipo === "probar-sonido") reproducirSonido(e.data.sonido);
 });
 async function activarPush() {
@@ -1641,6 +1650,15 @@ document.addEventListener("click", async (e) => {
   if (q("[data-inicio-registro]")) { DEMO = false; return pintarAcceso("", "registro", true); }
   if (q("[data-inicio-prueba]") && !modoApp()) { DEMO = true; accesoDesdeInicio = false; ocultarInicio(); pintar(); return; }
   if (q("[data-volver-inicio]")) return cerrarAcceso();
+  if (q("[data-bio-reintentar]")) {
+    const boton = q("[data-bio-reintentar]");
+    boton.disabled = true;
+    try { await desbloquearConBiometria(); biometriaFallida = false; }
+    catch { $("#nx-bio-mensaje").textContent = "No se pudo confirmar tu identidad. Puedes volver a intentarlo o usar tu contraseña."; }
+    finally { if (boton.isConnected) boton.disabled = false; }
+    return;
+  }
+  if (q("[data-bio-password]")) return pedirContrasenaPorBiometria();
   if (q("[data-instalar-app]")) return instalarApp();
   if (q("[data-cerrar-acceso]")) return cerrarAcceso();
   if (q("[data-cerrar-cuenta]")) {
@@ -1929,6 +1947,7 @@ window.addEventListener("focus", refrescar);
 /* ---------- Arranque ---------- */
 (async () => {
   const inicioSplash = window.__nexoraSplashInicio ?? performance.now();
+  let biometriaAlArranque = document.documentElement.classList.contains("inicio-biometrico");
   try {
     const auth = await window.__bexoraAuthReady;
     AUTH_CONFIGURED = auth.configurado;
@@ -1937,6 +1956,37 @@ window.addEventListener("focus", refrescar);
       DEMO = !AUTH_USER;
     } else DEMO = true;
     REGISTRO_OBLIGATORIO = modoApp() && !AUTH_USER;
+    let reingresoConProveedor = false;
+    if (AUTH_USER) {
+      try {
+        reingresoConProveedor = sessionStorage.getItem("nexora-app-biometric-fallback") === AUTH_USER.uid;
+        sessionStorage.removeItem("nexora-app-biometric-fallback");
+      } catch {}
+    }
+    if (modoApp() && AUTH_USER) {
+      try {
+        bloqueoBiometrico = leerBiometriaAcceso(AUTH_USER.uid);
+      } catch (error) {
+        biometriaFallida = true;
+        configuracionBiometricaInvalida = true;
+        avisoInicio = error.message;
+        ARRANCADO = true;
+        $("#app").replaceChildren();
+        pintarAcceso(error.message, "inicio", true);
+        return;
+      }
+      if (bloqueoBiometrico && !reingresoConProveedor) {
+        biometriaAlArranque = true;
+        try {
+          await desbloquearConBiometria();
+        } catch {
+          ARRANCADO = true;
+          $("#app").replaceChildren();
+          pedirContrasenaPorBiometria();
+          return;
+        }
+      } else if (reingresoConProveedor) bloqueoBiometrico = null;
+    }
     const url = new URL(location.href);
     await cargar(); registrarSW(); if (!DEMO) await refrescarDispositivos();
     ARRANCADO = true;
@@ -1955,9 +2005,7 @@ window.addEventListener("focus", refrescar);
       : "";
     if (!AUTH_USER) mostrarInicio(avisoInicio);
     else if (modoApp()) {
-      bloqueoBiometrico = leerBiometriaAcceso(AUTH_USER.uid);
-      if (bloqueoBiometrico) mostrarDesbloqueo();
-      else if (localStorage.getItem("nexora-app-biometric-offer") === "1") {
+      if (!bloqueoBiometrico && localStorage.getItem("nexora-app-biometric-offer") === "1") {
         setTimeout(() => ofrecerBiometria().catch((error) => aviso(`No se pudo preparar la biometría: ${error.message}`)), 300);
       }
     }
@@ -1972,15 +2020,12 @@ window.addEventListener("focus", refrescar);
     }
   } catch (e) { $("#app").innerHTML = `<div class="cargando" style="line-height:1.6">${e.sesion ? "No se pudo iniciar la sesión. Recarga la página para volver a intentarlo." : esc(e.message)}</div>`; }
   finally {
-    const restante = Math.max(0, 2000 - (performance.now() - inicioSplash));
+    const restante = biometriaAlArranque ? 0 : Math.max(0, 2000 - (performance.now() - inicioSplash));
     if (restante) await new Promise((resolve) => setTimeout(resolve, restante));
     document.documentElement.classList.remove("cargando-app");
+    document.documentElement.classList.remove("inicio-biometrico");
     const bienvenida = $("#nx-bienvenida");
     if (bienvenida) { bienvenida.classList.add("oculta"); setTimeout(() => bienvenida.remove(), 260); }
-    if (desbloqueoAutomaticoPendiente) {
-      desbloqueoAutomaticoPendiente = false;
-      setTimeout(() => desbloquearConBiometria().catch(() => pedirContrasenaPorBiometria()), 300);
-    }
   }
 })();
 
@@ -2041,10 +2086,22 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
       return;
     }
     await window.bexoraAuth.entrar(email(), password());
-    if (bloqueoBiometrico && AUTH_USER?.uid === window.bexoraAuth.usuario?.uid) {
+    if ((bloqueoBiometrico || biometriaFallida) && AUTH_USER?.uid === window.bexoraAuth.usuario?.uid) {
+      if (!S.datos) {
+        await cargar();
+        registrarSW();
+        await refrescarDispositivos();
+      }
       bloqueoBiometrico = null;
+      biometriaFallida = false;
+      if (configuracionBiometricaInvalida) {
+        localStorage.removeItem("nexora-app-biometric-v1");
+        configuracionBiometricaInvalida = false;
+      }
+      DEMO = false;
       modal.remove();
       accesoDesdeInicio = false;
+      pintar();
       ocultarInicio();
     }
   }); });
@@ -2060,8 +2117,14 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
     $("#acceso-password", modal).minLength = modoAcceso === "registro" ? 8 : 6;
     $(".acceso-mensaje", modal).textContent = "";
   });
-  $("#entrar-google").addEventListener("click", () => ejecutar(() => window.bexoraAuth.entrarGoogle()));
-  $("#entrar-apple").addEventListener("click", () => ejecutar(() => window.bexoraAuth.entrarApple()));
+  $("#entrar-google").addEventListener("click", () => ejecutar(() => {
+    if (biometriaFallida && AUTH_USER) sessionStorage.setItem("nexora-app-biometric-fallback", AUTH_USER.uid);
+    return window.bexoraAuth.entrarGoogle();
+  }));
+  $("#entrar-apple").addEventListener("click", () => ejecutar(() => {
+    if (biometriaFallida && AUTH_USER) sessionStorage.setItem("nexora-app-biometric-fallback", AUTH_USER.uid);
+    return window.bexoraAuth.entrarApple();
+  }));
   $("#comprobar-verificacion").addEventListener("click", () => ejecutar(async () => {
     await window.bexoraAuth.comprobarVerificacion();
     if (!window.bexoraAuth.usuario) $(".acceso-mensaje", modal).textContent = "Aún no vemos la verificación. Abre el enlace del correo y vuelve a esta página.";
@@ -2085,7 +2148,8 @@ function mostrarInicio(mensaje = "") {
   pantalla.hidden = false;
   if (bloqueoBiometrico) {
     acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje || "Desbloquea Nexora para abrir tu agenda.")}</p>
-      <p class="acceso-mensaje" id="nx-bio-mensaje" role="status">Confirma tu identidad en el dispositivo.</p>`;
+      ${biometriaFallida ? `<button class="btn" type="button" data-bio-reintentar>Reintentar biometría</button><button class="btn sec" type="button" data-bio-password>Usar contraseña</button>` : ""}
+      <p class="acceso-mensaje" id="nx-bio-mensaje" role="status">${biometriaFallida ? "" : "Confirma tu identidad en el dispositivo."}</p>`;
   } else {
     acciones.innerHTML = `<p class="nx-inicio-mensaje" id="nx-inicio-mensaje" role="status">${esc(mensaje)}</p>
       <button class="btn" type="button" data-inicio-login>Iniciar sesión</button>
@@ -2100,13 +2164,9 @@ function ocultarInicio() {
   actualizarBloqueoAcceso();
 }
 
-function mostrarDesbloqueo() {
-  desbloqueoAutomaticoPendiente = true;
-  mostrarInicio("Desbloqueando Nexora con biometría…");
-}
-
 function pedirContrasenaPorBiometria() {
   const mensaje = "No se pudo confirmar tu identidad con biometría. Inicia sesión con tu contraseña para continuar.";
+  biometriaFallida = true;
   mostrarInicio(mensaje);
   pintarAcceso(mensaje, "inicio", true);
   $("#acceso-password")?.focus();
@@ -2271,7 +2331,7 @@ function mensajeAuth(error) {
 
 function cerrarAcceso(cancelarOperacion = true) {
   $("#modal-acceso")?.remove();
-  const volverAInicio = accesoDesdeInicio && !AUTH_USER;
+  const volverAInicio = accesoDesdeInicio && (!AUTH_USER || biometriaFallida);
   accesoDesdeInicio = false;
   if (cancelarOperacion) quitarEscrituraPendiente();
   if (accesoPendiente) {

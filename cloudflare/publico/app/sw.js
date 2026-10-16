@@ -1,5 +1,5 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
-const CACHE = "nexora-v35";
+const CACHE = "nexora-v36";
 const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261014-icon", "/app/icon-nexora-192.png?v=20261014-icon", "/app/icon-nexora-512.png?v=20261014-icon", "/app/icon-nexora-maskable.png?v=20261014-icon", "/app/fondo-agenda.svg?v=20261008"];
 
 self.addEventListener("message", (e) => { if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting(); });
@@ -21,14 +21,42 @@ self.addEventListener("fetch", (e) => {
   }).catch(() => caches.match(e.request).then((r) => r || caches.match("/app/"))));
 });
 
+async function reproducirSonidoEnApp(sonido) {
+  const paginas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const pagina = paginas.find((cliente) => cliente.visibilityState === "visible");
+  if (!pagina) return false;
+  const canal = new MessageChannel();
+  return new Promise((resolve) => {
+    let terminado = false;
+    const finalizar = (reproducido) => {
+      if (terminado) return;
+      terminado = true;
+      clearTimeout(limite);
+      canal.port1.close();
+      resolve(reproducido);
+    };
+    const limite = setTimeout(() => finalizar(false), 1500);
+    canal.port1.onmessage = (mensaje) => finalizar(mensaje.data?.reproducido === true);
+    try {
+      pagina.postMessage({ tipo: "push-sonido", sonido }, [canal.port2]);
+    } catch {
+      finalizar(false);
+    }
+  });
+}
+
 self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: "Nexora", cuerpo: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.titulo || "Nexora", {
-    body: d.cuerpo || "", icon: "/app/icon-nexora-192.png?v=20261014-icon", badge: "/app/icon-nexora-192.png?v=20261014-icon", tag: d.etiqueta || undefined, renotify: !!d.etiqueta,
-    actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
-    data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
-  }));
+  e.waitUntil((async () => {
+    const sonido = ["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(d.sonido) ? d.sonido : "signature";
+    const sonidoEnApp = await reproducirSonidoEnApp(sonido);
+    await self.registration.showNotification(d.titulo || "Nexora", {
+      body: d.cuerpo || "", icon: "/app/icon-nexora-192.png?v=20261014-icon", badge: "/app/icon-nexora-192.png?v=20261014-icon", tag: d.etiqueta || undefined, renotify: !!d.etiqueta, silent: sonidoEnApp,
+      actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
+      data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
+    });
+  })());
 });
 
 self.addEventListener("notificationclick", (e) => {
