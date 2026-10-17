@@ -1,6 +1,6 @@
 /* Service worker de la app instalada: abre rápido, avisa si no hay conexión y recibe las notificaciones push. */
 const CACHE = "nexora-v39";
-const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261017-arrows", "/app/icon-nexora-flechas-192.png?v=20261017-arrows", "/app/icon-nexora-flechas-512.png?v=20261017-arrows", "/app/fondo-agenda.svg?v=20261008"];
+const BASICOS = ["/app/", "/app/frases.js", "/app/manifest.webmanifest?v=20261017-transparent-arrows", "/app/icon-nexora-flechas-192.png?v=20261017-transparent-arrows", "/app/icon-nexora-flechas-512.png?v=20261017-transparent-arrows", "/app/fondo-agenda.svg?v=20261008"];
 
 self.addEventListener("message", (e) => { if (e.data && e.data.type === "SKIP_WAITING") self.skipWaiting(); });
 
@@ -52,7 +52,7 @@ self.addEventListener("push", (e) => {
     const sonido = ["signature", "crystal", "pulse", "halo", "orbit", "velvet"].includes(d.sonido) ? d.sonido : "signature";
     const sonidoEnApp = await reproducirSonidoEnApp(sonido);
     await self.registration.showNotification(d.titulo || "Nexora", {
-      body: d.cuerpo || "", icon: "/app/icon-nexora-flechas-192.png?v=20261017-arrows", badge: "/app/icon-nexora-flechas-192.png?v=20261017-arrows", tag: d.etiqueta || undefined, renotify: !!d.etiqueta, silent: sonidoEnApp,
+      body: d.cuerpo || "", icon: "/app/icon-nexora-flechas-192.png?v=20261017-transparent-arrows", badge: "/app/icon-nexora-flechas-192.png?v=20261017-transparent-arrows", tag: d.etiqueta || undefined, renotify: !!d.etiqueta, silent: sonidoEnApp,
       actions: d.enlace ? [{ action: "enlace", title: d.enlace.texto }] : [],
       data: { url: d.url || "/app/", enlace: d.enlace ? d.enlace.url : "" },
     });
