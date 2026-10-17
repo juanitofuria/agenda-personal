@@ -1,0 +1,113 @@
+name: Reparar transparencia del icono de inicio de sesión
+
+on:
+  push:
+    branches: [cresofin-cambiar-icono-app]
+    paths: ['.github/workflows/temporary-transparent-login-icon.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  reparar-y-publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cresofin-cambiar-icono-app
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Convertir el fondo negro conectado al borde en transparencia real
+        run: |
+          python -m pip install --quiet pillow
+          python - <<'PY'
+          from PIL import Image
+          from collections import deque
+          from pathlib import Path
+
+          paths = [
+              Path("cloudflare/publico/app/icon-nexora-flechas-192.png"),
+              Path("cloudflare/publico/app/icon-nexora-flechas-512.png"),
+          ]
+          for path in paths:
+              image = Image.open(path).convert("RGBA")
+              px = image.load()
+              w, h = image.size
+              seen = bytearray(w * h)
+              q = deque()
+
+              def near_black(x, y):
+                  r, g, b, a = px[x, y]
+                  return a > 0 and max(r, g, b) <= 48
+
+              # Detect only the black background connected to the image border,
+              # so black details inside the symbol are not removed.
+              for x in range(w):
+                  for y in (0, h - 1):
+                      i = y * w + x
+                      if not seen[i] and near_black(x, y):
+                          seen[i] = 1
+                          q.append((x, y))
+              for y in range(h):
+                  for x in (0, w - 1):
+                      i = y * w + x
+                      if not seen[i] and near_black(x, y):
+                          seen[i] = 1
+                          q.append((x, y))
+              while q:
+                  x, y = q.popleft()
+                  for nx, ny in ((x-1,y),(x+1,y),(x,y-1),(x,y+1)):
+                      if 0 <= nx < w and 0 <= ny < h:
+                          i = ny * w + nx
+                          if not seen[i] and near_black(nx, ny):
+                              seen[i] = 1
+                              q.append((nx, ny))
+
+              # Transparentize the background and soften the transition edge.
+              removed = 0
+              for y in range(h):
+                  for x in range(w):
+                      i = y * w + x
+                      if seen[i]:
+                          r, g, b, a = px[x, y]
+                          # Pixels near black that touch the exterior are background.
+                          if max(r, g, b) <= 24:
+                              px[x, y] = (r, g, b, 0)
+                              removed += 1
+                          else:
+                              alpha = round(a * (max(r, g, b) - 24) / 24)
+                              px[x, y] = (r, g, b, max(0, min(a, alpha)))
+              image.save(path, format="PNG", optimize=True)
+              check = Image.open(path).convert("RGBA")
+              transparent = sum(1 for _, _, _, a in check.getdata() if a == 0)
+              if transparent == 0:
+                  raise SystemExit(f"{path}: no se obtuvo transparencia; se cancela.")
+              print(f"{path}: {w}x{h}, píxeles transparentes={transparent}, fondo eliminado={removed}")
+          PY
+      - name: Quitar el ajuste CSS anterior que no eliminaba el fondo
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("cloudflare/publico/app/index.html")
+          s = p.read_text()
+          s = s.replace(".nx-inicio-marca img{width:min(30vw,150px);height:auto;background:transparent;border-radius:0;mix-blend-mode:screen}", ".nx-inicio-marca img{width:min(30vw,150px);height:auto}")
+          p.write_text(s)
+          PY
+      - name: Eliminar este flujo temporal y guardar los iconos corregidos
+        run: |
+          rm .github/workflows/temporary-transparent-login-icon.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloudflare/publico/app/icon-nexora-flechas-192.png cloudflare/publico/app/icon-nexora-flechas-512.png cloudflare/publico/app/index.html .github/workflows/temporary-transparent-login-icon.yml
+          git commit -m "Fix transparent background on login icon"
+          git push origin HEAD:cresofin-cambiar-icono-app
+      - name: Publicar en Firebase Hosting si está habilitado
+        if: ${{ vars.FIREBASE_HOSTING_READY == 'true' }}
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BEXORA_AGENDA_PERSONAL }}
+          projectId: bexora-agenda-personal
+          channelId: live
+          entryPoint: firebase
