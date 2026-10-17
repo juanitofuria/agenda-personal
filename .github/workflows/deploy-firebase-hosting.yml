@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   desplegar:
-    if: (github.ref == 'refs/heads/claude/android-notifications-app-pxj3sn' || github.ref == 'refs/heads/cresofin-cambiar-icono-app') && vars.FIREBASE_HOSTING_READY == 'true'
+    if: github.ref == 'refs/heads/claude/android-notifications-app-pxj3sn' || github.ref == 'refs/heads/cresofin-cambiar-icono-app'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
