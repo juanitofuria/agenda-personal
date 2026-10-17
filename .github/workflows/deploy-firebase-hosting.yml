@@ -21,8 +21,17 @@ jobs:
   desplegar:
     if: github.ref == 'refs/heads/claude/android-notifications-app-pxj3sn' || github.ref == 'refs/heads/cresofin-cambiar-icono-app'
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BEXORA_AGENDA_PERSONAL }}
     steps:
       - uses: actions/checkout@v4
+      - name: Comprobar credenciales de Firebase
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Falta el secreto FIREBASE_SERVICE_ACCOUNT_BEXORA_AGENDA_PERSONAL. Créalo en Settings > Secrets and variables > Actions con el JSON de una cuenta de servicio del proyecto Firebase bexora-agenda-personal."
+            exit 1
+          fi
+          node -e 'const fs=require("fs"); const s=process.env.FIREBASE_SERVICE_ACCOUNT; try { const j=JSON.parse(s); if (!j.project_id || !j.client_email || !j.private_key) throw new Error("Faltan project_id, client_email o private_key"); console.log("El secreto contiene un JSON de cuenta de servicio válido."); } catch(e) { console.error("::error::El secreto de Firebase no contiene un JSON válido de cuenta de servicio: "+e.message); process.exit(1); }'
       - name: Preparar contenido de Hosting dentro del proyecto Firebase
         run: |
           mkdir -p firebase/hosting-public
