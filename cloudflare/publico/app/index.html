@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,user-scalable=yes">
 <title>Nexora</title>
-<link rel="manifest" href="manifest.webmanifest?v=20261017-transparent-arrows-v2">
-<link rel="apple-touch-icon" href="icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v2">
-<link id="favicon" rel="icon" type="image/png" href="icon-nexora-flechas-192.png?v=20261017-transparent-arrows-v2">
+<link rel="manifest" href="manifest.webmanifest?v=20261017-transparent-arrows-v3">
+<link rel="apple-touch-icon" href="icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v3">
+<link id="favicon" rel="icon" type="image/png" href="icon-nexora-flechas-192.png?v=20261017-transparent-arrows-v3">
 
 <meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -652,13 +652,13 @@ ymbol>
 </defs></svg>
 <div id="nx-bienvenida" role="status" aria-label="Nexora se está iniciando">
   <div class="nx-bienvenida-centro">
-    <img class="nx-bienvenida-icono" src="icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v2" alt="">
+    <img class="nx-bienvenida-icono" src="icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v3" alt="">
   </div>
 </div>
 <script>window.__nexoraSplashInicio=performance.now();</script>
 <section id="nx-inicio" hidden aria-labelledby="nx-inicio-titulo">
   <div class="nx-inicio-marca">
-    <img src="icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v2" alt="">
+    <img src="icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v3" alt="">
     <div class="nx-bienvenida-nombre" id="nx-inicio-titulo"><span class="nx-bienvenida-n">N</span>e<span class="nx-bienvenida-x">X</span>ora</div>
     <p>Tu espacio personal, organizado y siempre contigo.</p>
   </div>
@@ -698,8 +698,8 @@ const ic = (n) => `<svg><use href="#i-${n}"/></svg>`;
 
 /* ---------- Tema: estilo del usuario y modo (claro/oscuro/automático) ---------- */
 function actualizarIconos() {
-  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-flechas-192.png?v=20261017-transparent-arrows-v2";
-  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v2";
+  const f = document.getElementById("favicon"); if (f) f.href = "icon-nexora-flechas-192.png?v=20261017-transparent-arrows-v3";
+  const a = document.querySelector("link[rel='apple-touch-icon']"); if (a) a.href = "icon-nexora-flechas-512.png?v=20261017-transparent-arrows-v3";
 }
 function actualizarColorTema(modo, accesoVisible) {
   const metaTema = document.querySelector('meta[name="theme-color"]');
@@ -1616,7 +1616,7 @@ async function registrarSW() {
         sessionStorage.setItem(clave, "1"); location.reload();
       });
     }
-    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-transparent-arrows-v2", { scope: "/app/", updateViaCache: "none" });
+    const reg = await navigator.serviceWorker.register("sw.js?v=20261017-transparent-arrows-v3", { scope: "/app/", updateViaCache: "none" });
     reg.update().catch(() => {});
     if (reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
     reg.addEventListener("updatefound", () => { const worker=reg.installing; if(worker) worker.addEventListener("statechange",()=>{if(worker.state==="installed"&&navigator.serviceWorker.controller) worker.postMessage({type:"SKIP_WAITING"});}); });
@@ -2067,7 +2067,7 @@ function pintarAcceso(mensaje = "", modo = REGISTRO_OBLIGATORIO ? "registro" : "
   modal.className = REGISTRO_OBLIGATORIO ? "acceso-modal acceso-obligatorio" : "acceso-modal";
   modal.innerHTML = `<section class="acceso-cuenta" role="dialog" aria-modal="true" aria-labelledby="titulo-acceso">
     ${desdeInicio ? `<button type="button" class="acceso-cerrar" data-volver-inicio aria-label="Volver">←</button>` : REGISTRO_OBLIGATORIO ? "" : `<button type="button" class="acceso-cerrar" data-cerrar-acceso aria-label="Cerrar">×</button>`}
-    <img src="icon-nexora-flechas-192.png?v=20261017-transparent-arrows-v2" alt="" width="76" height="76">
+    <img src="icon-nexora-flechas-192.png?v=20261017-transparent-arrows-v3" alt="" width="76" height="76">
     <h1 id="titulo-acceso">${modo === "registro" ? "Crea tu cuenta Nexora" : "Inicia sesión"}</h1>
     <p id="acceso-descripcion">${modo === "registro" ? "Te enviaremos un enlace para verificar tu correo. Así podrás guardar tus datos y sincronizarlos en todos tus dispositivos." : "Accede a tu agenda y recupera tus datos y configuraciones guardados."}</p>
     ${AUTH_CONFIGURED ? `<form id="form-acceso">
