@@ -672,8 +672,8 @@ ymbol>
 <div class="app" id="app"><div class="cargando">Cargando…</div></div>
 <script src="frases.js"></script>
 <script>window.__bexoraAuthReady = new Promise((resolve, reject) => { const limite = setTimeout(() => reject(new Error("No se pudo iniciar el módulo de autenticación. Recarga la página.")), 15000); window.__bexoraAuthResolve = (value) => { clearTimeout(limite); resolve(value); }; window.__bexoraAuthReject = (error) => { clearTimeout(limite); reject(error); }; });</script>
-<script>window.BEXORA_API_ORIGIN = location.hostname === "bexora-agenda-personal.web.app" ? "https://agenda-personal.cresofin.workers.dev" : "";</script>
-<script type="module" src="firebase-auth.js?v=20261014-nexora"></script>
+<script>window.BEXORA_API_ORIGIN = ["bexora-agenda-personal.web.app", "nexora-agenda-personal.web.app"].includes(location.hostname) ? "https://agenda-personal.cresofin.workers.dev" : "";</script>
+<script type="module" src="firebase-auth.js?v=20261017-api-origin-fix"></script>
 <script>
 let DEMO = new URLSearchParams(location.search).has("demo");
 let AUTH_CONFIGURED = false, AUTH_USER = null, ARRANCADO = false, REGISTRO_OBLIGATORIO = false;
